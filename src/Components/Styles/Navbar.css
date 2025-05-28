@@ -1,0 +1,180 @@
+:root {
+  --orange: #ff6f00;
+  --text: #333;
+  --bg-light: #f9f9f9;
+  --border: #ddd;
+  --radius: 12px;
+  --font: "Segoe UI", sans-serif;
+}
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  font-family: var(--font);
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  margin-top: 0%;
+  width: 100%;
+  z-index: 1000;
+}
+
+/* Navbar Left: Language + Login */
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Language Selector */
+.language-select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+}
+
+/* Brand/Logo */
+.brand {
+  color: var(--orange);
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+/* Center Section */
+.navbar-center {
+  display: flex;
+  gap: 0.75rem;
+  flex-grow: 1;
+  justify-content: center;
+  align-items: center;
+}
+
+.search-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  width: 140px;
+}
+
+.search-button {
+  background: var(--orange);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.search-button:hover {
+  background: #e66000;
+}
+
+.passenger-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-light);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.passenger-counter button {
+  background: var(--orange);
+  color: white;
+  border: none;
+  font-size: 1.2rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.passenger-counter button:hover {
+  background: #e66000;
+}
+
+/* Right Section: Publish & Login */
+.publish-button {
+  background: transparent;
+  color: var(--orange);
+  border: 2px solid var(--orange);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 1rem;
+  transition: all 0.3s ease;
+}
+
+.publish-button:hover {
+  background: var(--orange);
+  color: white;
+}
+
+.login-dropdown {
+  position: relative;
+}
+
+.login-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 2.5rem;
+  background-color: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.login-dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.2s ease;
+}
+
+.dropdown-content a:hover {
+  background: var(--bg-light);
+}

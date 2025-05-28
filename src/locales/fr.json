@@ -1,0 +1,14 @@
+{
+  "welcome": "Bienvenue sur",
+  "search": "Rechercher",
+  "publish": "Publier un trajet",
+  "login": "Se connecter",
+  "register": "S'inscrire",
+  "searchPlaceholder": "Rechercher des trajets",
+  "publishJourney": "Publier un trajet",
+  "from": "Départ",
+  "to": "Destination",
+  "date": "Aujourd'hui",
+  "passenger": "Passager",
+  "passengers": "Passagers"
+}
