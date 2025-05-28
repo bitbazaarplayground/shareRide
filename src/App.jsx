@@ -1,17 +1,19 @@
-import { Suspense } from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import "./App.css";
 import Navbar from "./Components/Navbar";
 import Homepage from "./Pages/Homepage";
+import Login from "./Pages/Login";
+import SignUp from "./Pages/SignUp";
 import "./i18n";
-
-function App() {
+export default function App() {
   return (
-    <Suspense fallback="Loading...">
+    <Router>
       <Navbar />
-      {/* ... rest of your app */}
-      <Homepage />
-    </Suspense>
+      <Routes>
+        <Route path="/" element={<Homepage />} />
+        <Route path="/register" element={<SignUp />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </Router>
   );
 }
-
-export default App;

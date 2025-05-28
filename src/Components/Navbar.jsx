@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import LanguageSwitcher from "./LanguageSwitcher";
 import PassengerCounter from "./PassengerCounter";
 import "./Styles/Navbar.css";
@@ -7,6 +8,25 @@ import "./Styles/Navbar.css";
 export default function Navbar() {
   const { t } = useTranslation();
   const [today] = useState(() => new Date().toISOString().split("T")[0]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   return (
     <nav className="navbar">
@@ -33,12 +53,27 @@ export default function Navbar() {
       <div className="navbar-right">
         <LanguageSwitcher />
         <button className="publish-button">{t("publishJourney")}</button>
-        <div className="login-dropdown">
-          <button className="login-btn">☰</button>
-          <div className="dropdown-content">
-            <a href="/login">{t("login")}</a>
-            <a href="/register">{t("register")}</a>
-          </div>
+
+        <div className="login-dropdown" ref={dropdownRef}>
+          <button
+            className="login-btn"
+            aria-haspopup="true"
+            aria-expanded={dropdownOpen}
+            onClick={() => setDropdownOpen((prev) => !prev)}
+          >
+            ☰
+          </button>
+
+          {dropdownOpen && (
+            <div className="dropdown-content">
+              <Link to="/login" onClick={() => setDropdownOpen(false)}>
+                {t("login")}
+              </Link>
+              <Link to="/register" onClick={() => setDropdownOpen(false)}>
+                {t("register")}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </nav>
