@@ -23,18 +23,30 @@ export default function SignUp() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name,
-            nickname,
-            age,
-            interests,
-          },
-        },
       });
 
       if (error) {
         throw error;
+      }
+
+      const user = data.user;
+
+      // ✅ Add user to "profiles" table
+      if (data?.user) {
+        const { error: insertError } = await supabase.from("profiles").insert([
+          {
+            id: data.user.id, // this MUST match the uuid primary key in your profiles table
+            name,
+            nickname,
+            age,
+            interests,
+            email,
+          },
+        ]);
+
+        if (insertError) {
+          throw insertError;
+        }
       }
 
       setMessage(`Thanks for signing up, ${name || "friend"}!`);
@@ -45,6 +57,10 @@ export default function SignUp() {
   const handleGoogleSignup = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo:
+          "https://bitbazaarplayground.github.io/shareRide/auth/callback",
+      },
     });
     if (error) setMessage(error.message);
   };
@@ -52,6 +68,10 @@ export default function SignUp() {
   const handleFacebookSignup = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "facebook",
+      options: {
+        redirectTo:
+          "https://bitbazaarplayground.github.io/shareRide/auth/callback",
+      },
     });
     if (error) setMessage(error.message);
   };
