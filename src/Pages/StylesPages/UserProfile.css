@@ -1,0 +1,100 @@
+.profile-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  background: #fff;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  font-family: sans-serif;
+}
+
+h2 {
+  text-align: center;
+  color: #333;
+}
+
+.profile-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.profile-pic {
+  flex: 1;
+  text-align: center;
+}
+
+.avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+}
+
+.profile-info {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.profile-info label {
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.profile-info input,
+.profile-info textarea {
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.interest-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.interest-chip {
+  background-color: #e0e0e0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.interest-chip button {
+  background: none;
+  border: none;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  color: #555;
+}
+
+.save-btn {
+  display: block;
+  margin: 2rem auto 0;
+  padding: 0.8rem 2rem;
+  background-color: #007bff;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.save-btn:hover {
+  background-color: #0056b3;
+}
