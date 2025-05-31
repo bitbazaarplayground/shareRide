@@ -1,30 +1,65 @@
-:root {
-  --orange: #ff6f00;
-  --text: #333;
-  --bg-light: #f9f9f9;
-  --border: #ddd;
-  --radius: 12px;
-  --font: "Segoe UI", sans-serif;
+html,
+body {
+  margin-top: 0;
+  padding: 0;
 }
 
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: white;
-  border-bottom: 1px solid var(--border);
+  background: #e66000;
   position: sticky;
-  margin-top: 0%;
-  width: 100%;
+  top: 0;
   z-index: 1000;
+  width: 100%;
+  margin: 0;
+  padding: 12px 0;
+  font-family: "Inter", sans-serif;
 }
 
-/* Navbar Left: Language + Login */
-.navbar-left {
+.navbar-left-group {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 2rem; /* space between brand and nav links */
+}
+
+.navbar-left .brand {
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  margin-left: 2rem;
+}
+
+.navbar-center {
+  display: flex;
+  gap: 1.5rem;
+  /* Check align items - should be left? */
+  align-items: center;
+}
+
+.navbar-center a,
+.about-btn {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+.arrow {
+  display: inline-block;
+  margin-left: 4px;
+  transition: transform 0.2s ease;
+  vertical-align: middle;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transform: scale(1.2);
+}
+
+.about-btn.open .arrow {
+  transform: rotate(180deg);
 }
 
 .navbar-right {
@@ -33,132 +68,60 @@
   gap: 1rem;
 }
 
-/* Language Selector */
-.language-select {
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1rem;
-  background: white;
-  cursor: pointer;
-}
-
-/* Brand/Logo */
-.brand {
-  color: var(--orange);
-  font-size: 1.6rem;
-  font-weight: bold;
-}
-
-/* Center Section */
-.navbar-center {
-  display: flex;
-  gap: 0.75rem;
-  flex-grow: 1;
-  justify-content: center;
-  align-items: center;
-}
-
-.search-input {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 1rem;
-  width: 140px;
-}
-
-.search-button {
-  background: var(--orange);
+.help-link {
   color: white;
-  padding: 0.6rem 1.2rem;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* Button styles */
+.btn {
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
   border: none;
-  border-radius: var(--radius);
   cursor: pointer;
-  font-weight: 600;
+  text-decoration: none;
   transition: background 0.3s ease;
 }
 
-.search-button:hover {
-  background: #e66000;
-}
-
-.passenger-counter {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  background: var(--bg-light);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-}
-
-.passenger-counter button {
-  background: var(--orange);
+.btn.black {
+  background: black;
   color: white;
-  border: none;
-  font-size: 1.2rem;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background 0.2s ease;
 }
 
-.passenger-counter button:hover {
-  background: #e66000;
-}
-
-/* Right Section: Publish & Login */
-.publish-button {
+.btn.white {
   background: transparent;
-  color: var(--orange);
-  border: 2px solid var(--orange);
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-weight: 600;
-  margin-right: 1rem;
-  transition: all 0.3s ease;
+  color: White;
 }
 
-.publish-button:hover {
-  background: var(--orange);
-  color: white;
+.btn.white:hover {
+  background: #f2f2f2;
 }
 
-.login-dropdown {
+.btn.black:hover {
+  background: #333;
+}
+
+/* About dropdown */
+.about-dropdown {
   position: relative;
 }
 
-.login-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-.dropdown-content {
+.about-dropdown-content {
   position: absolute;
-  right: 0;
-  top: 2.5rem;
-  background-color: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-}
-.dropdown-hidden {
-  display: none;
+  top: 2rem;
+  left: 0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
-.dropdown-content a {
+.about-dropdown-content a {
   display: block;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem;
+  color: #333;
   text-decoration: none;
-  color: var(--text);
-  transition: background 0.2s ease;
-}
-
-.dropdown-content a:hover {
-  background: var(--bg-light);
 }
