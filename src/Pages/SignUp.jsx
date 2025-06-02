@@ -14,7 +14,9 @@ export default function SignUp() {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (age && (isNaN(age) || age < 13)) {
+    setMessage("");
+
+    if (isNaN(age) || age < 13) {
       setMessage("You must be at least 13 years old.");
       return;
     }
@@ -26,16 +28,23 @@ export default function SignUp() {
       });
 
       if (error) {
-        throw error;
+        if (
+          error.message.toLowerCase().includes("already registered") ||
+          error.status === 400
+        ) {
+          setMessage("An account with this email already exists.");
+        } else {
+          setMessage(error.message);
+        }
+        return;
       }
 
-      const user = data.user;
+      const user = data?.user;
 
-      // ✅ Add user to "profiles" table
-      if (data?.user) {
+      if (user) {
         const { error: insertError } = await supabase.from("profiles").insert([
           {
-            id: data.user.id, // this MUST match the uuid primary key in your profiles table
+            id: user.id,
             name,
             nickname,
             age,
@@ -47,33 +56,30 @@ export default function SignUp() {
         if (insertError) {
           throw insertError;
         }
-      }
 
-      setMessage(`Thanks for signing up, ${name || "friend"}!`);
-    } catch (error) {
-      setMessage(error.message || "Something went wrong. Please try again.");
+        setMessage(
+          `Thanks for signing up, ${
+            name || "friend"
+          }! Please check your email to confirm your account.`
+        );
+      }
+    } catch (err) {
+      setMessage(err.message || "Something went wrong. Please try again.");
     }
   };
-  const handleGoogleSignup = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo:
-          "https://bitbazaarplayground.github.io/shareRide/auth/callback",
-      },
-    });
-    if (error) setMessage(error.message);
-  };
 
-  const handleFacebookSignup = async () => {
+  const handleOAuthSignup = async (provider) => {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
+      provider,
       options: {
         redirectTo:
           "https://bitbazaarplayground.github.io/shareRide/auth/callback",
       },
     });
-    if (error) setMessage(error.message);
+
+    if (error) {
+      setMessage(error.message || "OAuth sign-up failed.");
+    }
   };
 
   return (
@@ -130,16 +136,28 @@ export default function SignUp() {
 
       <div className="social-icons">
         <p>Or sign up with:</p>
-        <button className="social-btn google" onClick={handleGoogleSignup}>
+        <button
+          className="social-btn google"
+          onClick={() => handleOAuthSignup("google")}
+        >
           <FaGoogle size={24} color="#DB4437" />
         </button>
-        <button className="social-btn facebook" onClick={handleFacebookSignup}>
+        <button
+          className="social-btn facebook"
+          onClick={() => handleOAuthSignup("facebook")}
+        >
           <FaFacebookF size={24} color="#1877F2" />
         </button>
-        <button className="social-btn instagram">
+        <button
+          className="social-btn instagram"
+          onClick={() => setMessage("Instagram sign-up not yet implemented.")}
+        >
           <FaInstagram size={24} color="#E4405F" />
         </button>
-        <button className="social-btn apple">
+        <button
+          className="social-btn apple"
+          onClick={() => setMessage("Apple sign-up not yet implemented.")}
+        >
           <FaApple size={24} color="#333" />
         </button>
       </div>
