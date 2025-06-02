@@ -7,15 +7,39 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuth = async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession(
+      const { data, error } = await supabase.auth.exchangeCodeForSession(
         window.location.href
       );
 
       if (error) {
         console.error("Error exchanging code for session:", error.message);
-        navigate("/login"); // fallback if auth fails
+        navigate("/login");
       } else {
-        navigate("/profile"); // go to profile after login
+        const user = data.session.user;
+
+        // Insert profile row if it doesn't exist
+        const { data: existingProfile, error: fetchError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!existingProfile) {
+          const { error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              email: user.email,
+              name: user.user_metadata.name || "", // Google provides display name
+              avatar_url: user.user_metadata.avatar_url || "",
+            });
+
+          if (insertError) {
+            console.error("Error creating profile:", insertError.message);
+          }
+        }
+
+        navigate("/profile");
       }
     };
 

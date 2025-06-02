@@ -5,39 +5,55 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null); // 👈 Add this
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch current session user on mount
-    const fetchUser = async () => {
+    const getSessionAndProfile = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-    };
-    fetchUser();
+      const currentUser = session?.user;
 
-    // Listen for auth changes (SIGNED_IN and SIGNED_OUT)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "SIGNED_IN") {
-          setUser(session.user);
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
+      setUser(currentUser);
+
+      // ✅ Fetch role from profiles table if user exists
+      if (currentUser) {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", currentUser.id)
+          .single();
+
+        if (!error) {
+          setRole(profile.role); // 👈 Store role in context
+        } else {
+          console.error("Error fetching role:", error);
         }
+      }
+
+      setLoading(false);
+    };
+
+    getSessionAndProfile();
+
+    // Optional: Listen for auth state changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
       }
     );
 
     return () => {
-      authListener.subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, role, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook for accessing auth context easily
 export const useAuth = () => useContext(AuthContext);
