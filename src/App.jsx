@@ -17,6 +17,8 @@ import Results from "./Pages/Results";
 import UserProfile, { default as SignUp } from "./Pages/UserProfile";
 
 import "./i18n";
+import AdminDashboard from "./Pages/AdminDashboard";
+import OurMission from "./Pages/OurMission";
 
 export default function App() {
   return (
@@ -29,7 +31,9 @@ export default function App() {
         <div className="app-content">
           <SearchBar />
           <Routes>
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/" element={<Homepage />} />
+            <Route path="/ourmission" element={<OurMission />} />
             <Route path="/register" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/profile" element={<UserProfile />} />
