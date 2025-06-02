@@ -36,7 +36,8 @@ export default function Navbar() {
           <h1 className="brand">GoDutch</h1>
         </div>
         <div className="navbar-center">
-          <Link to="/ride">Ride</Link>
+          <Link to="/publishride">Publish Ride</Link>
+          <Link to="/all-rides">View All Rides</Link>
           <Link to="/ourmission">Our Mission</Link>
           <div className="about-dropdown" ref={dropdownRef}>
             <button
@@ -50,6 +51,7 @@ export default function Navbar() {
               <div className="about-dropdown-content">
                 <Link to="/about-us">About Us</Link>
                 <Link to="/careers">Careers</Link>
+                <Link to="/Termsofuse">Term of use</Link>
               </div>
             )}
           </div>
