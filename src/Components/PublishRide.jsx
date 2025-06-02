@@ -1,10 +1,14 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AutocompleteInput from "../Components/AutocompleteInput";
+import "../Components/Styles/PublishRide.css"; // Adjust the path as needed
+import { useAuth } from "../Contexts/AuthContext"; // Make sure this path is correct
 import { supabase } from "../supabaseClient";
 
 export default function PublishRide() {
   const { user } = useAuth();
-  console.log("Logged in user:", user);
+  const navigate = useNavigate();
+
   const today = new Date().toISOString().split("T")[0];
 
   const [fromPlace, setFromPlace] = useState("");
@@ -13,14 +17,14 @@ export default function PublishRide() {
   const [seats, setSeats] = useState(1);
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting ride...");
     setMessage(""); // clear any old messages
 
     if (!fromPlace || !toPlace) {
-      setMessage("Please select both from and to addresses.");
+      setMessage("Please select both From and To addresses.");
       return;
     }
 
@@ -29,6 +33,8 @@ export default function PublishRide() {
       return;
     }
 
+    setLoading(true);
+
     const { data, error } = await supabase.from("rides").insert([
       {
         from: fromPlace,
@@ -36,9 +42,12 @@ export default function PublishRide() {
         date,
         seats,
         notes,
-        user_id: user.id, // assuming your table has this column
+        user_id: user.id, // assuming your rides table has user_id column
+        status: "active", // mark this ride as published/active
       },
     ]);
+
+    setLoading(false);
 
     if (error) {
       setMessage("Error publishing ride.");
@@ -46,6 +55,10 @@ export default function PublishRide() {
     } else {
       setMessage("Ride published successfully!");
       console.log("Inserted ride data:", data);
+      // Pass the inserted ride to the results page
+      navigate("/results", {
+        state: { rides: data },
+      });
     }
   };
 
@@ -81,7 +94,9 @@ export default function PublishRide() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
-        <button type="submit">Publish</button>
+        <button type="submit" disabled={loading}>
+          {loading ? "Publishing..." : "Publish"}
+        </button>
       </form>
       {message && <p>{message}</p>}
     </div>
