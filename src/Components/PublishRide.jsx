@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AutocompleteInput from "../Components/AutocompleteInput";
-import "../Components/Styles/PublishRide.css"; // Adjust the path as needed
-import { useAuth } from "../Contexts/AuthContext"; // Make sure this path is correct
+import "../Components/Styles/PublishRide.css";
+import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 
 export default function PublishRide() {
@@ -19,9 +19,37 @@ export default function PublishRide() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Check if user profile has nickname
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        alert("You must be logged in to publish a ride.");
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("nickname")
+        .eq("id", authUser.id)
+        .single();
+
+      if (!profile?.nickname) {
+        alert("Please complete your profile before publishing a ride.");
+        navigate("/complete-profile");
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage(""); // clear any old messages
+    setMessage("");
 
     if (!fromPlace || !toPlace) {
       setMessage("Please select both From and To addresses.");
@@ -35,17 +63,20 @@ export default function PublishRide() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.from("rides").insert([
-      {
-        from: fromPlace,
-        to: toPlace,
-        date,
-        seats,
-        notes,
-        user_id: user.id, // assuming your rides table has user_id column
-        status: "active", // mark this ride as published/active
-      },
-    ]);
+    const { data, error } = await supabase
+      .from("rides")
+      .insert([
+        {
+          from: fromPlace,
+          to: toPlace,
+          date,
+          seats,
+          notes,
+          user_id: user.id,
+          status: "active",
+        },
+      ])
+      .select();
 
     setLoading(false);
 
@@ -53,12 +84,12 @@ export default function PublishRide() {
       setMessage("Error publishing ride.");
       console.error("Supabase insert error:", error);
     } else {
-      setMessage("Ride published successfully!");
-      console.log("Inserted ride data:", data);
-      // Pass the inserted ride to the results page
-      navigate("/results", {
-        state: { rides: data },
-      });
+      setMessage("✅ Ride published successfully!");
+      setTimeout(() => {
+        navigate("/all-rides", {
+          state: { rides: data, message: "✅ Ride published successfully!" },
+        });
+      }, 1500);
     }
   };
 
