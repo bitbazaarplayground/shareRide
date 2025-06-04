@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FaApple, FaFacebookF, FaGoogle, FaInstagram } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/SignUp.css";
 
@@ -12,12 +13,14 @@ export default function SignUp() {
   const [interests, setInterests] = useState("");
   const [message, setMessage] = useState("");
 
+  const navigate = useNavigate();
+
   const handleSignUp = async (e) => {
     e.preventDefault();
     setMessage("");
 
-    if (isNaN(age) || age < 13) {
-      setMessage("You must be at least 13 years old.");
+    if (isNaN(age) || age < 18) {
+      setMessage("You must be at least 18 years old.");
       return;
     }
 
@@ -25,6 +28,16 @@ export default function SignUp() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo:
+            "https://bitbazaarplayground.github.io/shareRide/complete-profile",
+          data: {
+            name,
+            nickname,
+            age: parseInt(age), // optional: cast to number
+            interests,
+          },
+        },
       });
 
       if (error) {
@@ -37,31 +50,6 @@ export default function SignUp() {
           setMessage(error.message);
         }
         return;
-      }
-
-      const user = data?.user;
-
-      if (user) {
-        const { error: insertError } = await supabase.from("profiles").insert([
-          {
-            id: user.id,
-            name,
-            nickname,
-            age,
-            interests,
-            email,
-          },
-        ]);
-
-        if (insertError) {
-          throw insertError;
-        }
-
-        setMessage(
-          `Thanks for signing up, ${
-            name || "friend"
-          }! Please check your email to confirm your account.`
-        );
       }
     } catch (err) {
       setMessage(err.message || "Something went wrong. Please try again.");

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/UserProfile.css";
@@ -8,6 +9,8 @@ export default function UserProfile() {
   const [profileData, setProfileData] = useState(null);
   const [newInterest, setNewInterest] = useState("");
   const [preview, setPreview] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const getProfile = async () => {
@@ -20,14 +23,28 @@ export default function UserProfile() {
       if (error) {
         console.error("Error fetching profile:", error);
       } else {
-        setProfileData(data);
+        // Redirect if profile is missing key info
+        if (
+          !data.name ||
+          !data.age ||
+          !data.interests ||
+          data.interests.length === 0 ||
+          data.role
+        ) {
+          navigate("/complete-profile"); // ⬅️ Redirect
+        } else {
+          setProfileData(data);
+        }
       }
     };
 
     if (user) {
       getProfile();
     }
-  }, [user]);
+  }, [user, navigate]);
+
+  if (!user) return <p>Please log in to view your profile.</p>;
+  if (!profileData) return <p>Loading profile...</p>;
 
   if (!user) return <p>Please log in to view your profile.</p>;
   if (!profileData) return <p>Loading profile...</p>;
