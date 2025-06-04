@@ -4,9 +4,11 @@ import { useLocation } from "react-router-dom";
 export default function Results() {
   const location = useLocation();
   const rides = location.state?.rides || [];
+  const successMessage = location.state?.message;
 
   return (
     <div className="results-container">
+      {successMessage && <p className="success">{successMessage}</p>}
       <h2>Matching Rides</h2>
       {rides.length === 0 ? (
         <p>No rides found.</p>

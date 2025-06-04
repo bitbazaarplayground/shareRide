@@ -39,8 +39,25 @@ export const AuthProvider = ({ children }) => {
 
     // Optional: Listen for auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
+      async (_event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", currentUser.id)
+            .single();
+
+          if (!error) {
+            setRole(profile.role);
+          } else {
+            console.error("Error fetching role on auth change:", error);
+          }
+        } else {
+          setRole(null);
+        }
       }
     );
 

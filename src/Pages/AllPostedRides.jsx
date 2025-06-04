@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 export default function AllPostedRides() {
@@ -6,15 +7,18 @@ export default function AllPostedRides() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const location = useLocation();
+  const successMessage = location.state?.message;
+  {
+    successMessage && <p className="success">{successMessage}</p>;
+  }
+
   useEffect(() => {
     async function fetchRides() {
       const { data, error } = await supabase
         .from("rides")
         .select("*")
         .order("date", { ascending: true }); // optional: sort by date
-      // Debugging logs
-      console.log("Fetched rides:", data);
-      console.error("Error:", error);
 
       if (error) {
         setErrorMsg("Failed to fetch rides.");
@@ -42,8 +46,11 @@ export default function AllPostedRides() {
         <ul>
           {rides.map((ride) => (
             <li key={ride.id}>
-              <strong>From:</strong> {ride.from} <br />
-              <strong>To:</strong> {ride.to} <br />
+              <Link to={`/individual-ride/${ride.id}`}>
+                <strong>From:</strong> {ride.from} → <strong>To:</strong>{" "}
+                {ride.to}
+              </Link>
+              <br />
               <strong>Date:</strong> {ride.date} <br />
               <strong>Seats:</strong> {ride.seats} <br />
               {ride.notes && <em>{ride.notes}</em>}
