@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
   const [rides, setRides] = useState([]);
@@ -17,8 +18,8 @@ export default function AllPostedRides() {
     async function fetchRides() {
       const { data, error } = await supabase
         .from("rides")
-        .select("*")
-        .order("date", { ascending: true }); // optional: sort by date
+        .select("*, profiles(id, nickname, avatar_url)")
+        .order("date", { ascending: true });
 
       if (error) {
         setErrorMsg("Failed to fetch rides.");
@@ -53,7 +54,31 @@ export default function AllPostedRides() {
               <br />
               <strong>Date:</strong> {ride.date} <br />
               <strong>Seats:</strong> {ride.seats} <br />
-              {ride.notes && <em>{ride.notes}</em>}
+              {/* User Info */}
+              {ride.profiles && (
+                <div
+                  className="poster-info"
+                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                >
+                  <img
+                    src={ride.profiles.avatar_url || "/default-avatar.png"}
+                    alt={`${ride.profiles.nickname}'s avatar`}
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                    }}
+                  />
+                  <Link to={`/profile/${ride.profiles.id}`}>
+                    <strong>{ride.profiles.nickname}</strong>
+                  </Link>
+                </div>
+              )}
+              {ride.notes && (
+                <p>
+                  <em>{ride.notes}</em>
+                </p>
+              )}
               <hr />
             </li>
           ))}
