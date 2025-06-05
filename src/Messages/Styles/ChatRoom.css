@@ -1,0 +1,79 @@
+/* ChatRoom.css */
+.chat-room {
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  padding: 1rem;
+}
+
+.chat-thread {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chat-bubble {
+  max-width: 60%;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chat-bubble.sent {
+  align-self: flex-end;
+  background-color: #dcf8c6;
+  text-align: right;
+}
+
+.chat-bubble.received {
+  align-self: flex-start;
+  background-color: #f1f0f0;
+  text-align: left;
+}
+
+.bubble-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.date-divider {
+  text-align: center;
+  color: #888;
+  font-size: 0.8rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-divider hr {
+  flex: 1;
+  border: none;
+  border-top: 1px solid #ccc;
+}
+
+.send-message-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.chat-textarea {
+  flex-grow: 1;
+  resize: none;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ccc;
+}
+
+.typing-indicator {
+  font-style: italic;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  color: #666;
+}

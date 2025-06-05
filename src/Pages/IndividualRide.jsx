@@ -1,98 +1,12 @@
-// import React, { useEffect, useState } from "react";
-// import { useParams } from "react-router-dom";
-// import { supabase } from "../supabaseClient";
-
-// export default function IndividualRide() {
-//   const { id } = useParams();
-//   const [ride, setRide] = useState(null);
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     async function fetchRideWithUser() {
-//       // Step 1: Get the ride by ID
-//       const { data: rideData, error: rideError } = await supabase
-//         .from("rides")
-//         .select("*")
-//         .eq("id", id)
-//         .single();
-
-//       if (rideError) {
-//         console.error("Error fetching ride:", rideError);
-//         setLoading(false);
-//         return;
-//       }
-
-//       setRide(rideData);
-
-//       // Step 2: Fetch the user who posted the ride
-//       if (rideData.user_id) {
-//         const { data: userData, error: userError } = await supabase
-//           .from("users")
-//           .select("name, email") // adjust fields as needed
-//           .eq("id", rideData.user_id)
-//           .single();
-
-//         if (userError) {
-//           console.error("Error fetching user:", userError);
-//         } else {
-//           setUser(userData);
-//         }
-//       }
-
-//       setLoading(false);
-//     }
-
-//     fetchRideWithUser();
-//   }, [id]);
-
-//   if (loading) return <p>Loading ride details...</p>;
-//   if (!ride) return <p>Ride not found.</p>;
-
-//   return (
-//     <div className="ride-details">
-//       <h2>Ride Details</h2>
-//       <p>
-//         <strong>From:</strong> {ride.from}
-//       </p>
-//       <p>
-//         <strong>To:</strong> {ride.to}
-//       </p>
-//       <p>
-//         <strong>Date:</strong> {ride.date}
-//       </p>
-//       <p>
-//         <strong>Seats Available:</strong> {ride.seats}
-//       </p>
-//       <p>
-//         <strong>Notes:</strong> {ride.notes || "No notes"}
-//       </p>
-
-//       <hr />
-
-//       <h3>Posted By</h3>
-//       {user ? (
-//         <>
-//           <p>
-//             <strong>Name:</strong> {user.name}
-//           </p>
-//           <p>
-//             <strong>Contact:</strong> {user.email}
-//           </p>
-//         </>
-//       ) : (
-//         <p>User info not available.</p>
-//       )}
-//     </div>
-//   );
-// }
-
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 
 export default function IndividualRide() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -115,6 +29,53 @@ export default function IndividualRide() {
 
     fetchRideWithUser();
   }, [id]);
+
+  const handleMessageClick = async () => {
+    if (!user || !ride?.profiles?.id) return;
+
+    const userA = user.id;
+    const userB = ride.profiles.id;
+
+    // Always order user ids to prevent duplicates (userA < userB)
+    const [participant1, participant2] =
+      userA < userB ? [userA, userB] : [userB, userA];
+
+    // Check if a chat already exists
+    const { data: existingChat, error: chatError } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("user1", participant1)
+      .eq("user2", participant2)
+      .single();
+
+    if (chatError && chatError.code !== "PGRST116") {
+      // Only log error if it's not "no rows found"
+      console.error("Error checking existing chat:", chatError);
+      return;
+    }
+
+    let chatId;
+
+    if (existingChat) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: createError } = await supabase
+        .from("chats")
+        .insert([{ user1: participant1, user2: participant2 }])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating new chat:", createError);
+        return;
+      }
+
+      chatId = newChat.id;
+    }
+
+    // Redirect to the chat page
+    navigate(`/chat/${chatId}`);
+  };
 
   if (loading) return <p>Loading ride details...</p>;
   if (!ride) return <p>Ride not found.</p>;
@@ -148,9 +109,17 @@ export default function IndividualRide() {
             alt={`${ride.profiles.nickname}'s avatar`}
             style={{ width: "40px", height: "40px", borderRadius: "50%" }}
           />
-          <Link to={`/profile/${ride.profiles.id}`}>
-            <strong>{ride.profiles.nickname}</strong>
-          </Link>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <Link to={`/profile/${ride.profiles.id}`}>
+              <strong>{ride.profiles.nickname}</strong>
+            </Link>
+
+            {user?.id !== ride.profiles.id && (
+              <button className="btn white" onClick={handleMessageClick}>
+                Message
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <p>User info not available.</p>

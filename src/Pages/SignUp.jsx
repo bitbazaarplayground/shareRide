@@ -34,8 +34,8 @@ export default function SignUp() {
           data: {
             name,
             nickname,
-            age: parseInt(age), // optional: cast to number
-            interests,
+            age: parseInt(age),
+            interests: interests.split(",").map((item) => item.trim()), // ← converts comma-separated string to array
           },
         },
       });
