@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { VscChevronDown } from "react-icons/vsc";
+import { VscChevronDown, VscComment } from "react-icons/vsc";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
@@ -11,19 +11,56 @@ export default function Navbar() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
-
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (!error) {
-      navigate("/"); // ✅ redirects to homepage, avoids 404
-    } else {
-      console.error("Logout failed:", error.message);
-    }
+    if (!error) navigate("/");
+    else console.error("Logout failed:", error.message);
   };
 
+  // 📩 Fetch unseen message count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnread = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id", { count: "exact" })
+        .eq("recipient_id", user.id)
+        .eq("seen", false);
+
+      if (!error) {
+        setUnreadCount(data.length);
+      }
+    };
+
+    fetchUnread();
+
+    const channel = supabase
+      .channel("message-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        () => {
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -36,7 +73,7 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Group brand + center nav */}
+      {/* Left and Center */}
       <div className="navbar-left-group">
         <div className="navbar-left">
           <h1 className="brand">GoDutch</h1>
@@ -52,7 +89,6 @@ export default function Navbar() {
             >
               About <VscChevronDown className="arrow" />
             </button>
-
             {dropdownOpen && (
               <div className="about-dropdown-content">
                 <Link to="/about-us">About Us</Link>
@@ -64,12 +100,13 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Right section stays the same */}
+      {/* Right Side */}
       <div className="navbar-right">
         <LanguageSwitcher />
         <Link to="/help" className="help-link">
           Help
         </Link>
+
         {!user ? (
           <>
             <Link to="/login" className="btn black">
@@ -81,6 +118,16 @@ export default function Navbar() {
           </>
         ) : (
           <>
+            <Link
+              to="/messages"
+              className={`btn icon-btn ${unreadCount > 0 ? "highlight" : ""}`}
+              title="Messages"
+            >
+              <VscComment size={22} />
+              {unreadCount > 0 && (
+                <span className="notif-bubble">{unreadCount}</span>
+              )}
+            </Link>
             <Link to="/profile" className="btn black">
               Profile
             </Link>

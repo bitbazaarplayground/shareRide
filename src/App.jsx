@@ -10,6 +10,8 @@ import PublishRide from "./Components/PublishRide";
 import SearchBar from "./Components/SearchBar";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
+import Chat from "./Messages/Chat";
+import ChatRoom from "./Messages/ChatRoom";
 import AdminDashboard from "./Pages/AdminDashboard";
 import AllPostedRides from "./Pages/AllPostedRides";
 import AuthCallback from "./Pages/AuthCallback";
@@ -66,6 +68,9 @@ export default function App() {
             <Route path="/all-rides" element={<AllPostedRides />} />
             <Route path="/individual-ride/:id" element={<IndividualRide />} />
             <Route path="/Termsofuse" element={<TermsofUse />} />
+            {/* Messaging */}
+            <Route path="/chat/:partnerId" element={<ChatRoom />} />
+            <Route path="/chat/:userId" element={<Chat />} />
           </Routes>
         </div>
       </Router>

@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../Contexts/AuthContext";
+import SendMessageForm from "../Messages/SendMessageForm";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/UserProfile.css"; // Reuse same styling
 
 export default function PublicProfile() {
   const { id } = useParams();
+  const { user } = useAuth(); // get logged-in user
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState(null);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -23,16 +25,6 @@ export default function PublicProfile() {
         setProfileData(data);
       }
 
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("id", id)
-        .single();
-
-      if (!userError && userData) {
-        setUserEmail(userData.email);
-      }
-
       setLoading(false);
     }
 
@@ -41,7 +33,7 @@ export default function PublicProfile() {
 
   const handleRequestRide = () => {
     alert(`You can now send a ride request to ${profileData.name}`);
-    // Later, open a modal or redirect to a ride request form
+    // TODO: later, open a modal or ride request form
   };
 
   if (loading) return <p>Loading profile...</p>;
@@ -76,20 +68,18 @@ export default function PublicProfile() {
             <p>No interests listed.</p>
           )}
 
-          <div style={{ marginTop: "20px", display: "flex", gap: "1rem" }}>
-            {userEmail && (
-              <a
-                href={`mailto:${userEmail}`}
-                className="btn black"
-                style={{ textDecoration: "none" }}
-              >
-                Message User
-              </a>
-            )}
+          <div style={{ marginTop: "20px" }}>
             <button className="btn white" onClick={handleRequestRide}>
               Request a Ride
             </button>
           </div>
+
+          {user && user.id !== id && (
+            <div style={{ marginTop: "30px" }}>
+              <h3>Send Message to {profileData.name}</h3>
+              <SendMessageForm recipientId={id} />
+            </div>
+          )}
         </div>
       </div>
     </div>
