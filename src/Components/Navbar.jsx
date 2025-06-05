@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VscChevronDown } from "react-icons/vsc";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -13,9 +13,15 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const navigate = useNavigate();
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (!error) window.location.href = "/login";
+    if (!error) {
+      navigate("/"); // ✅ redirects to homepage, avoids 404
+    } else {
+      console.error("Logout failed:", error.message);
+    }
   };
 
   useEffect(() => {
