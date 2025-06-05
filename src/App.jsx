@@ -18,6 +18,7 @@ import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
 import OurMission from "./Pages/OurMission";
+import PublicProfile from "./Pages/PublicProfile";
 import Results from "./Pages/Results";
 import SignUp from "./Pages/SignUp";
 import TermsofUse from "./Pages/TermsOfUse";
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/profile" element={<UserProfile />} />
+            <Route path="/profile/:id" element={<PublicProfile />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/results" element={<Results />} />
