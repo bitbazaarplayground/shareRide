@@ -13,8 +13,9 @@ export default function CompleteProfile() {
     nickname: "",
     avatar_url: "",
     age: "",
-    interests: [],
+    interests: [], // ✅ initialize as empty array
   });
+
   const [newInterest, setNewInterest] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +35,7 @@ export default function CompleteProfile() {
           nickname: data.nickname || "",
           avatar_url: data.avatar_url || "",
           age: data.age || "",
-          interests: data.interests || [],
+          interests: Array.isArray(data.interests) ? data.interests : [], // ✅ safeguard
         });
       }
     };
@@ -73,7 +74,8 @@ export default function CompleteProfile() {
       .from("profiles")
       .update({
         ...profile,
-        role: "user", // Adjust this if needed
+        interests: profile.interests, // ✅ stored as JSON array
+        role: "user",
       })
       .eq("id", user.id);
 
@@ -147,7 +149,11 @@ export default function CompleteProfile() {
             onChange={(e) => setNewInterest(e.target.value)}
             placeholder="Add an interest"
           />
-          <button type="button" onClick={handleAddInterest}>
+          <button
+            type="button"
+            onClick={handleAddInterest}
+            disabled={!newInterest.trim()}
+          >
             Add
           </button>
         </div>
