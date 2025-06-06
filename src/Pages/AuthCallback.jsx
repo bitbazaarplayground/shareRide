@@ -28,6 +28,23 @@ export default function AuthCallback() {
 
       if (!existingProfile) {
         // Insert basic profile for new OAuth user
+        // const { error: insertError } = await supabase.from("profiles").insert({
+        //   id: user.id,
+        //   email: user.email,
+        //   name: user.user_metadata?.name || "",
+        //   avatar_url: user.user_metadata?.avatar_url || "",
+        // });
+
+        // if (insertError) {
+        //   console.error("Error creating profile:", insertError.message);
+        // }
+        console.log("Trying to insert profile with:", {
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.name,
+          avatar_url: user.user_metadata?.avatar_url,
+        });
+
         const { error: insertError } = await supabase.from("profiles").insert({
           id: user.id,
           email: user.email,
