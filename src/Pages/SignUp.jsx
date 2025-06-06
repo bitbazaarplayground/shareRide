@@ -30,7 +30,7 @@ export default function SignUp() {
         password,
         options: {
           emailRedirectTo:
-            "https://bitbazaarplayground.github.io/shareRide/complete-profile",
+            "https://bitbazaarplayground.github.io/shareRide/#/complete-profile",
           data: {
             name,
             nickname,
@@ -61,7 +61,7 @@ export default function SignUp() {
       provider,
       options: {
         redirectTo:
-          "https://bitbazaarplayground.github.io/shareRide/auth/callback",
+          "https://bitbazaarplayground.github.io/shareRide/#/auth/callback",
       },
     });
 
