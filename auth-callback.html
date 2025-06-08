@@ -1,12 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <meta http-equiv="refresh" content="0; URL=/#/auth/callback" />
+    <meta charset="UTF-8" />
+    <title>Redirecting...</title>
     <script>
-      window.location.replace("/#/auth/callback" + window.location.search);
+      // Preserve search params from the OAuth redirect (e.g. ?code=...)
+      const params = window.location.search;
+      // Redirect to your in-app route within the GitHub Pages project
+      window.location.replace("/shareRide/#/auth/callback" + params);
     </script>
   </head>
   <body>
-    Redirecting...
+    <p>Redirecting...</p>
   </body>
 </html>
