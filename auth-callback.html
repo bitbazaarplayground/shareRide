@@ -4,10 +4,9 @@
     <meta charset="UTF-8" />
     <title>Redirecting...</title>
     <script>
-      // Preserve search params from the OAuth redirect (e.g. ?code=...)
-      const params = window.location.search;
-      // Redirect to your in-app route within the GitHub Pages project
-      window.location.replace("/shareRide/#/auth/callback" + params);
+      const search = window.location.search;
+      const hash = "/shareRide/#/auth/callback" + search;
+      window.location.replace(hash);
     </script>
   </head>
   <body>
