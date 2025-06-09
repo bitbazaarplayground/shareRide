@@ -1,39 +1,36 @@
+import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import SendMessageForm from "../Messages/SendMessageForm";
-import { supabase } from "../supabaseClient";
-import "./StylesPages/UserProfile.css"; // Reuse same styling
+import { db } from "../firebase";
 
 export default function PublicProfile() {
   const { id } = useParams();
-  const { user } = useAuth(); // get logged-in user
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchProfile() {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, bio, avatar_url, interests, id")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching public profile:", error.message);
-      } else {
-        setProfileData(data);
+      try {
+        const docRef = doc(db, "profiles", id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfileData(docSnap.data());
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error.message);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     fetchProfile();
   }, [id]);
 
   const handleRequestRide = () => {
-    alert(`You can now send a ride request to ${profileData.name}`);
-    // TODO: later, open a modal or ride request form
+    alert("Ride request feature coming soon.");
   };
 
   if (loading) return <p>Loading profile...</p>;
@@ -42,46 +39,45 @@ export default function PublicProfile() {
   return (
     <div className="profile-container">
       <h2>{profileData.name}'s Profile</h2>
-      <div className="profile-section">
-        <div className="profile-pic">
-          <img
-            src={profileData.avatar_url || "/default-avatar.png"}
-            alt={`${profileData.name}'s avatar`}
-            className="avatar"
-          />
-        </div>
+      <img src={profileData.avatar_url || "/default-avatar.png"} alt="Avatar" />
 
-        <div className="profile-info">
-          <label>Bio:</label>
-          <p>{profileData.bio || "No bio available."}</p>
+      <p>
+        <strong>Email:</strong> {profileData.email}
+      </p>
+      <p>
+        <strong>Age:</strong> {profileData.age || "N/A"}
+      </p>
+      <p>
+        <strong>Role:</strong> {profileData.role}
+      </p>
+      <p>
+        <strong>Bio:</strong> {profileData.bio || "No bio provided."}
+      </p>
+      <p>
+        <strong>Interests:</strong>
+      </p>
+      {Array.isArray(profileData.interests) && profileData.interests.length ? (
+        <ul>
+          {profileData.interests.map((int, i) => (
+            <li key={i}>{int}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No interests listed.</p>
+      )}
 
-          <label>Interests:</label>
-          {profileData.interests && profileData.interests.length > 0 ? (
-            <div className="interest-list">
-              {profileData.interests.map((item, index) => (
-                <div key={index} className="interest-chip">
-                  {item}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p>No interests listed.</p>
-          )}
-
-          <div style={{ marginTop: "20px" }}>
-            <button className="btn white" onClick={handleRequestRide}>
-              Request a Ride
-            </button>
-          </div>
-
-          {user && user.id !== id && (
-            <div style={{ marginTop: "30px" }}>
-              <h3>Send Message to {profileData.name}</h3>
-              <SendMessageForm recipientId={id} />
-            </div>
-          )}
-        </div>
+      <div style={{ marginTop: "20px" }}>
+        <button className="btn white" onClick={handleRequestRide}>
+          Request a Ride
+        </button>
       </div>
+
+      {user && user.uid !== id && (
+        <div>
+          <h3>Send Message</h3>
+          <SendMessageForm recipientId={id} />
+        </div>
+      )}
     </div>
   );
 }

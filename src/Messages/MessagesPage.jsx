@@ -1,7 +1,17 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase"; // updated import
 import SendMessageForm from "./SendMessageForm";
 import "./Styles/MessagesPage.css";
 
@@ -10,72 +20,93 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [replyTo, setReplyTo] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef(null); // ✅ For auto-scroll
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
 
+    const messagesRef = collection(db, "messages");
+
+    const q1 = query(
+      messagesRef,
+      where("senderId", "==", user.uid),
+      orderBy("createdAt", "asc")
+    );
+    const q2 = query(
+      messagesRef,
+      where("recipientId", "==", user.uid),
+      orderBy("createdAt", "asc")
+    );
+
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*, sender:sender_id(name), recipient:recipient_id(name)")
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order("created_at", { ascending: true }); // ✅ Ascending for chat style
+      const snap1 = await getDocs(q1);
+      const snap2 = await getDocs(q2);
 
-      if (error) {
-        console.error("Error fetching messages:", error);
-      } else {
-        setMessages(data);
+      let allMsgs = [
+        ...snap1.docs.map((d) => ({ id: d.id, ...d.data() })),
+        ...snap2.docs.map((d) => ({ id: d.id, ...d.data() })),
+      ];
 
-        // ✅ Mark unread messages as seen
-        const unseenMessages = data.filter(
-          (msg) => msg.recipient_id === user.id && !msg.seen
-        );
+      allMsgs.sort((a, b) => a.createdAt.seconds - b.createdAt.seconds);
+      setMessages(allMsgs);
 
-        if (unseenMessages.length > 0) {
-          const unseenIds = unseenMessages.map((msg) => msg.id);
-          await supabase
-            .from("messages")
-            .update({ seen: true })
-            .in("id", unseenIds);
-        }
+      const unseenMsgs = allMsgs.filter(
+        (msg) => msg.recipientId === user.uid && !msg.seen
+      );
+
+      if (unseenMsgs.length > 0) {
+        unseenMsgs.forEach(async (msg) => {
+          const msgDocRef = doc(db, "messages", msg.id);
+          await updateDoc(msgDocRef, { seen: true });
+        });
       }
     };
 
     fetchMessages();
 
-    const messageChannel = supabase
-      .channel("messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+    const unsub1 = onSnapshot(q1, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === change.doc.id)) return prev;
+            return [...prev, { id: change.doc.id, ...change.doc.data() }].sort(
+              (a, b) => a.createdAt.seconds - b.createdAt.seconds
+            );
+          });
         }
-      )
-      .subscribe();
+      });
+    });
 
-    const typingChannel = supabase
-      .channel("typing_status")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "typing_status",
-        },
-        (payload) => {
-          const { sender_id, recipient_id, is_typing } = payload.new;
-          if (recipient_id === user.id) {
-            setIsTyping(is_typing);
-          }
+    const unsub2 = onSnapshot(q2, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === change.doc.id)) return prev;
+            return [...prev, { id: change.doc.id, ...change.doc.data() }].sort(
+              (a, b) => a.createdAt.seconds - b.createdAt.seconds
+            );
+          });
         }
-      )
-      .subscribe();
+      });
+    });
+
+    // Typing status listener (optional - adjust if you track typing status)
+    const typingStatusDocId = `${user.uid}_somePartnerId`; // adjust as needed
+    const typingRef = doc(db, "typingStatus", typingStatusDocId);
+
+    const unsubscribeTyping = onSnapshot(typingRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.recipientId === user.uid) {
+          setIsTyping(data.isTyping);
+        }
+      }
+    });
 
     return () => {
-      supabase.removeChannel(messageChannel);
-      supabase.removeChannel(typingChannel);
+      unsub1();
+      unsub2();
+      unsubscribeTyping();
     };
   }, [user]);
 
@@ -85,17 +116,23 @@ export default function MessagesPage() {
 
   if (!user) return <p>Please log in to view your messages.</p>;
 
+  let lastDate = "";
+
   return (
     <div className="messages-page">
       <h2>Your Messages</h2>
 
       <div className="message-thread">
         {messages.map((msg) => {
-          const isSender = msg.sender_id === user.id;
-          const partner = isSender ? msg.recipient : msg.sender;
-          const partnerId = isSender ? msg.recipient_id : msg.sender_id;
+          const isSender = msg.senderId === user.uid;
+          const partner = isSender
+            ? { id: msg.recipientId, name: msg.recipientName }
+            : { id: msg.senderId, name: msg.senderName };
+          const partnerId = partner.id;
 
-          const currentDate = new Date(msg.created_at).toDateString();
+          const currentDate = new Date(
+            msg.createdAt.seconds * 1000
+          ).toDateString();
           const showDate = currentDate !== lastDate;
           lastDate = currentDate;
 
@@ -114,10 +151,14 @@ export default function MessagesPage() {
               >
                 <div className="bubble-header">
                   <Link to={`/public-profile/${partnerId}`}>
-                    {partner?.name || partnerId}
+                    {partner.name || partnerId}
                   </Link>{" "}
                   <small>
-                    ({new Date(msg.created_at).toLocaleTimeString()})
+                    (
+                    {new Date(
+                      msg.createdAt.seconds * 1000
+                    ).toLocaleTimeString()}
+                    )
                   </small>
                 </div>
                 <div className="bubble-body">
@@ -136,9 +177,8 @@ export default function MessagesPage() {
           );
         })}
 
-        {isTyping && (
-          <p className="typing-indicator">User is typing...</p> // ✅
-        )}
+        {isTyping && <p className="typing-indicator">User is typing...</p>}
+
         <div ref={messagesEndRef} />
       </div>
 

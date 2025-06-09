@@ -1,10 +1,10 @@
+import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase";
 
-const AdminDashboard = () => {
+export default function AdminDashboard() {
   const { user, role, loading: authLoading } = useAuth();
-
   const [users, setUsers] = useState([]);
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,25 +14,19 @@ const AdminDashboard = () => {
     if (!user || role !== "admin") return;
 
     const fetchData = async () => {
-      setLoading(true);
       try {
-        const [
-          { data: usersData, error: usersError },
-          { data: ridesData, error: ridesError },
-        ] = await Promise.all([
-          supabase.from("users").select("*"),
-          supabase.from("rides").select("*"),
-        ]);
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const ridesSnapshot = await getDocs(collection(db, "rides"));
 
-        if (usersError || ridesError) {
-          throw usersError || ridesError;
-        }
-
-        setUsers(usersData);
-        setRides(ridesData);
+        setUsers(
+          usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
+        setRides(
+          ridesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
       } catch (err) {
+        console.error("Error fetching admin data:", err);
         setError("Failed to fetch admin data.");
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -41,45 +35,36 @@ const AdminDashboard = () => {
     fetchData();
   }, [user, role]);
 
-  // 🔄 Wait until auth state is ready
-  if (authLoading) return <div className="p-4">Checking permissions...</div>;
-
-  // ❌ Block non-admin access
-  if (!user || role !== "admin") {
-    return <div className="p-4 text-red-500">Access Denied. Admins only.</div>;
-  }
-
-  if (loading) return <div className="p-4">Loading data...</div>;
-  if (error) return <div className="p-4 text-red-500">{error}</div>;
+  if (authLoading) return <p>Checking permissions...</p>;
+  if (!user || role !== "admin") return <p>Access Denied. Admins only.</p>;
+  if (loading) return <p>Loading data...</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
 
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">All Users</h2>
-        <ul className="bg-gray-100 p-4 rounded">
+      <section>
+        <h2 className="text-xl font-semibold">All Users</h2>
+        <ul>
           {users.map((u) => (
-            <li key={u.id} className="mb-2">
+            <li key={u.id}>
               {u.email} — {u.role}
             </li>
           ))}
         </ul>
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-2">All Rides</h2>
-        <ul className="bg-gray-100 p-4 rounded">
-          {rides.map((ride) => (
-            <li key={ride.id} className="mb-2">
-              From {ride.start_location} to {ride.end_location} — Posted by User
-              ID: {ride.user_id}
+      <section className="mt-6">
+        <h2 className="text-xl font-semibold">All Rides</h2>
+        <ul>
+          {rides.map((r) => (
+            <li key={r.id}>
+              From {r.start_location} to {r.end_location} — User ID: {r.user_id}
             </li>
           ))}
         </ul>
       </section>
     </div>
   );
-};
-
-export default AdminDashboard;
+}

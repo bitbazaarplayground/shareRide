@@ -1,16 +1,26 @@
+import { getAuth } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getFirestore,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AutocompleteInput from "../Components/AutocompleteInput";
 import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { app } from "../firebase";
+
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 export default function PublishRide() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const today = new Date().toISOString().split("T")[0];
-
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
   const [date, setDate] = useState(today);
@@ -19,32 +29,25 @@ export default function PublishRide() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Check if user profile has nickname
   useEffect(() => {
-    const fetchProfile = async () => {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (!authUser) {
+    const checkProfile = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
         alert("You must be logged in to publish a ride.");
         navigate("/login");
         return;
       }
 
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("nickname")
-        .eq("id", authUser.id)
-        .single();
+      const profileRef = doc(db, "profiles", currentUser.uid);
+      const profileSnap = await getDoc(profileRef);
 
-      if (!profile?.nickname) {
+      if (!profileSnap.exists() || !profileSnap.data().nickname) {
         alert("Please complete your profile before publishing a ride.");
         navigate("/complete-profile");
       }
     };
 
-    fetchProfile();
+    checkProfile();
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -63,33 +66,30 @@ export default function PublishRide() {
 
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("rides")
-      .insert([
-        {
-          from: fromPlace,
-          to: toPlace,
-          date,
-          seats,
-          notes,
-          user_id: user.id,
-          status: "active",
-        },
-      ])
-      .select();
+    try {
+      const ride = {
+        from: fromPlace,
+        to: toPlace,
+        date,
+        seats,
+        notes,
+        user_id: user.uid,
+        status: "active",
+      };
 
-    setLoading(false);
+      const docRef = await addDoc(collection(db, "rides"), ride);
 
-    if (error) {
-      setMessage("Error publishing ride.");
-      console.error("Supabase insert error:", error);
-    } else {
       setMessage("✅ Ride published successfully!");
       setTimeout(() => {
         navigate("/all-rides", {
-          state: { rides: data, message: "✅ Ride published successfully!" },
+          state: { rides: [ride], message: "✅ Ride published successfully!" },
         });
       }, 1500);
+    } catch (error) {
+      console.error("Error publishing ride:", error.message);
+      setMessage("Error publishing ride.");
+    } finally {
+      setLoading(false);
     }
   };
 

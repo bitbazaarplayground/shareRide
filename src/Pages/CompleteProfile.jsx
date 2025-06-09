@@ -1,19 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import app from "../firebase";
 import "./StylesPages/CompleteProfile.css";
 
 export default function CompleteProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const db = getFirestore(app);
 
   const [profile, setProfile] = useState({
     name: "",
     nickname: "",
     avatar_url: "",
     age: "",
-    interests: [], // ✅ initialize as empty array
+    interests: [],
   });
 
   const [newInterest, setNewInterest] = useState("");
@@ -21,27 +29,25 @@ export default function CompleteProfile() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, nickname, avatar_url, age, interests")
-        .eq("id", user.id)
-        .single();
+      if (!user) return;
 
-      if (error) {
-        console.error("Error fetching profile:", error.message);
-      } else if (data) {
+      const profileRef = doc(db, "profiles", user.uid);
+      const docSnap = await getDoc(profileRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
         setProfile({
           name: data.name || "",
           nickname: data.nickname || "",
           avatar_url: data.avatar_url || "",
           age: data.age || "",
-          interests: Array.isArray(data.interests) ? data.interests : [], // ✅ safeguard
+          interests: Array.isArray(data.interests) ? data.interests : [],
         });
       }
     };
 
-    if (user) fetchProfile();
-  }, [user]);
+    fetchProfile();
+  }, [user, db]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -70,23 +76,20 @@ export default function CompleteProfile() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+    const profileRef = doc(db, "profiles", user.uid);
+
+    try {
+      await setDoc(profileRef, {
         ...profile,
-        interests: profile.interests, // ✅ stored as JSON array
         role: "user",
-      })
-      .eq("id", user.id);
-
-    setLoading(false);
-
-    if (error) {
-      console.error("Error updating profile:", error.message);
-      alert("There was a problem updating your profile.");
-    } else {
+      });
       alert("Profile completed successfully!");
       navigate("/profile");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("There was a problem updating your profile.");
+    } finally {
+      setLoading(false);
     }
   };
 

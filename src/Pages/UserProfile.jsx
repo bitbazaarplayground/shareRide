@@ -1,8 +1,11 @@
+import { doc, getDoc, getFirestore, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { app } from "../firebase";
 import "./StylesPages/UserProfile.css";
+
+const db = getFirestore(app);
 
 export default function UserProfile() {
   const { user } = useAuth();
@@ -14,16 +17,12 @@ export default function UserProfile() {
 
   useEffect(() => {
     const getProfile = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const profileRef = doc(db, "profiles", user.uid);
+      const profileSnap = await getDoc(profileRef);
 
-      if (error) {
-        console.error("Error fetching profile:", error);
-      } else {
-        // Redirect if profile is missing key info
+      if (profileSnap.exists()) {
+        const data = profileSnap.data();
+
         if (
           !data.name ||
           !data.age ||
@@ -31,20 +30,17 @@ export default function UserProfile() {
           data.interests.length === 0 ||
           data.role
         ) {
-          navigate("/complete-profile"); // ⬅️ Redirect
+          navigate("/complete-profile");
         } else {
           setProfileData(data);
         }
+      } else {
+        navigate("/complete-profile");
       }
     };
 
-    if (user) {
-      getProfile();
-    }
+    if (user) getProfile();
   }, [user, navigate]);
-
-  if (!user) return <p>Please log in to view your profile.</p>;
-  if (!profileData) return <p>Loading profile...</p>;
 
   if (!user) return <p>Please log in to view your profile.</p>;
   if (!profileData) return <p>Loading profile...</p>;
@@ -83,15 +79,12 @@ export default function UserProfile() {
   };
 
   const handleSave = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update(profileData)
-      .eq("id", user.id);
-
-    if (error) {
-      console.error("Failed to save changes:", error);
-    } else {
+    try {
+      const profileRef = doc(db, "profiles", user.uid);
+      await updateDoc(profileRef, profileData);
       alert("Profile updated!");
+    } catch (error) {
+      console.error("Failed to save changes:", error.message);
     }
   };
 

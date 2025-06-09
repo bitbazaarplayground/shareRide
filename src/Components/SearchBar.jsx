@@ -1,31 +1,43 @@
+import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaCalendarAlt, FaMapMarkerAlt, FaSquare } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase";
 import AutocompleteInput from "./AutocompleteInput";
 import PassengerCounter from "./PassengerCounter";
 import "./Styles/SearchBar.css";
 
 export default function SearchBar() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const navigate = useNavigate();
 
   const handleSearch = async () => {
-    const { data, error } = await supabase
-      .from("rides")
-      .select("*")
-      .ilike("from", `%${fromPlace}%`)
-      .ilike("to", `%${toPlace}%`)
-      .eq("date", selectedDate);
+    try {
+      const ridesRef = collection(db, "rides");
 
-    if (error) console.error("Error fetching rides:", error);
-    else navigate("/results", { state: { rides: data } });
+      const q = query(ridesRef, where("date", "==", selectedDate));
+
+      const querySnapshot = await getDocs(q);
+
+      const matchedRides = querySnapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter(
+          (ride) =>
+            ride.from?.toLowerCase().includes(fromPlace.toLowerCase()) &&
+            ride.to?.toLowerCase().includes(toPlace.toLowerCase())
+        );
+
+      navigate("/results", { state: { rides: matchedRides } });
+    } catch (error) {
+      console.error("Error fetching rides:", error.message);
+    }
   };
 
   return (
@@ -53,7 +65,7 @@ export default function SearchBar() {
           <FaCalendarAlt className="icon" />
           <input
             type="date"
-            min={selectedDate}
+            min={new Date().toISOString().split("T")[0]}
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="date-input"

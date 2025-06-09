@@ -1,6 +1,15 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+
+const db = getFirestore();
 
 export default function SendMessageForm({ recipientId }) {
   const { user } = useAuth();
@@ -18,20 +27,27 @@ export default function SendMessageForm({ recipientId }) {
     }, 2000);
   };
 
-  // 🔄 Sync typing status to Supabase
+  // Update typing status in Firestore
   useEffect(() => {
     if (!user || !recipientId) return;
 
+    const typingDocRef = doc(db, "typing_status", `${user.uid}_${recipientId}`);
+
     const updateTypingStatus = async () => {
-      await supabase.from("typing_status").upsert(
-        {
-          sender_id: user.id,
-          recipient_id: recipientId,
-          is_typing: isTyping,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: ["sender_id", "recipient_id"] }
-      );
+      try {
+        await setDoc(
+          typingDocRef,
+          {
+            sender_id: user.uid,
+            recipient_id: recipientId,
+            is_typing: isTyping,
+            updated_at: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (error) {
+        console.error("Typing status update error:", error);
+      }
     };
 
     updateTypingStatus();
@@ -41,15 +57,18 @@ export default function SendMessageForm({ recipientId }) {
     e.preventDefault();
     if (!content.trim()) return;
 
-    const { error } = await supabase.from("messages").insert({
-      sender_id: user.id,
-      recipient_id: recipientId,
-      content,
-      seen: false,
-    });
-
-    if (!error) setContent("");
-    else console.error("Message send error:", error);
+    try {
+      await addDoc(collection(db, "messages"), {
+        sender_id: user.uid,
+        recipient_id: recipientId,
+        content,
+        seen: false,
+        created_at: serverTimestamp(),
+      });
+      setContent("");
+    } catch (error) {
+      console.error("Message send error:", error);
+    }
   };
 
   const handleKeyDown = (e) => {

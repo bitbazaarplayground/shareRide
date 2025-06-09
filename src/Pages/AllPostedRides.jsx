@@ -1,6 +1,13 @@
+import {
+  collection,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import app from "../firebase";
 import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
@@ -10,22 +17,24 @@ export default function AllPostedRides() {
 
   const location = useLocation();
   const successMessage = location.state?.message;
-  {
-    successMessage && <p className="success">{successMessage}</p>;
-  }
 
   useEffect(() => {
-    async function fetchRides() {
-      const { data, error } = await supabase
-        .from("rides")
-        .select("*, profiles(id, nickname, avatar_url)")
-        .order("date", { ascending: true });
+    const db = getFirestore(app);
 
-      if (error) {
+    async function fetchRides() {
+      try {
+        const q = query(collection(db, "rides"), orderBy("date", "asc"));
+        const querySnapshot = await getDocs(q);
+
+        const fetchedRides = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setRides(fetchedRides);
+      } catch (error) {
         setErrorMsg("Failed to fetch rides.");
         console.error("Error fetching rides:", error);
-      } else {
-        setRides(data);
       }
 
       setLoading(false);
@@ -37,6 +46,7 @@ export default function AllPostedRides() {
   return (
     <div className="all-rides-container">
       <h2>All Published Rides</h2>
+      {successMessage && <p className="success">{successMessage}</p>}
       {loading ? (
         <p>Loading rides...</p>
       ) : errorMsg ? (
@@ -54,23 +64,22 @@ export default function AllPostedRides() {
               <br />
               <strong>Date:</strong> {ride.date} <br />
               <strong>Seats:</strong> {ride.seats} <br />
-              {/* User Info */}
-              {ride.profiles && (
+              {ride.profile && (
                 <div
                   className="poster-info"
                   style={{ display: "flex", alignItems: "center", gap: "10px" }}
                 >
                   <img
-                    src={ride.profiles.avatar_url || "/default-avatar.png"}
-                    alt={`${ride.profiles.nickname}'s avatar`}
+                    src={ride.profile.avatar_url || "/default-avatar.png"}
+                    alt={`${ride.profile.nickname}'s avatar`}
                     style={{
                       width: "40px",
                       height: "40px",
                       borderRadius: "50%",
                     }}
                   />
-                  <Link to={`/profile/${ride.profiles.id}`}>
-                    <strong>{ride.profiles.nickname}</strong>
+                  <Link to={`/profile/${ride.profile.id}`}>
+                    <strong>{ride.profile.nickname}</strong>
                   </Link>
                 </div>
               )}

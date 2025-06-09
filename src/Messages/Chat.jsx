@@ -1,85 +1,60 @@
+import {
+  addDoc,
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase";
 
 export default function Chat() {
   const { user } = useAuth();
-  const { userId } = useParams(); // chat with this user
+  const { userId } = useParams();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !userId) return;
 
-    // Fetch chat messages between current user and the recipient
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order("created_at", { ascending: true });
+    const q = query(
+      collection(db, "messages"),
+      where("participants", "array-contains", user.uid),
+      orderBy("created_at", "asc")
+    );
 
-      if (!error) {
-        const relevant = data.filter(
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter(
           (msg) =>
-            (msg.sender_id === user.id && msg.recipient_id === userId) ||
-            (msg.sender_id === userId && msg.recipient_id === user.id)
+            (msg.sender_id === user.uid && msg.recipient_id === userId) ||
+            (msg.sender_id === userId && msg.recipient_id === user.uid)
         );
-        setMessages(relevant);
 
-        // Mark messages as seen
-        await supabase
-          .from("messages")
-          .update({ seen: true })
-          .eq("recipient_id", user.id)
-          .eq("sender_id", userId)
-          .eq("seen", false);
-      }
-    };
+      setMessages(msgs);
+    });
 
-    fetchMessages();
-
-    const channel = supabase
-      .channel("chat-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const msg = payload.new;
-          if (
-            (msg.sender_id === userId && msg.recipient_id === user.id) ||
-            (msg.sender_id === user.id && msg.recipient_id === userId)
-          ) {
-            setMessages((prev) => [...prev, msg]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
+    return () => unsubscribe();
   }, [user, userId]);
 
   const handleSend = async () => {
-    if (newMessage.trim() === "") return;
+    if (!newMessage.trim()) return;
 
-    const { error } = await supabase.from("messages").insert([
-      {
-        sender_id: user.id,
-        recipient_id: userId,
-        content: newMessage,
-        seen: false,
-      },
-    ]);
+    await addDoc(collection(db, "messages"), {
+      sender_id: user.uid,
+      recipient_id: userId,
+      participants: [user.uid, userId],
+      content: newMessage,
+      seen: false,
+      created_at: serverTimestamp(),
+    });
 
-    if (!error) {
-      setNewMessage("");
-    }
+    setNewMessage("");
   };
 
   return (
@@ -90,7 +65,7 @@ export default function Chat() {
           <div
             key={msg.id}
             className={
-              msg.sender_id === user.id ? "message me" : "message them"
+              msg.sender_id === user.uid ? "message me" : "message them"
             }
           >
             {msg.content}

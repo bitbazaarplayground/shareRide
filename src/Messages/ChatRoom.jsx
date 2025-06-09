@@ -1,7 +1,17 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase"; // updated import
 import SendMessageForm from "./SendMessageForm";
 import "./Styles/ChatRoom.css";
 
@@ -14,52 +24,79 @@ export default function ChatRoom() {
   useEffect(() => {
     if (!user || !partnerId) return;
 
+    const messagesRef = collection(db, "messages");
+
+    const q1 = query(
+      messagesRef,
+      where("senderId", "==", user.uid),
+      where("recipientId", "==", partnerId),
+      orderBy("createdAt", "asc")
+    );
+
+    const q2 = query(
+      messagesRef,
+      where("senderId", "==", partnerId),
+      where("recipientId", "==", user.uid),
+      orderBy("createdAt", "asc")
+    );
+
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*, sender:sender_id(name), recipient:recipient_id(name)")
-        .or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${partnerId}),and(sender_id.eq.${partnerId},recipient_id.eq.${user.id})`
-        )
-        .order("created_at", { ascending: true });
+      const snapshot1 = await getDocs(q1);
+      const snapshot2 = await getDocs(q2);
 
-      if (error) {
-        console.error("Error fetching messages:", error);
-      } else {
-        setMessages(data);
+      let msgs = [
+        ...snapshot1.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+        ...snapshot2.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+      ];
 
-        // Mark unseen messages as seen
-        const unseen = data.filter(
-          (msg) => msg.recipient_id === user.id && !msg.seen
-        );
-        if (unseen.length > 0) {
-          const ids = unseen.map((msg) => msg.id);
-          await supabase.from("messages").update({ seen: true }).in("id", ids);
-        }
+      msgs.sort((a, b) => a.createdAt.seconds - b.createdAt.seconds);
+      setMessages(msgs);
+
+      // Mark unseen messages as seen
+      const unseen = msgs.filter(
+        (msg) => msg.recipientId === user.uid && !msg.seen
+      );
+
+      if (unseen.length > 0) {
+        unseen.forEach(async (msg) => {
+          const msgDocRef = doc(db, "messages", msg.id);
+          await updateDoc(msgDocRef, { seen: true });
+        });
       }
     };
 
     fetchMessages();
 
-    const channel = supabase
-      .channel("realtime-messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const msg = payload.new;
-          if (
-            (msg.sender_id === user.id && msg.recipient_id === partnerId) ||
-            (msg.sender_id === partnerId && msg.recipient_id === user.id)
-          ) {
-            setMessages((prev) => [...prev, msg]);
-          }
+    // Real-time listeners for new messages
+    const unsub1 = onSnapshot(q1, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === change.doc.id)) return prev;
+            return [...prev, { id: change.doc.id, ...change.doc.data() }].sort(
+              (a, b) => a.createdAt.seconds - b.createdAt.seconds
+            );
+          });
         }
-      )
-      .subscribe();
+      });
+    });
+
+    const unsub2 = onSnapshot(q2, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === change.doc.id)) return prev;
+            return [...prev, { id: change.doc.id, ...change.doc.data() }].sort(
+              (a, b) => a.createdAt.seconds - b.createdAt.seconds
+            );
+          });
+        }
+      });
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsub1();
+      unsub2();
     };
   }, [user, partnerId]);
 
@@ -77,8 +114,10 @@ export default function ChatRoom() {
 
       <div className="chat-thread">
         {messages.map((msg) => {
-          const isSender = msg.sender_id === user.id;
-          const currentDate = new Date(msg.created_at).toDateString();
+          const isSender = msg.senderId === user.uid;
+          const currentDate = new Date(
+            msg.createdAt.seconds * 1000
+          ).toDateString();
           const showDate = currentDate !== lastDate;
           if (showDate) lastDate = currentDate;
 
@@ -94,9 +133,13 @@ export default function ChatRoom() {
               <div className={`chat-bubble ${isSender ? "sent" : "received"}`}>
                 <div className="bubble-meta">
                   <strong>
-                    {isSender ? "You" : msg.sender?.name || msg.sender_id}
+                    {isSender ? "You" : msg.senderName || msg.senderId}
                   </strong>
-                  <small>{new Date(msg.created_at).toLocaleTimeString()}</small>
+                  <small>
+                    {new Date(
+                      msg.createdAt.seconds * 1000
+                    ).toLocaleTimeString()}
+                  </small>
                 </div>
                 <p>{msg.content}</p>
               </div>

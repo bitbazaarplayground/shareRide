@@ -1,9 +1,11 @@
+import { signOut } from "firebase/auth";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VscChevronDown, VscComment } from "react-icons/vsc";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { auth, db } from "../firebase";
 import LanguageSwitcher from "./LanguageSwitcher";
 import "./Styles/Navbar.css";
 
@@ -16,48 +18,29 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) navigate("/");
-    else console.error("Logout failed:", error.message);
+    try {
+      await signOut(auth);
+      navigate("/");
+    } catch (error) {
+      console.error("Logout failed:", error.message);
+    }
   };
 
-  // 📩 Fetch unseen message count
+  // 📩 Fetch unseen message count with live updates
   useEffect(() => {
     if (!user) return;
 
-    const fetchUnread = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("id", { count: "exact" })
-        .eq("recipient_id", user.id)
-        .eq("seen", false);
+    const q = query(
+      collection(db, "messages"),
+      where("recipient_id", "==", user.uid),
+      where("seen", "==", false)
+    );
 
-      if (!error) {
-        setUnreadCount(data.length);
-      }
-    };
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadCount(snapshot.size);
+    });
 
-    fetchUnread();
-
-    const channel = supabase
-      .channel("message-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        () => {
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => unsubscribe();
   }, [user]);
 
   // Close dropdown when clicking outside

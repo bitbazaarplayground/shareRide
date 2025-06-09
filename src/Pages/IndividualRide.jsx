@@ -1,7 +1,16 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { db } from "../firebase"; // Assuming db = getFirestore(app)
 
 export default function IndividualRide() {
   const { id } = useParams();
@@ -12,19 +21,27 @@ export default function IndividualRide() {
 
   useEffect(() => {
     async function fetchRideWithUser() {
-      const { data, error } = await supabase
-        .from("rides")
-        .select("*, profiles(id, nickname, avatar_url)")
-        .eq("id", id)
-        .single();
+      try {
+        const rideRef = doc(db, "rides", id);
+        const rideSnap = await getDoc(rideRef);
 
-      if (error) {
+        if (!rideSnap.exists()) {
+          setRide(null);
+        } else {
+          const rideData = rideSnap.data();
+
+          // Fetch poster info
+          const profileRef = doc(db, "profiles", rideData.user_id); // assuming rideData has a user_id field
+          const profileSnap = await getDoc(profileRef);
+          rideData.profiles = profileSnap.exists() ? profileSnap.data() : null;
+
+          setRide({ id: rideSnap.id, ...rideData });
+        }
+      } catch (error) {
         console.error("Error fetching ride:", error);
-      } else {
-        setRide(data);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     fetchRideWithUser();
@@ -33,48 +50,34 @@ export default function IndividualRide() {
   const handleMessageClick = async () => {
     if (!user || !ride?.profiles?.id) return;
 
-    const userA = user.id;
+    const userA = user.uid;
     const userB = ride.profiles.id;
-
-    // Always order user ids to prevent duplicates (userA < userB)
     const [participant1, participant2] =
       userA < userB ? [userA, userB] : [userB, userA];
 
-    // Check if a chat already exists
-    const { data: existingChat, error: chatError } = await supabase
-      .from("chats")
-      .select("id")
-      .eq("user1", participant1)
-      .eq("user2", participant2)
-      .single();
+    try {
+      const chatQuery = query(
+        collection(db, "chats"),
+        where("user1", "==", participant1),
+        where("user2", "==", participant2)
+      );
+      const chatSnapshot = await getDocs(chatQuery);
 
-    if (chatError && chatError.code !== "PGRST116") {
-      // Only log error if it's not "no rows found"
-      console.error("Error checking existing chat:", chatError);
-      return;
-    }
-
-    let chatId;
-
-    if (existingChat) {
-      chatId = existingChat.id;
-    } else {
-      const { data: newChat, error: createError } = await supabase
-        .from("chats")
-        .insert([{ user1: participant1, user2: participant2 }])
-        .select()
-        .single();
-
-      if (createError) {
-        console.error("Error creating new chat:", createError);
-        return;
+      let chatId;
+      if (!chatSnapshot.empty) {
+        chatId = chatSnapshot.docs[0].id;
+      } else {
+        const newChatRef = await addDoc(collection(db, "chats"), {
+          user1: participant1,
+          user2: participant2,
+        });
+        chatId = newChatRef.id;
       }
 
-      chatId = newChat.id;
+      navigate(`/chat/${chatId}`);
+    } catch (error) {
+      console.error("Error handling chat creation:", error);
     }
-
-    // Redirect to the chat page
-    navigate(`/chat/${chatId}`);
   };
 
   if (loading) return <p>Loading ride details...</p>;
@@ -114,7 +117,7 @@ export default function IndividualRide() {
               <strong>{ride.profiles.nickname}</strong>
             </Link>
 
-            {user?.id !== ride.profiles.id && (
+            {user?.uid !== ride.profiles.id && (
               <button className="btn white" onClick={handleMessageClick}>
                 Message
               </button>

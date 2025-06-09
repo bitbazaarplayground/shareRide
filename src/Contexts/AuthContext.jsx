@@ -1,73 +1,48 @@
+// Contexts/AuthContext.jsx
+import { signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { auth, db } from "../firebase";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null); // 👈 Add this
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchUserRole = async (userId) => {
+    try {
+      const docRef = doc(db, "profiles", userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setRole(docSnap.data().role || null);
+      } else {
+        setRole(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
+
   useEffect(() => {
-    const getSessionAndProfile = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const currentUser = session?.user;
-
-      setUser(currentUser);
-
-      // ✅ Fetch role from profiles table if user exists
-      if (currentUser) {
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", currentUser.id)
-          .single();
-
-        if (!error) {
-          setRole(profile.role); // 👈 Store role in context
-        } else {
-          console.error("Error fetching role:", error);
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        await fetchUserRole(firebaseUser.uid);
+      } else {
+        setRole(null);
       }
-
       setLoading(false);
-    };
+    });
 
-    getSessionAndProfile();
-
-    // Optional: Listen for auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const currentUser = session?.user || null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", currentUser.id)
-            .single();
-
-          if (!error) {
-            setRole(profile.role);
-          } else {
-            console.error("Error fetching role on auth change:", error);
-          }
-        } else {
-          setRole(null);
-        }
-      }
-    );
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
+  const signOut = () => firebaseSignOut(auth);
+
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
