@@ -7,40 +7,44 @@ import "./StylesPages/CompleteProfile.css";
 export default function CompleteProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const [profile, setProfile] = useState({
     name: "",
     nickname: "",
     avatar_url: "",
     age: "",
-    interests: [], // ✅ initialize as empty array
   });
-
-  const [newInterest, setNewInterest] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, nickname, avatar_url, age, interests")
-        .eq("id", user.id)
-        .single();
+      if (!user) return;
 
-      if (error) {
-        console.error("Error fetching profile:", error.message);
-      } else if (data) {
-        setProfile({
-          name: data.name || "",
-          nickname: data.nickname || "",
-          avatar_url: data.avatar_url || "",
-          age: data.age || "",
-          interests: Array.isArray(data.interests) ? data.interests : [], // ✅ safeguard
-        });
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, nickname, avatar_url, age")
+          .eq("id", user.id)
+          .single();
+
+        if (data) {
+          setProfile({
+            name: data.name || "",
+            nickname: data.nickname || "",
+            avatar_url: data.avatar_url || "",
+            age: data.age || "",
+          });
+        } else if (error) {
+          console.error("Error fetching profile:", error.message);
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err.message);
+      } finally {
+        setInitialLoading(false);
       }
     };
 
-    if (user) fetchProfile();
+    fetchProfile();
   }, [user]);
 
   const handleInputChange = (e) => {
@@ -48,51 +52,40 @@ export default function CompleteProfile() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddInterest = () => {
-    const trimmed = newInterest.trim();
-    if (trimmed && !profile.interests.includes(trimmed)) {
-      setProfile((prev) => ({
-        ...prev,
-        interests: [...prev.interests, trimmed],
-      }));
-      setNewInterest("");
-    }
-  };
-
-  const handleRemoveInterest = (indexToRemove) => {
-    setProfile((prev) => ({
-      ...prev,
-      interests: prev.interests.filter((_, i) => i !== indexToRemove),
-    }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) return;
+
     setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          ...profile,
+        })
+        .eq("id", user.id);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        ...profile,
-        interests: profile.interests, // ✅ stored as JSON array
-        role: "user",
-      })
-      .eq("id", user.id);
-
-    setLoading(false);
-
-    if (error) {
-      console.error("Error updating profile:", error.message);
-      alert("There was a problem updating your profile.");
-    } else {
-      alert("Profile completed successfully!");
-      navigate("/profile");
+      if (error) {
+        console.error("Error updating profile:", error.message);
+        alert("There was a problem updating your profile.");
+      } else {
+        alert("Profile updated successfully!");
+        navigate("/profile");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err.message);
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (!user || initialLoading) {
+    return <p className="loading-message">Loading profile data...</p>;
+  }
 
   return (
     <div className="complete-profile-container">
-      <h2>Complete Your Profile</h2>
+      <h2>Edit Your Profile</h2>
       <form onSubmit={handleSubmit}>
         <label>Name:</label>
         <input
@@ -112,7 +105,7 @@ export default function CompleteProfile() {
           onChange={handleInputChange}
         />
 
-        <label>Avatar URL (optional):</label>
+        <label>Avatar URL:</label>
         <input
           type="url"
           name="avatar_url"
@@ -127,39 +120,12 @@ export default function CompleteProfile() {
           name="age"
           value={profile.age}
           required
-          min="0"
+          min="18"
           onChange={handleInputChange}
         />
 
-        <label>Interests:</label>
-        <div className="interest-list">
-          {profile.interests.map((interest, index) => (
-            <div key={index} className="interest-chip">
-              {interest}
-              <button type="button" onClick={() => handleRemoveInterest(index)}>
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="interest-input">
-          <input
-            type="text"
-            value={newInterest}
-            onChange={(e) => setNewInterest(e.target.value)}
-            placeholder="Add an interest"
-          />
-          <button
-            type="button"
-            onClick={handleAddInterest}
-            disabled={!newInterest.trim()}
-          >
-            Add
-          </button>
-        </div>
-
         <button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Save & Continue"}
+          {loading ? "Saving..." : "Save Changes"}
         </button>
       </form>
     </div>

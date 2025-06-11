@@ -1,5 +1,5 @@
-import React from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
 import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
@@ -22,8 +22,24 @@ import SignUp from "./Pages/SignUp";
 import TermsofUse from "./Pages/TermsOfUse";
 import UserProfile from "./Pages/UserProfile";
 import "./i18n";
-
+import { supabase } from "./supabaseClient";
 export default function App() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        navigate("/homepage", { replace: true });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
   return (
     <AuthProvider>
       <div className="full-width-nav">
