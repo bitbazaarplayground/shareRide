@@ -1,0 +1,35 @@
+/* StylesPages/PublicProfile.css */
+
+.public-profile {
+  max-width: 700px;
+  margin: auto;
+  padding: 1rem;
+}
+
+.avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 100px;
+  object-fit: cover;
+}
+
+.ride-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #f9f9f9;
+}
+
+.ride-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.small-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
