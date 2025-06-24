@@ -3,84 +3,116 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import SendMessageForm from "../Messages/SendMessageForm";
 import { supabase } from "../supabaseClient";
-import "./StylesPages/UserProfile.css"; // Reuse same styling
+import "./StylesPages/PublicProfile.css";
 
 export default function PublicProfile() {
   const { id } = useParams();
-  const { user } = useAuth(); // get logged-in user
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [rides, setRides] = useState([]);
 
   useEffect(() => {
-    async function fetchProfile() {
+    const fetchProfile = async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("name, bio, avatar_url, interests, id")
+        .select("*")
         .eq("id", id)
         .single();
+      if (error) console.error("Error fetching profile:", error);
+      else setProfileData(data);
+    };
 
-      if (error) {
-        console.error("Error fetching public profile:", error.message);
-      } else {
-        setProfileData(data);
-      }
-
-      setLoading(false);
-    }
+    const fetchRides = async () => {
+      const { data, error } = await supabase
+        .from("rides")
+        .select("*")
+        .eq("user_id", id)
+        .order("date", { ascending: true });
+      if (error) console.error("Error fetching rides:", error);
+      else setRides(data);
+    };
 
     fetchProfile();
+    fetchRides();
   }, [id]);
 
-  const handleRequestRide = () => {
-    alert(`You can now send a ride request to ${profileData.name}`);
-    // TODO: later, open a modal or ride request form
-  };
+  if (!profileData) return <p>Loading...</p>;
 
-  if (loading) return <p>Loading profile...</p>;
-  if (!profileData) return <p>Profile not found.</p>;
+  const parsedInterests = profileData.interests
+    ? Array.isArray(profileData.interests)
+      ? profileData.interests
+      : profileData.interests.split(",").map((i) => i.trim())
+    : [];
+
+  const today = new Date().toISOString().split("T")[0];
+  const activeRides = rides.filter((r) => r.date >= today);
+  const pastRides = rides.filter((r) => r.date < today);
+
+  const RideCard = ({ ride }) => (
+    <div className="ride-card">
+      <p>
+        <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
+      </p>
+      <p>
+        <strong>Date:</strong> {ride.date}
+      </p>
+      <p>
+        <strong>Seats:</strong> {ride.seats}
+      </p>
+      <div className="ride-author">
+        <img
+          src={profileData.avatar_url || "/default-avatar.png"}
+          alt={`${profileData.nickname}'s avatar`}
+          className="small-avatar"
+        />
+        <span>{profileData.nickname}</span>
+      </div>
+      {user && user.id !== id && <SendMessageForm recipientId={id} />}
+    </div>
+  );
 
   return (
-    <div className="profile-container">
-      <h2>{profileData.name}'s Profile</h2>
-      <div className="profile-section">
-        <div className="profile-pic">
-          <img
-            src={profileData.avatar_url || "/default-avatar.png"}
-            alt={`${profileData.name}'s avatar`}
-            className="avatar"
-          />
+    <div className="public-profile">
+      <h2>{profileData.nickname}'s Profile</h2>
+      <img
+        src={profileData.avatar_url || "/default-avatar.png"}
+        alt={`${profileData.name}'s avatar`}
+        className="avatar"
+      />
+      <p>
+        <strong>Name:</strong> {profileData.name}
+      </p>
+      <p>
+        <strong>Age:</strong> {profileData.age}
+      </p>
+      <p>
+        <strong>Interests:</strong> {parsedInterests.join(", ")}
+      </p>
+      <p>
+        <strong>About:</strong> {profileData.bio}
+      </p>
+
+      {user && user.id !== id && (
+        <div className="message-section">
+          <h3>Send a Message</h3>
+          <SendMessageForm recipientId={id} />
         </div>
+      )}
 
-        <div className="profile-info">
-          <label>Bio:</label>
-          <p>{profileData.bio || "No bio available."}</p>
+      <div className="rides-section">
+        <h3>Active Rides</h3>
+        {activeRides.length > 0 ? (
+          activeRides.map((ride) => <RideCard key={ride.id} ride={ride} />)
+        ) : (
+          <p>No active rides.</p>
+        )}
 
-          <label>Interests:</label>
-          {profileData.interests && profileData.interests.length > 0 ? (
-            <div className="interest-list">
-              {profileData.interests.map((item, index) => (
-                <div key={index} className="interest-chip">
-                  {item}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p>No interests listed.</p>
-          )}
-
-          <div style={{ marginTop: "20px" }}>
-            <button className="btn white" onClick={handleRequestRide}>
-              Request a Ride
-            </button>
-          </div>
-
-          {user && user.id !== id && (
-            <div style={{ marginTop: "30px" }}>
-              <h3>Send Message to {profileData.name}</h3>
-              <SendMessageForm recipientId={id} />
-            </div>
-          )}
-        </div>
+        <h3>Past Rides</h3>
+        {pastRides.length > 0 ? (
+          pastRides.map((ride) => <RideCard key={ride.id} ride={ride} />)
+        ) : (
+          <p>No past rides.</p>
+        )}
       </div>
     </div>
   );
