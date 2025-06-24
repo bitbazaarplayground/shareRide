@@ -1,4 +1,62 @@
-.posted-by {
-  font-style: italic;
-  color: #555;
+.all-rides-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.ride-item {
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  background-color: #fafafa;
+}
+
+.ride-link {
+  text-decoration: none;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.ride-details {
+  margin-top: 0.5rem;
+}
+
+.poster-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.75rem;
+}
+
+.poster-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.poster-nickname {
+  text-decoration: none;
+  color: #007bff;
+}
+
+.message-btn,
+.delete-btn {
+  margin-left: auto;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.message-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
 
@@ -9,10 +10,10 @@ export default function AllPostedRides() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const successMessage = location.state?.message;
-  {
-    successMessage && <p className="success">{successMessage}</p>;
-  }
 
   useEffect(() => {
     async function fetchRides() {
@@ -34,9 +35,20 @@ export default function AllPostedRides() {
     fetchRides();
   }, []);
 
+  const handleDelete = async (rideId) => {
+    const { error } = await supabase.from("rides").delete().eq("id", rideId);
+
+    if (error) {
+      console.error("Error deleting ride:", error);
+    } else {
+      setRides((prev) => prev.filter((ride) => ride.id !== rideId));
+    }
+  };
+
   return (
     <div className="all-rides-container">
       <h2>All Published Rides</h2>
+      {successMessage && <p className="success">{successMessage}</p>}
       {loading ? (
         <p>Loading rides...</p>
       ) : errorMsg ? (
@@ -44,41 +56,58 @@ export default function AllPostedRides() {
       ) : rides.length === 0 ? (
         <p>No rides have been published yet.</p>
       ) : (
-        <ul>
+        <ul className="ride-list">
           {rides.map((ride) => (
-            <li key={ride.id}>
-              <Link to={`/individual-ride/${ride.id}`}>
+            <li key={ride.id} className="ride-card">
+              <Link to={`/individual-ride/${ride.id}`} className="ride-link">
                 <strong>From:</strong> {ride.from} → <strong>To:</strong>{" "}
                 {ride.to}
               </Link>
-              <br />
-              <strong>Date:</strong> {ride.date} <br />
-              <strong>Seats:</strong> {ride.seats} <br />
-              {/* User Info */}
+              <div className="ride-details">
+                <p>
+                  <strong>Date:</strong> {ride.date}
+                </p>
+                <p>
+                  <strong>Seats:</strong> {ride.seats}
+                </p>
+              </div>
               {ride.profiles && (
-                <div
-                  className="poster-info"
-                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
-                >
+                <div className="poster-info">
                   <img
                     src={ride.profiles.avatar_url || "/default-avatar.png"}
                     alt={`${ride.profiles.nickname}'s avatar`}
-                    style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                    }}
+                    className="poster-avatar"
                   />
-                  <Link to={`/profile/${ride.profiles.id}`}>
+                  <Link
+                    to={`/profile/${ride.profiles.id}`}
+                    className="poster-nickname"
+                  >
                     <strong>{ride.profiles.nickname}</strong>
                   </Link>
                 </div>
               )}
               {ride.notes && (
-                <p>
+                <p className="ride-notes">
                   <em>{ride.notes}</em>
                 </p>
               )}
+
+              <div className="ride-actions">
+                <Link
+                  to={`/chat/${ride.profiles.id}`}
+                  className="send-message-btn"
+                >
+                  Send Message
+                </Link>
+                {user?.id === ride.profiles.id && (
+                  <button
+                    onClick={() => handleDelete(ride.id)}
+                    className="delete-ride-btn"
+                  >
+                    Delete Ride
+                  </button>
+                )}
+              </div>
               <hr />
             </li>
           ))}
