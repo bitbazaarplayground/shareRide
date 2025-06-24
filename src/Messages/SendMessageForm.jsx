@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 
-export default function SendMessageForm({ recipientId }) {
+export default function SendMessageForm({ recipientId, rideId }) {
   const { user } = useAuth();
   const [content, setContent] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -46,6 +46,7 @@ export default function SendMessageForm({ recipientId }) {
       recipient_id: recipientId,
       content,
       seen: false,
+      ride_id: rideId,
     });
 
     if (!error) setContent("");
