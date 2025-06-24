@@ -1,58 +1,66 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
+  const { user } = useAuth();
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const fetchRides = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*, profiles(id, nickname, avatar_url)")
+      .order("date", { ascending: true });
 
-  const successMessage = location.state?.message;
-
-  useEffect(() => {
-    async function fetchRides() {
-      const { data, error } = await supabase
-        .from("rides")
-        .select("*, profiles(id, nickname, avatar_url)")
-        .order("date", { ascending: true });
-
-      if (error) {
-        setErrorMsg("Failed to fetch rides.");
-        console.error("Error fetching rides:", error);
-      } else {
-        setRides(data);
-      }
-
-      setLoading(false);
+    if (error) {
+      console.error("Fetch error:", error);
+      setErrorMsg("Failed to load rides.");
+      setRides([]);
+    } else {
+      setRides(data);
+      setErrorMsg("");
     }
 
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchRides();
   }, []);
 
   const handleDelete = async (rideId) => {
+    const confirmDelete = window.confirm("Are you sure?");
+    if (!confirmDelete) return;
+
     const { error } = await supabase.from("rides").delete().eq("id", rideId);
 
     if (error) {
-      console.error("Error deleting ride:", error);
+      console.error("Delete error:", error);
+      setErrorMsg("Failed to delete ride.");
+      setSuccessMessage("");
     } else {
-      setRides((prev) => prev.filter((ride) => ride.id !== rideId));
+      setSuccessMessage("Ride deleted successfully!");
+      // Remove from UI immediately:
+      setRides((prev) => prev.filter((r) => r.id !== rideId));
+      setErrorMsg("");
     }
   };
 
   return (
     <div className="all-rides-container">
       <h2>All Published Rides</h2>
+
       {successMessage && <p className="success">{successMessage}</p>}
+      {errorMsg && <p className="error">{errorMsg}</p>}
+
       {loading ? (
-        <p>Loading rides...</p>
-      ) : errorMsg ? (
-        <p>{errorMsg}</p>
+        <p>Loading...</p>
       ) : rides.length === 0 ? (
         <p>No rides have been published yet.</p>
       ) : (
@@ -63,6 +71,7 @@ export default function AllPostedRides() {
                 <strong>From:</strong> {ride.from} → <strong>To:</strong>{" "}
                 {ride.to}
               </Link>
+
               <div className="ride-details">
                 <p>
                   <strong>Date:</strong> {ride.date}
@@ -71,6 +80,7 @@ export default function AllPostedRides() {
                   <strong>Seats:</strong> {ride.seats}
                 </p>
               </div>
+
               {ride.profiles && (
                 <div className="poster-info">
                   <img
@@ -82,7 +92,7 @@ export default function AllPostedRides() {
                     to={`/profile/${ride.profiles.id}`}
                     className="poster-nickname"
                   >
-                    <strong>{ride.profiles.nickname}</strong>
+                    {ride.profiles.nickname}
                   </Link>
                 </div>
               )}
@@ -91,23 +101,23 @@ export default function AllPostedRides() {
                   <em>{ride.notes}</em>
                 </p>
               )}
-
               <div className="ride-actions">
                 <Link
                   to={`/chat/${ride.profiles.id}`}
                   className="send-message-btn"
                 >
-                  Send Message
+                  Message
                 </Link>
                 {user?.id === ride.profiles.id && (
                   <button
-                    onClick={() => handleDelete(ride.id)}
                     className="delete-ride-btn"
+                    onClick={() => handleDelete(ride.id)}
                   >
                     Delete Ride
                   </button>
                 )}
               </div>
+
               <hr />
             </li>
           ))}
