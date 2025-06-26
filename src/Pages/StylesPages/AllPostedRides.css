@@ -36,6 +36,17 @@
   object-fit: cover;
 }
 
+.initial-avatar {
+  background-color: #e66000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
 .poster-nickname {
   text-decoration: none;
   color: #007bff;

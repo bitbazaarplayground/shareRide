@@ -83,11 +83,17 @@ export default function AllPostedRides() {
 
               {ride.profiles && (
                 <div className="poster-info">
-                  <img
-                    src={ride.profiles.avatar_url || "/default-avatar.png"}
-                    alt={`${ride.profiles.nickname}'s avatar`}
-                    className="poster-avatar"
-                  />
+                  {ride.profiles.avatar_url ? (
+                    <img
+                      src={ride.profiles.avatar_url}
+                      alt={`${ride.profiles.nickname}'s avatar`}
+                      className="poster-avatar"
+                    />
+                  ) : (
+                    <div className="poster-avatar initial-avatar">
+                      {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
                   <Link
                     to={`/profile/${ride.profiles.id}`}
                     className="poster-nickname"
@@ -96,6 +102,7 @@ export default function AllPostedRides() {
                   </Link>
                 </div>
               )}
+
               {ride.notes && (
                 <p className="ride-notes">
                   <em>{ride.notes}</em>
