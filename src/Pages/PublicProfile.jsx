@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import Avatar from "../Components/Avatar";
 import { useAuth } from "../Contexts/AuthContext";
 import SendMessageForm from "../Messages/SendMessageForm";
 import { supabase } from "../supabaseClient";
@@ -60,9 +61,10 @@ export default function PublicProfile() {
         <strong>Seats:</strong> {ride.seats}
       </p>
       <div className="ride-author">
-        <img
-          src={profileData.avatar_url || "/default-avatar.png"}
-          alt={`${profileData.nickname}'s avatar`}
+        <Avatar
+          src={profileData.avatar_url}
+          name={profileData.name}
+          alt={`${profileData.name}'s avatar`}
           className="small-avatar"
         />
         <span>{profileData.nickname}</span>
@@ -74,10 +76,11 @@ export default function PublicProfile() {
   return (
     <div className="public-profile">
       <h2>{profileData.nickname}'s Profile</h2>
-      <img
-        src={profileData.avatar_url || "/default-avatar.png"}
-        alt={`${profileData.name}'s avatar`}
-        className="avatar"
+      <Avatar
+        src={profileData.avatar_url}
+        name={profileData.nickname}
+        alt={`${profileData.nickname}'s avatar`}
+        className="small-avatar"
       />
       <p>
         <strong>Name:</strong> {profileData.name}

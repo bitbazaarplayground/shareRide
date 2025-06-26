@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import SendMessageForm from "./SendMessageForm";
@@ -8,9 +8,12 @@ import "./Styles/ChatRoom.css";
 export default function ChatRoom() {
   const { user } = useAuth();
   const { partnerId } = useParams();
+  const { state } = useLocation(); // ← ride + nickname may arrive here
   const [messages, setMessages] = useState([]);
+  const [ride, setRide] = useState(state?.ride || null); // instant if provided
   const chatEndRef = useRef(null);
 
+  /* ------------------ 1. FETCH MESSAGES ------------------ */
   useEffect(() => {
     if (!user || !partnerId) return;
 
@@ -23,46 +26,71 @@ export default function ChatRoom() {
         )
         .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching messages:", error);
-      } else {
+      if (!error) {
         setMessages(data);
 
-        // Mark unseen messages as seen
+        // mark unseen as seen
         const unseen = data.filter(
-          (msg) => msg.recipient_id === user.id && !msg.seen
+          (m) => m.recipient_id === user.id && !m.seen
         );
-        if (unseen.length > 0) {
-          const ids = unseen.map((msg) => msg.id);
-          await supabase.from("messages").update({ seen: true }).in("id", ids);
+        if (unseen.length) {
+          await supabase
+            .from("messages")
+            .update({ seen: true })
+            .in(
+              "id",
+              unseen.map((m) => m.id)
+            );
         }
+      } else {
+        console.error("Error fetching messages:", error);
       }
     };
 
     fetchMessages();
 
+    // realtime
     const channel = supabase
       .channel("realtime-messages")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const msg = payload.new;
+        ({ new: msg }) => {
           if (
             (msg.sender_id === user.id && msg.recipient_id === partnerId) ||
             (msg.sender_id === partnerId && msg.recipient_id === user.id)
           ) {
-            setMessages((prev) => [...prev, msg]);
+            setMessages((prev) =>
+              prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
+            );
           }
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [user, partnerId]);
 
+  /* ------------------ 2. FETCH RIDE (only if not passed) ------------------ */
+  useEffect(() => {
+    if (ride || !user || !partnerId) return; // already have it
+
+    const fetchRide = async () => {
+      const { data, error } = await supabase
+        .from("rides")
+        .select("*")
+        .in("user_id", [user.id, partnerId])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!error && data.length) setRide(data[0]);
+      else if (error) console.error("Error fetching ride:", error);
+    };
+
+    fetchRide();
+  }, [ride, user, partnerId]);
+
+  /* ------------------ 3. SCROLL TO BOTTOM ------------------ */
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -73,7 +101,33 @@ export default function ChatRoom() {
 
   return (
     <div className="chat-room">
-      <h2>Chat with {partnerId}</h2>
+      <h2>Chat with {state?.partnerNickname || partnerId}</h2>
+
+      {ride && (
+        <div className="ride-details">
+          <h3>Ride Details</h3>
+          <p>
+            <strong>From:</strong> {ride.from}
+          </p>
+          <p>
+            <strong>To:</strong> {ride.to}
+          </p>
+          <p>
+            <strong>Date:</strong> {new Date(ride.date).toLocaleString()}
+          </p>
+          <p>
+            <strong>Seats:</strong> {ride.seats}
+          </p>
+          {ride.note && (
+            <p>
+              <strong>Note:</strong> {ride.note}
+            </p>
+          )}
+          <p>
+            <strong>Status:</strong> {ride.status}
+          </p>
+        </div>
+      )}
 
       <div className="chat-thread">
         {messages.map((msg) => {
