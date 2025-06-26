@@ -30,7 +30,12 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
+      // Only redirect if on the login or signup page
+      const isAtEntryPage =
+        window.location.hash.includes("login") ||
+        window.location.hash.includes("signup");
+
+      if (event === "SIGNED_IN" && session?.user && isAtEntryPage) {
         navigate("/homepage", { replace: true });
       }
     });
@@ -81,7 +86,7 @@ export default function App() {
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Messaging */}
           <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/chat/:partnerId" element={<ChatRoom />} />
+          <Route path="/chat/:chatId" element={<ChatRoom />} />
         </Routes>
       </div>
     </AuthProvider>
