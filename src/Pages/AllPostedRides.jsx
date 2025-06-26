@@ -12,7 +12,6 @@ export default function AllPostedRides() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const successMessage = location.state?.message;
 
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function AllPostedRides() {
       } else {
         setRides(data);
       }
-
       setLoading(false);
     }
 
@@ -37,12 +35,47 @@ export default function AllPostedRides() {
 
   const handleDelete = async (rideId) => {
     const { error } = await supabase.from("rides").delete().eq("id", rideId);
-
     if (error) {
       console.error("Error deleting ride:", error);
     } else {
       setRides((prev) => prev.filter((ride) => ride.id !== rideId));
     }
+  };
+
+  const handleStartChat = async (ridePosterId, rideId) => {
+    const [userA, userB] =
+      user.id < ridePosterId
+        ? [user.id, ridePosterId]
+        : [ridePosterId, user.id];
+
+    const { data: existingChat, error: fetchError } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("user1", userA)
+      .eq("user2", userB)
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    let chatId;
+
+    if (existingChat) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: createError } = await supabase
+        .from("chats")
+        .insert([{ user1: userA, user2: userB, ride_id: rideId }])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating chat:", createError);
+        return;
+      }
+
+      chatId = newChat.id;
+    }
+
+    navigate(`/chat/${chatId}`);
   };
 
   return (
@@ -92,21 +125,20 @@ export default function AllPostedRides() {
                   </Link>
                 </div>
               )}
-
               {ride.notes && (
                 <p className="ride-notes">
                   <em>{ride.notes}</em>
                 </p>
               )}
-
               <div className="ride-actions">
-                <Link
-                  to={`/chat/${ride.profiles.id}`}
-                  className="send-message-btn"
-                >
-                  Send Message
-                </Link>
-                {user?.id === ride.profiles.id && (
+                {user?.id !== ride.profiles.id ? (
+                  <button
+                    onClick={() => handleStartChat(ride.profiles.id, ride.id)}
+                    className="send-message-btn"
+                  >
+                    Send Message
+                  </button>
+                ) : (
                   <button
                     onClick={() => handleDelete(ride.id)}
                     className="delete-ride-btn"

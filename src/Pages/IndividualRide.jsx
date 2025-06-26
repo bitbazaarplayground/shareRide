@@ -33,23 +33,20 @@ export default function IndividualRide() {
   const handleMessageClick = async () => {
     if (!user || !ride?.profiles?.id) return;
 
-    const userA = user.id;
-    const userB = ride.profiles.id;
+    const [userA, userB] =
+      user.id < ride.profiles.id
+        ? [user.id, ride.profiles.id]
+        : [ride.profiles.id, user.id];
 
-    // Always order user ids to prevent duplicates (userA < userB)
-    const [participant1, participant2] =
-      userA < userB ? [userA, userB] : [userB, userA];
-
-    // Check if a chat already exists
     const { data: existingChat, error: chatError } = await supabase
       .from("chats")
       .select("id")
-      .eq("user1", participant1)
-      .eq("user2", participant2)
+      .eq("user1", userA)
+      .eq("user2", userB)
+      .eq("ride_id", ride.id)
       .single();
 
     if (chatError && chatError.code !== "PGRST116") {
-      // Only log error if it's not "no rows found"
       console.error("Error checking existing chat:", chatError);
       return;
     }
@@ -61,7 +58,7 @@ export default function IndividualRide() {
     } else {
       const { data: newChat, error: createError } = await supabase
         .from("chats")
-        .insert([{ user1: participant1, user2: participant2 }])
+        .insert([{ user1: userA, user2: userB, ride_id: ride.id }])
         .select()
         .single();
 
@@ -73,7 +70,6 @@ export default function IndividualRide() {
       chatId = newChat.id;
     }
 
-    // Redirect to the chat page
     navigate(`/chat/${chatId}`);
   };
 
