@@ -106,8 +106,20 @@ export default function IndividualRide() {
             style={{ width: "40px", height: "40px", borderRadius: "50%" }}
           />
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <Link to={`/profile/${ride.profiles.id}`}>
-              <strong>{ride.profiles.nickname}</strong>
+            <Link
+              to={{
+                pathname: `/chat/${ride.profiles.id}`,
+                state: {
+                  partnerNickname: ride.profiles.nickname,
+                  rideId: ride.id,
+                  rideFrom: ride.from,
+                  rideTo: ride.to,
+                  rideDate: ride.date,
+                },
+              }}
+              className="send-message-btn"
+            >
+              Message
             </Link>
 
             {user?.id !== ride.profiles.id && (
