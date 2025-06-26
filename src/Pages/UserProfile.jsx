@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Avatar from "../Components/Avatar";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/UserProfile.css";
@@ -100,8 +101,9 @@ export default function UserProfile() {
       <h2>Your Profile</h2>
       <div className="profile-section">
         <div className="profile-pic">
-          <img
-            src={preview || profileData.avatar_url || "/default-avatar.png"}
+          <Avatar
+            src={preview || profileData.avatar_url}
+            name={profileData.name}
             alt="Profile"
             className="avatar"
           />
