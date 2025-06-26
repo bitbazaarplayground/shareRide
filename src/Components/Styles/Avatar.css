@@ -1,0 +1,24 @@
+.initials-avatar {
+  background-color: #e66000; /* your site color */
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+/* inherit size from img's class */
+.avatar {
+  width: 100px;
+  height: 100px;
+}
+
+.small-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 0.8rem;
+}
