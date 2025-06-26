@@ -1,66 +1,91 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
-  const { user } = useAuth();
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
-  const fetchRides = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("rides")
-      .select("*, profiles(id, nickname, avatar_url)")
-      .order("date", { ascending: true });
-
-    if (error) {
-      console.error("Fetch error:", error);
-      setErrorMsg("Failed to load rides.");
-      setRides([]);
-    } else {
-      setRides(data);
-      setErrorMsg("");
-    }
-
-    setLoading(false);
-  };
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const successMessage = location.state?.message;
 
   useEffect(() => {
+    async function fetchRides() {
+      const { data, error } = await supabase
+        .from("rides")
+        .select("*, profiles(id, nickname, avatar_url)")
+        .order("date", { ascending: true });
+
+      if (error) {
+        setErrorMsg("Failed to fetch rides.");
+        console.error("Error fetching rides:", error);
+      } else {
+        setRides(data);
+      }
+      setLoading(false);
+    }
+
     fetchRides();
   }, []);
 
   const handleDelete = async (rideId) => {
-    const confirmDelete = window.confirm("Are you sure?");
-    if (!confirmDelete) return;
-
     const { error } = await supabase.from("rides").delete().eq("id", rideId);
-
     if (error) {
-      console.error("Delete error:", error);
-      setErrorMsg("Failed to delete ride.");
-      setSuccessMessage("");
+      console.error("Error deleting ride:", error);
     } else {
-      setSuccessMessage("Ride deleted successfully!");
-      // Remove from UI immediately:
-      setRides((prev) => prev.filter((r) => r.id !== rideId));
-      setErrorMsg("");
+      setRides((prev) => prev.filter((ride) => ride.id !== rideId));
     }
+  };
+
+  const handleStartChat = async (ridePosterId, rideId) => {
+    const [userA, userB] =
+      user.id < ridePosterId
+        ? [user.id, ridePosterId]
+        : [ridePosterId, user.id];
+
+    const { data: existingChat, error: fetchError } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("user1", userA)
+      .eq("user2", userB)
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    let chatId;
+
+    if (existingChat) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: createError } = await supabase
+        .from("chats")
+        .insert([{ user1: userA, user2: userB, ride_id: rideId }])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating chat:", createError);
+        return;
+      }
+
+      chatId = newChat.id;
+    }
+
+    navigate(`/chat/${chatId}`);
   };
 
   return (
     <div className="all-rides-container">
       <h2>All Published Rides</h2>
-
       {successMessage && <p className="success">{successMessage}</p>}
-      {errorMsg && <p className="error">{errorMsg}</p>}
-
       {loading ? (
-        <p>Loading...</p>
+        <p>Loading rides...</p>
+      ) : errorMsg ? (
+        <p>{errorMsg}</p>
       ) : rides.length === 0 ? (
         <p>No rides have been published yet.</p>
       ) : (
@@ -71,7 +96,6 @@ export default function AllPostedRides() {
                 <strong>From:</strong> {ride.from} → <strong>To:</strong>{" "}
                 {ride.to}
               </Link>
-
               <div className="ride-details">
                 <p>
                   <strong>Date:</strong> {ride.date}
@@ -80,7 +104,6 @@ export default function AllPostedRides() {
                   <strong>Seats:</strong> {ride.seats}
                 </p>
               </div>
-
               {ride.profiles && (
                 <div className="poster-info">
                   {ride.profiles.avatar_url ? (
@@ -98,33 +121,32 @@ export default function AllPostedRides() {
                     to={`/profile/${ride.profiles.id}`}
                     className="poster-nickname"
                   >
-                    {ride.profiles.nickname}
+                    <strong>{ride.profiles.nickname}</strong>
                   </Link>
                 </div>
               )}
-
               {ride.notes && (
                 <p className="ride-notes">
                   <em>{ride.notes}</em>
                 </p>
               )}
               <div className="ride-actions">
-                <Link
-                  to={`/chat/${ride.profiles.id}`}
-                  className="send-message-btn"
-                >
-                  Message
-                </Link>
-                {user?.id === ride.profiles.id && (
+                {user?.id !== ride.profiles.id ? (
                   <button
-                    className="delete-ride-btn"
+                    onClick={() => handleStartChat(ride.profiles.id, ride.id)}
+                    className="send-message-btn"
+                  >
+                    Send Message
+                  </button>
+                ) : (
+                  <button
                     onClick={() => handleDelete(ride.id)}
+                    className="delete-ride-btn"
                   >
                     Delete Ride
                   </button>
                 )}
               </div>
-
               <hr />
             </li>
           ))}
@@ -133,3 +155,4 @@ export default function AllPostedRides() {
     </div>
   );
 }
+
