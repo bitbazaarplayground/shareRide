@@ -1,5 +1,6 @@
+// ChatRoom.jsx
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import SendMessageForm from "./SendMessageForm";
@@ -7,101 +8,123 @@ import "./Styles/ChatRoom.css";
 
 export default function ChatRoom() {
   const { user } = useAuth();
-  const { partnerId } = useParams();
-  const { state } = useLocation(); // ← ride + nickname may arrive here
+  const { chatId } = useParams();
+  const chatIdInt = parseInt(chatId);
   const [messages, setMessages] = useState([]);
-  const [ride, setRide] = useState(state?.ride || null); // instant if provided
+  const [partner, setPartner] = useState(null);
+  const [ride, setRide] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
 
-  /* ------------------ 1. FETCH MESSAGES ------------------ */
   useEffect(() => {
-    if (!user || !partnerId) return;
+    if (!chatIdInt || !user) return;
 
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
+    const fetchChatDetails = async () => {
+      const { data: chat, error: chatError } = await supabase
+        .from("chats")
+        .select("*")
+        .eq("id", chatIdInt)
+        .single();
+
+      if (chatError || !chat) {
+        console.error("Error fetching chat:", chatError);
+        return;
+      }
+
+      const partnerId = chat.user1 === user.id ? chat.user2 : chat.user1;
+
+      const { data: partnerProfile } = await supabase
+        .from("profiles")
+        .select("id, nickname")
+        .eq("id", partnerId)
+        .single();
+
+      setPartner(partnerProfile || { id: partnerId, nickname: "Deleted User" });
+
+      const { data: msgs } = await supabase
         .from("messages")
-        .select("*, sender:sender_id(name), recipient:recipient_id(name)")
-        .or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${partnerId}),and(sender_id.eq.${partnerId},recipient_id.eq.${user.id})`
-        )
+        .select("*")
+        .eq("chat_id", chatIdInt)
         .order("created_at", { ascending: true });
 
-      if (!error) {
-        setMessages(data);
+      setMessages(msgs);
 
-        // mark unseen as seen
-        const unseen = data.filter(
-          (m) => m.recipient_id === user.id && !m.seen
-        );
-        if (unseen.length) {
-          await supabase
-            .from("messages")
-            .update({ seen: true })
-            .in(
-              "id",
-              unseen.map((m) => m.id)
-            );
+      const unseen = msgs.filter((m) => m.recipient_id === user.id && !m.seen);
+      if (unseen.length > 0) {
+        await supabase
+          .from("messages")
+          .update({ seen: true })
+          .in(
+            "id",
+            unseen.map((m) => m.id)
+          );
+      }
+
+      // ✅ CORRECT: only fetch the ride if it exists on the chat
+      if (chat.ride_id) {
+        const { data: rideDetails, error: rideError } = await supabase
+          .from("rides")
+          .select("*")
+          .eq("id", chat.ride_id)
+          .single();
+
+        if (rideError) {
+          console.error("Error fetching ride:", rideError);
+        } else {
+          setRide(rideDetails);
         }
-      } else {
-        console.error("Error fetching messages:", error);
       }
     };
 
-    fetchMessages();
+    // ✅ Correct: invoke function *outside* its own body
+    fetchChatDetails();
 
-    // realtime
     const channel = supabase
-      .channel("realtime-messages")
+      .channel("chat-room-listeners")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         ({ new: msg }) => {
-          if (
-            (msg.sender_id === user.id && msg.recipient_id === partnerId) ||
-            (msg.sender_id === partnerId && msg.recipient_id === user.id)
-          ) {
+          if (msg.chat_id === chatIdInt && msg.sender_id !== user.id) {
             setMessages((prev) =>
               prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
             );
           }
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "typing_status",
+          filter: `sender_id=eq.${partner?.id}`,
+        },
+        (payload) => {
+          if (
+            payload.new.sender_id === partner?.id &&
+            payload.new.recipient_id === user.id
+          ) {
+            setIsTyping(payload.new.is_typing);
+          }
+        }
+      )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [user, partnerId]);
-
-  /* ------------------ 2. FETCH RIDE (only if not passed) ------------------ */
-  useEffect(() => {
-    if (ride || !user || !partnerId) return; // already have it
-
-    const fetchRide = async () => {
-      const { data, error } = await supabase
-        .from("rides")
-        .select("*")
-        .in("user_id", [user.id, partnerId])
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (!error && data.length) setRide(data[0]);
-      else if (error) console.error("Error fetching ride:", error);
+    return () => {
+      supabase.removeChannel(channel);
     };
+  }, [chatIdInt, user, partner?.id]);
 
-    fetchRide();
-  }, [ride, user, partnerId]);
-
-  /* ------------------ 3. SCROLL TO BOTTOM ------------------ */
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const handleNewMessage = (newMessage) => {
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  };
 
   if (!user) return <p>Please log in</p>;
 
-  let lastDate = "";
-
   return (
     <div className="chat-room">
-      <h2>Chat with {state?.partnerNickname || partnerId}</h2>
+      <h2>Chat with {partner?.nickname || "..."}</h2>
 
       {ride && (
         <div className="ride-details">
@@ -132,35 +155,39 @@ export default function ChatRoom() {
       <div className="chat-thread">
         {messages.map((msg) => {
           const isSender = msg.sender_id === user.id;
-          const currentDate = new Date(msg.created_at).toDateString();
-          const showDate = currentDate !== lastDate;
-          if (showDate) lastDate = currentDate;
-
           return (
-            <React.Fragment key={msg.id}>
-              {showDate && (
-                <div className="date-divider">
-                  <hr />
-                  <span>{currentDate}</span>
-                  <hr />
-                </div>
-              )}
-              <div className={`chat-bubble ${isSender ? "sent" : "received"}`}>
-                <div className="bubble-meta">
-                  <strong>
-                    {isSender ? "You" : msg.sender?.name || msg.sender_id}
-                  </strong>
-                  <small>{new Date(msg.created_at).toLocaleTimeString()}</small>
-                </div>
-                <p>{msg.content}</p>
+            <div
+              key={msg.id}
+              className={`chat-bubble ${isSender ? "sent" : "received"}`}
+            >
+              <div className="bubble-meta">
+                <strong>
+                  {isSender ? "You" : partner?.nickname || "Partner"}
+                </strong>
+                <small>{new Date(msg.created_at).toLocaleTimeString()}</small>
               </div>
-            </React.Fragment>
+              <p>{msg.content}</p>
+              {isSender && (
+                <small className="seen-indicator">
+                  {msg.seen ? "✓ Seen" : "✓ Sent"}
+                </small>
+              )}
+            </div>
           );
         })}
+
+        {isTyping && (
+          <p className="typing-indicator">{partner?.nickname} is typing...</p>
+        )}
+
         <div ref={chatEndRef} />
       </div>
 
-      <SendMessageForm recipientId={partnerId} />
+      <SendMessageForm
+        chatId={chatIdInt}
+        recipientId={partner?.id}
+        onNewMessage={handleNewMessage}
+      />
     </div>
   );
 }

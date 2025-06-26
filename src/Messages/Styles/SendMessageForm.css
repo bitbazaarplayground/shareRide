@@ -1,0 +1,77 @@
+.send-message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.chat-textarea {
+  width: 100%;
+  resize: none;
+  padding: 0.5rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button[type="submit"] {
+  align-self: flex-end;
+  padding: 0.5rem 1rem;
+  background-color: #0066ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.typing-indicator {
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: 0.25rem;
+}
+.send-message-form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.textarea-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.chat-textarea {
+  flex: 1;
+  resize: none;
+  padding: 0.6rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  min-height: 40px;
+}
+
+.emoji-btn {
+  font-size: 1.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.emoji-picker {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  z-index: 1000;
+}
+
+.typing-feedback {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: -0.5rem;
+  margin-top: 0.2rem;
+  font-style: italic;
+}
