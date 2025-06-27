@@ -86,7 +86,15 @@ export default function IndividualRide() {
         <strong>To:</strong> {ride.to}
       </p>
       <p>
-        <strong>Date:</strong> {ride.date}
+        <strong>Date & Time:</strong>{" "}
+        {ride.date && ride.time
+          ? `${new Date(ride.date).toLocaleDateString()} at ${new Date(
+              `${ride.date}T${ride.time}`
+            ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : "Not specified"}
+      </p>
+      <p>
+        <strong>Time:</strong> {ride.time}
       </p>
       <p>
         <strong>Seats Available:</strong> {ride.seats}
@@ -115,6 +123,7 @@ export default function IndividualRide() {
                   rideFrom: ride.from,
                   rideTo: ride.to,
                   rideDate: ride.date,
+                  rideTime: ride.time,
                 },
               }}
               className="send-message-btn"

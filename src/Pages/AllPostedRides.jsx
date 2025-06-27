@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import SearchBar from "../Components/SearchBar";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
@@ -80,7 +81,7 @@ export default function AllPostedRides() {
 
   return (
     <div className="all-rides-container">
-      <h2>All Published Rides</h2>
+      <SearchBar variant="horizontal" />
       {successMessage && <p className="success">{successMessage}</p>}
       {loading ? (
         <p>Loading rides...</p>
@@ -155,4 +156,3 @@ export default function AllPostedRides() {
     </div>
   );
 }
-
