@@ -12,9 +12,11 @@ export default function CompleteProfile() {
     nickname: "",
     avatar_url: "",
     age: "",
+    bio: "",
   });
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,7 +25,7 @@ export default function CompleteProfile() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("name, nickname, avatar_url, age")
+          .select("name, nickname, avatar_url, age, bio")
           .eq("id", user.id)
           .single();
 
@@ -33,7 +35,10 @@ export default function CompleteProfile() {
             nickname: data.nickname || "",
             avatar_url: data.avatar_url || "",
             age: data.age || "",
+            bio: data.bio || "",
           });
+
+          if (data.avatar_url) setPreview(data.avatar_url);
         } else if (error) {
           console.error("Error fetching profile:", error.message);
         }
@@ -52,6 +57,34 @@ export default function CompleteProfile() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user.id}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profilephotos")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error("Upload failed:", uploadError.message);
+      alert("Failed to upload image.");
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("profilephotos")
+      .getPublicUrl(filePath);
+
+    if (data?.publicUrl) {
+      setProfile((prev) => ({ ...prev, avatar_url: data.publicUrl }));
+      setPreview(data.publicUrl);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -62,6 +95,7 @@ export default function CompleteProfile() {
         .from("profiles")
         .update({
           ...profile,
+          avatar_url: preview || profile.avatar_url,
         })
         .eq("id", user.id);
 
@@ -105,14 +139,13 @@ export default function CompleteProfile() {
           onChange={handleInputChange}
         />
 
-        <label>Avatar URL:</label>
-        <input
-          type="url"
-          name="avatar_url"
-          value={profile.avatar_url}
-          onChange={handleInputChange}
-          placeholder="https://example.com/avatar.jpg"
-        />
+        <label>Photo:</label>
+        {preview ? (
+          <img src={preview} alt="Avatar preview" className="avatar-preview" />
+        ) : (
+          <div className="avatar-placeholder">No image selected</div>
+        )}
+        <input type="file" accept="image/*" onChange={handlePhotoChange} />
 
         <label>Age:</label>
         <input
@@ -121,6 +154,15 @@ export default function CompleteProfile() {
           value={profile.age}
           required
           min="18"
+          onChange={handleInputChange}
+        />
+
+        <label>About You:</label>
+        <input
+          type="text"
+          name="bio"
+          value={profile.bio}
+          required
           onChange={handleInputChange}
         />
 
