@@ -14,6 +14,7 @@ export default function PublishRide() {
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
   const [date, setDate] = useState(today);
+  const [time, setTime] = useState("12:00");
   const [seats, setSeats] = useState(1);
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
@@ -70,6 +71,7 @@ export default function PublishRide() {
           from: fromPlace,
           to: toPlace,
           date,
+          time,
           seats,
           notes,
           user_id: user.id,
@@ -110,6 +112,12 @@ export default function PublishRide() {
           value={date}
           min={today}
           onChange={(e) => setDate(e.target.value)}
+          required
+        />
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
           required
         />
         <input
