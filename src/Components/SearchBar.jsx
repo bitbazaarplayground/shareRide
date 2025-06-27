@@ -7,7 +7,7 @@ import AutocompleteInput from "./AutocompleteInput";
 import PassengerCounter from "./PassengerCounter";
 import "./Styles/SearchBar.css";
 
-export default function SearchBar() {
+export default function SearchBar({ variant = "vertical" }) {
   const { t } = useTranslation();
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
@@ -19,7 +19,7 @@ export default function SearchBar() {
   const handleSearch = async () => {
     const { data, error } = await supabase
       .from("rides")
-      .select("*")
+      .select("*, profiles(id, nickname, avatar_url)")
       .ilike("from", `%${fromPlace}%`)
       .ilike("to", `%${toPlace}%`)
       .eq("date", selectedDate);
@@ -29,10 +29,12 @@ export default function SearchBar() {
   };
 
   return (
-    <div className="search-container">
-      <h1 className="heading">{t("Search for rides")}</h1>
+    <div className={`search-container ${variant}`}>
+      {variant === "vertical" && (
+        <h1 className="heading">{t("Search for rides")}</h1>
+      )}
 
-      <div className="input-box">
+      <div className={`input-box ${variant}`}>
         <FaMapMarkerAlt className="icon start" />
         <AutocompleteInput
           placeholder={t("from")}
@@ -40,7 +42,7 @@ export default function SearchBar() {
         />
       </div>
 
-      <div className="input-box">
+      <div className={`input-box ${variant}`}>
         <FaSquare className="icon start" />
         <AutocompleteInput
           placeholder={t("to")}
@@ -48,7 +50,7 @@ export default function SearchBar() {
         />
       </div>
 
-      <div className="date-time">
+      <div className={`date-time ${variant}`}>
         <div className="pill">
           <FaCalendarAlt className="icon" />
           <input
@@ -56,17 +58,20 @@ export default function SearchBar() {
             min={selectedDate}
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="date-input"
+            className={`date-input ${variant}`}
             aria-label="Select date"
           />
         </div>
         <PassengerCounter t={t} />
       </div>
 
-      <button className="search-btn" onClick={handleSearch}>
+      <button className={`search-btn ${variant}`} onClick={handleSearch}>
         {t("search")}
       </button>
-      <div className="login-hint">{t("login_to_see_recent_activity")}</div>
+
+      {variant === "vertical" && (
+        <div className="login-hint">{t("login_to_see_recent_activity")}</div>
+      )}
     </div>
   );
 }

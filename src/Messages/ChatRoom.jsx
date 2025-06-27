@@ -136,7 +136,15 @@ export default function ChatRoom() {
             <strong>To:</strong> {ride.to}
           </p>
           <p>
-            <strong>Date:</strong> {new Date(ride.date).toLocaleString()}
+            <strong>Date & Time:</strong>{" "}
+            {ride.date && ride.time
+              ? `${new Date(ride.date).toLocaleDateString()} at ${new Date(
+                  `${ride.date}T${ride.time}`
+                ).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : "Not specified"}
           </p>
           <p>
             <strong>Seats:</strong> {ride.seats}
@@ -191,4 +199,3 @@ export default function ChatRoom() {
     </div>
   );
 }
-

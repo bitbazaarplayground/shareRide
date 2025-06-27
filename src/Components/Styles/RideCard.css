@@ -1,0 +1,82 @@
+/* RideCard.css - shared styling for Ride cards used in Results and AllPostedRides */
+
+.ride-card {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  list-style: none;
+}
+
+.ride-link {
+  font-size: 1.1rem;
+  color: #333;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ride-link:hover {
+  text-decoration: underline;
+}
+
+.ride-details {
+  margin-top: 0.5rem;
+}
+
+.ride-details p {
+  margin: 0.3rem 0;
+  font-size: 0.95rem;
+}
+
+.ride-notes {
+  font-style: italic;
+  color: #555;
+}
+
+.poster-info {
+  display: flex;
+  align-items: center;
+  margin-top: 0.8rem;
+  gap: 0.5rem;
+}
+
+.poster-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #e0e0e0;
+}
+
+.initial-avatar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #333;
+}
+
+.poster-nickname {
+  color: #333;
+  text-decoration: none;
+}
+
+.ride-actions {
+  margin-top: 0.7rem;
+}
+
+.send-message-btn {
+  padding: 0.5rem 1rem;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.send-message-btn:hover {
+  background-color: #1b5e20;
+}
