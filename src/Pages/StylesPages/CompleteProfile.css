@@ -1,28 +1,71 @@
-.interest-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+.complete-profile-container {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+  font-family: "Helvetica Neue", sans-serif;
 }
 
-.interest-chip {
-  background-color: #e0e0e0;
-  border-radius: 16px;
-  padding: 0.4rem 0.75rem;
-  display: flex;
-  align-items: center;
+.complete-profile-container h2 {
+  text-align: center;
+  color: #e66000;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
 }
 
-.interest-chip button {
-  margin-left: 0.5rem;
-  background: transparent;
-  border: none;
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+label {
   font-weight: bold;
-  cursor: pointer;
-  color: #555;
+  color: #333;
+  margin-bottom: 0.3rem;
 }
 
-.interest-input {
-  display: flex;
-  gap: 0.5rem;
+input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:focus {
+  border-color: #e66000;
+  outline: none;
+  box-shadow: 0 0 4px rgba(230, 96, 0, 0.3);
+}
+
+button {
+  padding: 0.9rem 1.5rem;
+  background-color: #e66000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #cc5000;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+  color: #555;
 }
