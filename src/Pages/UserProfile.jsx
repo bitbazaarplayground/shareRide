@@ -10,7 +10,6 @@ export default function UserProfile() {
   const [profileData, setProfileData] = useState(null);
   const [newInterest, setNewInterest] = useState("");
   const [preview, setPreview] = useState(null);
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +23,6 @@ export default function UserProfile() {
       if (error) {
         console.error("Error fetching profile:", error);
       } else {
-        // Redirect if profile is missing key info
         if (
           !data.name ||
           !data.age ||
@@ -32,20 +30,15 @@ export default function UserProfile() {
           data.interests.length === 0 ||
           data.role
         ) {
-          navigate("/complete-profile"); // ⬅️ Redirect
+          navigate("/complete-profile");
         } else {
           setProfileData(data);
         }
       }
     };
 
-    if (user) {
-      getProfile();
-    }
+    if (user) getProfile();
   }, [user, navigate]);
-
-  if (!user) return <p>Please log in to view your profile.</p>;
-  if (!profileData) return <p>Loading profile...</p>;
 
   if (!user) return <p>Please log in to view your profile.</p>;
   if (!profileData) return <p>Loading profile...</p>;
@@ -92,25 +85,30 @@ export default function UserProfile() {
     if (error) {
       console.error("Failed to save changes:", error);
     } else {
-      alert("Profile updated!");
+      alert("✅ Profile updated successfully");
     }
   };
 
   return (
     <div className="profile-container">
-      <h2>Your Profile</h2>
+      <h2 className="profile-heading">Your Profile</h2>
+
       <div className="profile-section">
-        <div className="profile-pic">
+        <div className="profile-avatar-section">
           <Avatar
             src={preview || profileData.avatar_url}
             name={profileData.name}
             alt="Profile"
-            className="avatar"
+            className="avatar large"
           />
-          <input type="file" onChange={handlePhotoChange} />
+          <input
+            type="file"
+            onChange={handlePhotoChange}
+            className="upload-input"
+          />
         </div>
 
-        <div className="profile-info">
+        <div className="profile-form">
           <label>Name:</label>
           <input
             type="text"
@@ -138,15 +136,20 @@ export default function UserProfile() {
               </div>
             ))}
           </div>
-          <input
-            type="text"
-            placeholder="Add interest"
-            value={newInterest}
-            onChange={(e) => setNewInterest(e.target.value)}
-          />
-          <button onClick={handleAddInterest}>Add</button>
+          <div className="interest-input-row">
+            <input
+              type="text"
+              placeholder="Add interest"
+              value={newInterest}
+              onChange={(e) => setNewInterest(e.target.value)}
+            />
+            <button onClick={handleAddInterest} className="add-interest-btn">
+              Add
+            </button>
+          </div>
         </div>
       </div>
+
       <button className="save-btn" onClick={handleSave}>
         Save Changes
       </button>
