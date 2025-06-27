@@ -18,29 +18,37 @@ export default function SendMessageForm({ chatId, recipientId, onNewMessage }) {
 
     if (!isTyping) {
       setIsTyping(true);
-      upsertTypingStatus(true);
     }
 
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      upsertTypingStatus(false);
     }, 1500);
   };
 
   const upsertTypingStatus = async (typing) => {
     if (!user || !recipientId) return;
 
-    await supabase.from("typing_status").upsert(
+    const { error } = await supabase.from("typing_status").upsert(
       {
         sender_id: user.id,
         recipient_id: recipientId,
         is_typing: typing,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: ["sender_id", "recipient_id"] }
+      {
+        onConflict: ["sender_id", "recipient_id"],
+      }
     );
+
+    if (error) {
+      console.error("Failed to upsert typing status:", error);
+    }
   };
+
+  useEffect(() => {
+    upsertTypingStatus(isTyping);
+  }, [isTyping]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
