@@ -76,7 +76,9 @@ export default function Navbar() {
       {/* Left and Center */}
       <div className="navbar-left-group">
         <div className="navbar-left">
-          <h1 className="brand">GoDutch</h1>
+          <Link to="/" className="brand">
+            GoDutch
+          </Link>
         </div>
         <div className="navbar-center">
           <Link to="/publishride">Publish Ride</Link>
