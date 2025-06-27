@@ -1,92 +1,80 @@
-.message-thread {
+/* MessagesPage.css */
+
+.messages-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: "Helvetica Neue", sans-serif;
+}
+
+.messages-page h2 {
+  font-size: 2rem;
+  color: #e66000;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.conversation-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-top: 1rem;
 }
 
-.message-bubble {
-  max-width: 70%;
-  padding: 1rem;
-  border-radius: 15px;
-  background-color: #f0f0f0;
+.conversation-link {
+  text-decoration: none;
+}
+
+.conversation-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-left: 5px solid #e66000;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
   position: relative;
 }
 
-.message-bubble.sent {
-  align-self: flex-end;
-  background-color: #d1f4ff;
+.conversation-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
-.message-bubble.received {
-  align-self: flex-start;
-  background-color: #eaeaea;
-}
-
-.bubble-header {
-  font-weight: bold;
+.conversation-card strong {
+  font-size: 1.2rem;
+  color: #333;
   margin-bottom: 0.5rem;
 }
 
-.bubble-body {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.reply-btn {
-  margin-left: 1rem;
-  font-size: 0.8rem;
-  background: none;
-  border: 1px solid #888;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.send-message-form {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-textarea {
-  width: 100%;
-  padding: 0.5rem;
-  resize: none;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+.conversation-card .preview {
+  color: #555;
   font-size: 1rem;
-}
-
-.send-message-form button {
-  margin-top: 0.5rem;
-  align-self: flex-end;
-  padding: 0.4rem 1rem;
-  border-radius: 6px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-.typing-indicator {
-  margin-top: 0.3rem;
-  font-size: 0.8rem;
-  color: gray;
-}
-.date-divider {
-  text-align: center;
-  margin: 20px 0;
-  color: #888;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.date-divider hr {
-  flex: 1;
-  border: none;
-  border-top: 1px solid #ccc;
   margin: 0;
+  line-height: 1.4;
+}
+
+.timestamp {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .conversation-card {
+    padding: 1rem;
+  }
+
+  .conversation-card strong {
+    font-size: 1.1rem;
+  }
+
+  .timestamp {
+    top: 0.8rem;
+    right: 1rem;
+    font-size: 0.75rem;
+  }
 }

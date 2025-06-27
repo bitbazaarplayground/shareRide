@@ -3,7 +3,6 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
 import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
-import SearchBar from "./Components/SearchBar";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
 import ChatRoom from "./Messages/ChatRoom";
@@ -57,7 +56,7 @@ export default function App() {
             path="/"
             element={
               <>
-                <SearchBar />
+                {/* <SearchBar /> */}
                 <Homepage />
               </>
             }
