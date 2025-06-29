@@ -21,7 +21,7 @@ body {
 .navbar-left-group {
   display: flex;
   align-items: center;
-  gap: 2rem; /* space between brand and nav links */
+  gap: 2rem;
 }
 
 .navbar-left .brand {
@@ -35,7 +35,6 @@ body {
 .navbar-center {
   display: flex;
   gap: 1.5rem;
-  /* Check align items - should be left? */
   align-items: center;
 }
 
@@ -49,6 +48,7 @@ body {
   cursor: pointer;
   font-size: 16px;
 }
+
 .arrow {
   display: inline-block;
   margin-left: 4px;
@@ -59,14 +59,78 @@ body {
   transform: scale(1.2);
 }
 
-.about-btn.open .arrow {
+.about-btn.open .arrow,
+.user-btn.open .arrow {
   transform: rotate(180deg);
+}
+
+.about-dropdown,
+.user-dropdown {
+  position: relative;
+}
+
+.user-btn {
+  background: none;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1rem;
+  color: white;
+}
+
+.user-dropdown-content,
+.about-dropdown-content {
+  position: absolute;
+  top: 2.5rem;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  z-index: 100;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+}
+
+.user-dropdown-content a,
+.user-dropdown-content button,
+.about-dropdown-content a {
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #333;
+  text-decoration: none;
+}
+
+.user-dropdown-content a:hover,
+.user-dropdown-content button:hover,
+.about-dropdown-content a:hover {
+  background-color: #f6f6f6;
+}
+
+.logout-btn {
+  color: #e66000;
+  font-weight: bold;
+}
+
+.highlight {
+  font-weight: bold;
+  color: #e66000;
 }
 
 .navbar-right {
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-right: 2rem;
 }
 
 .help-link {
@@ -75,7 +139,6 @@ body {
   text-decoration: none;
 }
 
-/* Button styles */
 .btn {
   font-weight: bold;
   padding: 0.5rem 1rem;
@@ -93,7 +156,7 @@ body {
 
 .btn.white {
   background: transparent;
-  color: White;
+  color: white;
 }
 
 .btn.white:hover {
@@ -104,29 +167,6 @@ body {
   background: #333;
 }
 
-/* About dropdown */
-.about-dropdown {
-  position: relative;
-}
-
-.about-dropdown-content {
-  position: absolute;
-  top: 2rem;
-  left: 0;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  z-index: 10;
-}
-
-.about-dropdown-content a {
-  display: block;
-  padding: 0.75rem 1.5rem;
-  color: #333;
-  text-decoration: none;
-}
-
 .notif-bubble {
   background-color: red;
   color: white;
@@ -135,6 +175,7 @@ body {
   font-size: 0.75rem;
   margin-left: 6px;
 }
+
 .btn.icon-btn {
   position: relative;
   padding: 8px;
@@ -173,4 +214,11 @@ body {
   100% {
     transform: scale(1);
   }
+}
+
+.nav-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
 }

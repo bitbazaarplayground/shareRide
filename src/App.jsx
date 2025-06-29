@@ -14,6 +14,7 @@ import CompleteProfile from "./Pages/CompleteProfile";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
+import MyRidesRedirect from "./Pages/MyRidesRedirect";
 import OurMission from "./Pages/OurMission";
 import PublicProfile from "./Pages/PublicProfile";
 import Results from "./Pages/Results";
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
           <Route path="/all-rides" element={<AllPostedRides />} />
           <Route path="/individual-ride/:id" element={<IndividualRide />} />
+          <Route path="/my-rides" element={<MyRidesRedirect />} />
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Messaging */}
           <Route path="/messages" element={<MessagesPage />} />
