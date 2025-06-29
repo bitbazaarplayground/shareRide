@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { VscChevronDown, VscComment } from "react-icons/vsc";
+import { VscChevronDown } from "react-icons/vsc";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
@@ -10,9 +10,12 @@ import "./Styles/Navbar.css";
 export default function Navbar() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const dropdownRef = useRef(null);
+  const [profile, setProfile] = useState(null);
+  const aboutDropdownRef = useRef(null);
+  const userDropdownRef = useRef(null);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -21,7 +24,6 @@ export default function Navbar() {
     else console.error("Logout failed:", error.message);
   };
 
-  // 📩 Fetch unseen message count
   useEffect(() => {
     if (!user) return;
 
@@ -37,7 +39,18 @@ export default function Navbar() {
       }
     };
 
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("name, nickname, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (!error) setProfile(data);
+    };
+
     fetchUnread();
+    fetchProfile();
 
     const channel = supabase
       .channel("message-notifications")
@@ -60,11 +73,19 @@ export default function Navbar() {
     };
   }, [user]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
+      if (
+        aboutDropdownRef.current &&
+        !aboutDropdownRef.current.contains(event.target)
+      ) {
+        setAboutOpen(false);
+      }
+      if (
+        userDropdownRef.current &&
+        !userDropdownRef.current.contains(event.target)
+      ) {
+        setUserOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -73,7 +94,6 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Left and Center */}
       <div className="navbar-left-group">
         <div className="navbar-left">
           <Link to="/" className="brand">
@@ -84,14 +104,14 @@ export default function Navbar() {
           <Link to="/publishride">Publish Ride</Link>
           <Link to="/all-rides">View All Rides</Link>
           <Link to="/ourmission">Our Mission</Link>
-          <div className="about-dropdown" ref={dropdownRef}>
+          <div className="about-dropdown" ref={aboutDropdownRef}>
             <button
-              className={`about-btn ${dropdownOpen ? "open" : ""}`}
-              onClick={() => setDropdownOpen((prev) => !prev)}
+              className={`about-btn ${aboutOpen ? "open" : ""}`}
+              onClick={() => setAboutOpen((prev) => !prev)}
             >
               About <VscChevronDown className="arrow" />
             </button>
-            {dropdownOpen && (
+            {aboutOpen && (
               <div className="about-dropdown-content">
                 <Link to="/about-us">About Us</Link>
                 <Link to="/careers">Careers</Link>
@@ -102,7 +122,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Right Side */}
       <div className="navbar-right">
         <LanguageSwitcher />
         <Link to="/help" className="help-link">
@@ -119,24 +138,37 @@ export default function Navbar() {
             </Link>
           </>
         ) : (
-          <>
-            <Link
-              to="/messages"
-              className={`btn icon-btn ${unreadCount > 0 ? "highlight" : ""}`}
-              title="Messages"
+          <div className="user-dropdown" ref={userDropdownRef}>
+            <button
+              className={`user-btn ${userOpen ? "open" : ""}`}
+              onClick={() => setUserOpen((prev) => !prev)}
             >
-              <VscComment size={22} />
-              {unreadCount > 0 && (
-                <span className="notif-bubble">{unreadCount}</span>
+              {profile?.avatar_url && (
+                <img
+                  src={profile.avatar_url}
+                  alt="avatar"
+                  className="nav-avatar"
+                />
               )}
-            </Link>
-            <Link to="/profile" className="btn black">
-              Profile
-            </Link>
-            <button className="btn white" onClick={handleLogout}>
-              Log out
+              {profile?.nickname || profile?.name || user.email.split("@")[0]}{" "}
+              <VscChevronDown className="arrow" />
             </button>
-          </>
+            {userOpen && (
+              <div className="user-dropdown-content">
+                <Link
+                  to="/messages"
+                  className={unreadCount > 0 ? "highlight" : ""}
+                >
+                  Messages {unreadCount > 0 && <span>({unreadCount})</span>}
+                </Link>
+                <Link to="/profile">Profile</Link>
+                <Link to="/my-rides">My Rides</Link>
+                <button onClick={handleLogout} className="logout-btn">
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </nav>
