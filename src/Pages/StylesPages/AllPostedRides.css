@@ -71,3 +71,13 @@
   background-color: #dc3545;
   color: white;
 }
+.edit-ride-btn {
+  background-color: #007bff;
+  color: white;
+  margin-right: 8px;
+}
+
+.delete-ride-btn {
+  background-color: #dc3545;
+  color: white;
+}
