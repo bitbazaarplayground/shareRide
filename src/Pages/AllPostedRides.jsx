@@ -140,14 +140,23 @@ export default function AllPostedRides() {
                     Send Message
                   </button>
                 ) : (
-                  <button
-                    onClick={() => handleDelete(ride.id)}
-                    className="delete-ride-btn"
-                  >
-                    Delete Ride
-                  </button>
+                  <>
+                    <button
+                      onClick={() => navigate(`/edit-ride/${ride.id}`)}
+                      className="edit-ride-btn"
+                    >
+                      Edit Ride
+                    </button>
+                    <button
+                      onClick={() => handleDelete(ride.id)}
+                      className="delete-ride-btn"
+                    >
+                      Delete Ride
+                    </button>
+                  </>
                 )}
               </div>
+
               <hr />
             </li>
           ))}

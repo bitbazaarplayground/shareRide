@@ -8,16 +8,19 @@
   color: white;
   padding: 4rem 2rem;
   text-align: center;
+  animation: fadeInDown 1s ease forwards;
 }
 
 .brand-title {
   font-size: 3rem;
   margin-bottom: 0.5rem;
+  animation: slideInLeft 0.8s ease forwards;
 }
 
 .tagline {
   font-size: 1.25rem;
   margin-bottom: 1.5rem;
+  animation: fadeIn 1s ease forwards;
 }
 
 .cta-button {
@@ -29,18 +32,47 @@
   border-radius: 8px;
   text-decoration: none;
   transition: 0.3s ease;
+  animation: pulseBtn 2s ease infinite;
 }
 
 .cta-button:hover {
   background-color: #f9f9f9;
 }
-
-.features {
-  padding: 3rem 2rem;
-  text-align: center;
+.testimonial-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px #e66000;
+  transition: transform 0.3s ease;
 }
 
-.features-grid {
+.testimonial-card:hover .testimonial-avatar {
+  transform: scale(1.05);
+}
+
+.testimonial-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: fadeIn 1s ease forwards;
+}
+
+.features,
+.how-it-works,
+.testimonials,
+.travel-safe {
+  padding: 3rem 2rem;
+  text-align: center;
+  animation: fadeInUp 1s ease forwards;
+}
+
+.features-grid,
+.steps-grid,
+.testimonial-grid,
+.safe-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -48,19 +80,33 @@
   margin-top: 2rem;
 }
 
-.feature-card {
+.feature-card,
+.step-card,
+.testimonial-card,
+.safe-card {
   background: #fff;
   border: 1px solid #eee;
   border-radius: 12px;
   padding: 1.5rem;
   max-width: 300px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: zoomIn 0.8s ease forwards;
+}
+
+.feature-card:hover,
+.step-card:hover,
+.testimonial-card:hover,
+.safe-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 .join-now {
   background: #f9f9f9;
   padding: 3rem 2rem;
   text-align: center;
+  animation: fadeInUp 1s ease forwards;
 }
 
 .cta-button.secondary {
@@ -70,4 +116,198 @@
 
 .cta-button.secondary:hover {
   background-color: #cc5000;
+}
+
+.testimonial-card blockquote {
+  font-style: italic;
+  margin-bottom: 1rem;
+  color: #555;
+}
+
+.testimonial-card cite {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.step-card h3,
+.feature-card h3,
+.safe-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.step-card p,
+.feature-card p,
+.safe-card p {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .features-grid,
+  .steps-grid,
+  .testimonial-grid,
+  .safe-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+.trust {
+  background: #fff7f2;
+  padding: 3rem 2rem;
+  text-align: center;
+  animation: fadeIn 1s ease-in-out;
+  border-top: 2px solid #ffd2b3;
+  border-bottom: 2px solid #ffd2b3;
+}
+
+.trust h2 {
+  font-size: 2rem;
+  color: #e66000;
+  margin-bottom: 1.5rem;
+  animation: slideUp 0.6s ease forwards;
+  opacity: 0;
+}
+
+.trust ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 400px;
+}
+
+.trust li {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  position: relative;
+  padding-left: 2rem;
+  color: #444;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.trust li:nth-child(1) {
+  animation-delay: 0.2s;
+}
+.trust li:nth-child(2) {
+  animation-delay: 0.4s;
+}
+.trust li:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+.trust li::before {
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: popIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animations */
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes zoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseBtn {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
