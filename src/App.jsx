@@ -11,6 +11,7 @@ import AdminDashboard from "./Pages/AdminDashboard";
 import AllPostedRides from "./Pages/AllPostedRides";
 import AuthCallback from "./Pages/AuthCallback";
 import CompleteProfile from "./Pages/CompleteProfile";
+import EditRide from "./Pages/EditRide";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
@@ -84,6 +85,8 @@ export default function App() {
           <Route path="/all-rides" element={<AllPostedRides />} />
           <Route path="/individual-ride/:id" element={<IndividualRide />} />
           <Route path="/my-rides" element={<MyRidesRedirect />} />
+          <Route path="/edit-ride/:rideId" element={<EditRide />} />
+
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Messaging */}
           <Route path="/messages" element={<MessagesPage />} />
