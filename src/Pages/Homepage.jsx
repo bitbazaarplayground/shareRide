@@ -14,7 +14,7 @@ export default function Homepage() {
           <p className="tagline">
             Find and share rides easily with trusted users
           </p>
-          <Link to="/search" className="cta-button">
+          <Link to="/all-rides" className="cta-button">
             {t("Find a Ride")}
           </Link>
         </div>
