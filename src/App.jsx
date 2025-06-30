@@ -22,8 +22,10 @@ import Results from "./Pages/Results";
 import SignUp from "./Pages/SignUp";
 import TermsofUse from "./Pages/TermsOfUse";
 import UserProfile from "./Pages/UserProfile";
+import SplitRideConfirm from "./Payments/SplitRideConfirm";
 import "./i18n";
 import { supabase } from "./supabaseClient";
+
 export default function App() {
   const navigate = useNavigate();
 
@@ -88,6 +90,11 @@ export default function App() {
           <Route path="/edit-ride/:rideId" element={<EditRide />} />
 
           <Route path="/Termsofuse" element={<TermsofUse />} />
+          {/* Payments */}
+          <Route
+            path="/splitride-confirm/:rideId"
+            element={<SplitRideConfirm />}
+          />
           {/* Messaging */}
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/chat/:chatId" element={<ChatRoom />} />

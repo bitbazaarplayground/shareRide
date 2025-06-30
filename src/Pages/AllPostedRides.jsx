@@ -34,6 +34,31 @@ export default function AllPostedRides() {
     fetchRides();
   }, []);
 
+  function formatTime(timeStr) {
+    if (!timeStr) return "N/A";
+    const [hours, minutes] = timeStr.split(":");
+    const date = new Date();
+    date.setHours(+hours);
+    date.setMinutes(+minutes);
+
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  function formatDateWithWeekday(dateStr) {
+    if (!dateStr) return "N/A";
+    const dateObj = new Date(dateStr);
+    return dateObj.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
   const handleDelete = async (rideId) => {
     const { error } = await supabase.from("rides").delete().eq("id", rideId);
     if (error) {
@@ -99,7 +124,10 @@ export default function AllPostedRides() {
               </Link>
               <div className="ride-details">
                 <p>
-                  <strong>Date:</strong> {ride.date}
+                  <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
+                </p>
+                <p>
+                  <strong>Time:</strong> {formatTime(ride.time)}
                 </p>
                 <p>
                   <strong>Seats:</strong> {ride.seats}
@@ -133,12 +161,20 @@ export default function AllPostedRides() {
               )}
               <div className="ride-actions">
                 {user?.id !== ride.profiles.id ? (
-                  <button
-                    onClick={() => handleStartChat(ride.profiles.id, ride.id)}
-                    className="send-message-btn"
-                  >
-                    Send Message
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleStartChat(ride.profiles.id, ride.id)}
+                      className="send-message-btn"
+                    >
+                      Send Message
+                    </button>
+                    <button
+                      onClick={() => navigate(`/splitride-confirm/${ride.id}`)}
+                      className="book-now-btn"
+                    >
+                      Book Now
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
@@ -156,7 +192,6 @@ export default function AllPostedRides() {
                   </>
                 )}
               </div>
-
               <hr />
             </li>
           ))}

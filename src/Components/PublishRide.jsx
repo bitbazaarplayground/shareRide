@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AutocompleteInput from "../Components/AutocompleteInput"; // ✅ Updated to use new <place-autocomplete> component
+import AutocompleteInput from "../Components/AutocompleteInput";
 import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
@@ -13,6 +13,9 @@ export default function PublishRide() {
 
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
+  const [fromCoords, setFromCoords] = useState(null);
+  const [toCoords, setToCoords] = useState(null);
+  const [estimate, setEstimate] = useState(null);
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("12:00");
   const [seats, setSeats] = useState(1);
@@ -20,7 +23,6 @@ export default function PublishRide() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Check if user profile has nickname
   useEffect(() => {
     const fetchProfile = async () => {
       const {
@@ -47,6 +49,25 @@ export default function PublishRide() {
 
     fetchProfile();
   }, [navigate]);
+
+  useEffect(() => {
+    if (fromCoords && toCoords) {
+      const R = 6371;
+      const dLat = ((toCoords.lat - fromCoords.lat) * Math.PI) / 180;
+      const dLng = ((toCoords.lng - fromCoords.lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((fromCoords.lat * Math.PI) / 180) *
+          Math.cos((toCoords.lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      const price = (2.5 + distance * 1.8).toFixed(2);
+      setEstimate(price);
+    }
+  }, [fromCoords, toCoords]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,12 +122,31 @@ export default function PublishRide() {
       <form onSubmit={handleSubmit}>
         <AutocompleteInput
           placeholder="From"
-          onPlaceSelected={(place) => setFromPlace(place.formatted_address)} // ✅ Updated: receives full place object, stores address
+          onPlaceSelected={(place) => {
+            setFromPlace(place.formatted_address);
+            if (place.geometry?.location) {
+              setFromCoords({
+                lat: place.geometry.location.lat(),
+                lng: place.geometry.location.lng(),
+              });
+            }
+          }}
         />
         <AutocompleteInput
           placeholder="To"
-          onPlaceSelected={(place) => setToPlace(place.formatted_address)} // ✅ Updated: same here for destination
+          onPlaceSelected={(place) => {
+            setToPlace(place.formatted_address);
+            if (place.geometry?.location) {
+              setToCoords({
+                lat: place.geometry.location.lat(),
+                lng: place.geometry.location.lng(),
+              });
+            }
+          }}
         />
+
+        {estimate && <p>Estimated Taxi Cost: £{estimate}</p>}
+
         <input
           type="date"
           value={date}
@@ -141,3 +181,4 @@ export default function PublishRide() {
     </div>
   );
 }
+
