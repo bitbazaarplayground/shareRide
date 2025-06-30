@@ -1,0 +1,80 @@
+.split-confirm-container {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", sans-serif;
+  animation: fadeSlideIn 0.5s ease-in-out;
+}
+
+.split-confirm-container h2 {
+  text-align: center;
+  margin-bottom: 1.8rem;
+  color: #007aff;
+  font-size: 1.8rem;
+}
+
+.split-confirm-container p {
+  font-size: 1rem;
+  margin: 0.6rem 0;
+  color: #444;
+}
+
+.split-confirm-container strong {
+  color: #333;
+}
+
+.fee {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.stripe-btn {
+  display: block;
+  width: 100%;
+  background-color: #007aff;
+  color: white;
+  padding: 12px;
+  margin-top: 1.8rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.stripe-btn:hover {
+  background-color: #005fcd;
+  transform: translateY(-2px);
+}
+
+.after-payment-note {
+  margin-top: 1.5rem;
+  font-size: 0.95rem;
+  text-align: center;
+  color: #555;
+  font-style: italic;
+  animation: fadeIn 1s ease;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

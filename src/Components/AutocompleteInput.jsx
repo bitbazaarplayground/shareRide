@@ -36,6 +36,12 @@ export default function AutocompleteInput({
       lat,
       lng,
       place_id: results[0].place_id,
+      geometry: {
+        location: {
+          lat: () => lat,
+          lng: () => lng,
+        },
+      },
     });
   };
 
