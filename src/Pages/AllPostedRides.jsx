@@ -161,12 +161,20 @@ export default function AllPostedRides() {
               )}
               <div className="ride-actions">
                 {user?.id !== ride.profiles.id ? (
-                  <button
-                    onClick={() => handleStartChat(ride.profiles.id, ride.id)}
-                    className="send-message-btn"
-                  >
-                    Send Message
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleStartChat(ride.profiles.id, ride.id)}
+                      className="send-message-btn"
+                    >
+                      Send Message
+                    </button>
+                    <button
+                      onClick={() => navigate(`/splitride-confirm/${ride.id}`)}
+                      className="book-now-btn"
+                    >
+                      Book Now
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
