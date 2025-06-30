@@ -1,11 +1,17 @@
-// Google API places/location
 import React from "react";
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
 } from "use-places-autocomplete";
 
-export default function AutocompleteInput({ placeholder, onPlaceSelected }) {
+export default function AutocompleteInput({
+  placeholder = "Search...",
+  onPlaceSelected,
+}) {
+  if (!window.google || !window.google.maps || !window.google.maps.places) {
+    return <p>Loading map search...</p>; // ✅ avoid loading before script is ready
+  }
+
   const {
     ready,
     value,
@@ -80,46 +86,3 @@ export default function AutocompleteInput({ placeholder, onPlaceSelected }) {
     </div>
   );
 }
-
-// import React, { useEffect, useRef } from "react";
-
-// export default function AutocompleteInput({
-//   placeholder = "Search...",
-//   onPlaceSelected,
-// }) {
-//   const placeInputRef = useRef(null);
-
-//   useEffect(() => {
-//     const input = placeInputRef.current;
-
-//     if (!input) return;
-
-//     const handlePlaceChanged = () => {
-//       const place = input.getPlace?.();
-//       if (place && place.formatted_address) {
-//         onPlaceSelected(place);
-//       }
-//     };
-
-//     input.addEventListener("place_changed", handlePlaceChanged);
-
-//     // Optional cleanup
-//     return () => {
-//       input.removeEventListener("place_changed", handlePlaceChanged);
-//     };
-//   }, [onPlaceSelected]);
-
-//   return (
-//     <place-autocomplete
-//       ref={placeInputRef}
-//       placeholder={placeholder}
-//       style={{
-//         width: "100%",
-//         padding: "10px",
-//         fontSize: "16px",
-//         border: "1px solid #ccc",
-//         borderRadius: "6px",
-//       }}
-//     ></place-autocomplete>
-//   );
-// }
