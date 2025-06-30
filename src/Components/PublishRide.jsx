@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AutocompleteInput from "../Components/AutocompleteInput";
+import AutocompleteInput from "../Components/AutocompleteInput"; // ✅ Updated to use new <place-autocomplete> component
 import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
@@ -101,11 +101,11 @@ export default function PublishRide() {
       <form onSubmit={handleSubmit}>
         <AutocompleteInput
           placeholder="From"
-          onPlaceSelected={(place) => setFromPlace(place.formatted_address)}
+          onPlaceSelected={(place) => setFromPlace(place.formatted_address)} // ✅ Updated: receives full place object, stores address
         />
         <AutocompleteInput
           placeholder="To"
-          onPlaceSelected={(place) => setToPlace(place.formatted_address)}
+          onPlaceSelected={(place) => setToPlace(place.formatted_address)} // ✅ Updated: same here for destination
         />
         <input
           type="date"
