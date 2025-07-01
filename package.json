@@ -9,7 +9,7 @@
     "build": "vite build",
     "deploy": "gh-pages -d dist",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
