@@ -1,6 +1,6 @@
-import "dotenv/config";
-//Test for change
+// ✅ Server.js (Backend)
 import cors from "cors";
+import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
 
@@ -9,6 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const FRONTEND_BASE_URL =
+  process.env.FRONTEND_BASE_URL || "http://localhost:5173/shareRide";
 
 app.post("/create-checkout-session", async (req, res) => {
   const { rideId, amount } = req.body;
@@ -24,14 +27,14 @@ app.post("/create-checkout-session", async (req, res) => {
               name: "GoDutch Ride Coordination Fee",
               description: `Ride ID: ${rideId}`,
             },
-            unit_amount: amount, // in pence
+            unit_amount: amount,
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `http://localhost:5173/payment-success?rideId=${rideId}`,
-      cancel_url: `http://localhost:5173/splitride-confirm/${rideId}`,
+      success_url: `${FRONTEND_BASE_URL}/payment-success?rideId=${rideId}`,
+      cancel_url: `${FRONTEND_BASE_URL}/splitride-confirm/${rideId}`,
     });
 
     res.json({ url: session.url });
