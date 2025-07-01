@@ -6,6 +6,7 @@ import "./StylesPayment/SplitRideConfirm.css";
 export default function SplitRideConfirm() {
   const { rideId } = useParams();
   const [ride, setRide] = useState(null);
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     const fetchRide = async () => {
@@ -15,7 +16,13 @@ export default function SplitRideConfirm() {
         .eq("id", rideId)
         .single();
 
-      if (!error) setRide(data);
+      if (error) {
+        console.error("Supabase error:", error);
+        setRide(null);
+        return;
+      }
+
+      setRide(data);
     };
 
     fetchRide();
@@ -23,14 +30,15 @@ export default function SplitRideConfirm() {
 
   if (!ride) return <p>Loading ride...</p>;
 
-  // Basic fake estimate for now
   const estimate = 35.0;
   const split = (estimate / 2).toFixed(2);
   const fee = 1.5;
+
   const handlePayment = async () => {
+    setIsPaying(true);
     try {
       const response = await fetch(
-        "http://localhost:3000/create-checkout-session",
+        `${import.meta.env.VITE_STRIPE_BACKEND}/create-checkout-session`,
         {
           method: "POST",
           headers: {
@@ -38,7 +46,7 @@ export default function SplitRideConfirm() {
           },
           body: JSON.stringify({
             rideId: ride.id,
-            amount: 150, // £1.50 in pence
+            amount: 150,
           }),
         }
       );
@@ -48,6 +56,7 @@ export default function SplitRideConfirm() {
     } catch (err) {
       console.error("Payment error:", err);
       alert("Failed to initiate payment.");
+      setIsPaying(false);
     }
   };
 
@@ -55,16 +64,16 @@ export default function SplitRideConfirm() {
     <div className="split-confirm-container">
       <h2>Ride Split Summary</h2>
       <p>
-        <strong>From:</strong> {ride.from}
+        <strong>From:</strong> {ride.from || "Unknown"}
       </p>
       <p>
-        <strong>To:</strong> {ride.to}
+        <strong>To:</strong> {ride.to || "Unknown"}
       </p>
       <p>
-        <strong>Date:</strong> {ride.date}
+        <strong>Date:</strong> {ride.date || "N/A"}
       </p>
       <p>
-        <strong>Time:</strong> {ride.time}
+        <strong>Time:</strong> {ride.time || "N/A"}
       </p>
       <p>
         <strong>Estimated Fare:</strong> £{estimate}
@@ -74,8 +83,12 @@ export default function SplitRideConfirm() {
         <span className="fee">GoDutch Fee £{fee}</span>
       </p>
 
-      <button className="stripe-btn" onClick={handlePayment}>
-        Proceed to Payment
+      <button
+        className="stripe-btn"
+        onClick={handlePayment}
+        disabled={isPaying}
+      >
+        {isPaying ? "Processing..." : "Proceed to Payment"}
       </button>
 
       <p className="after-payment-note">
