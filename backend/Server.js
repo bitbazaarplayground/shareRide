@@ -33,8 +33,8 @@ app.post("/create-checkout-session", async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `${FRONTEND_BASE_URL}/payment-success?rideId=${rideId}`,
-      cancel_url: `${FRONTEND_BASE_URL}/splitride-confirm/${rideId}`,
+      success_url: `${FRONTEND_BASE_URL}/#/payment-success?rideId=${rideId}`,
+      cancel_url: `${FRONTEND_BASE_URL}/#/splitride-confirm/${rideId}`,
     });
 
     res.json({ url: session.url });
