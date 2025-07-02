@@ -7,7 +7,9 @@ export default function SplitRideConfirm() {
   const { rideId } = useParams();
   const [ride, setRide] = useState(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [userId, setUserId] = useState(null);
 
+  // Fetch ride
   useEffect(() => {
     const fetchRide = async () => {
       const { data, error } = await supabase
@@ -28,13 +30,32 @@ export default function SplitRideConfirm() {
     fetchRide();
   }, [rideId]);
 
-  if (!ride) return <p>Loading ride...</p>;
+  // Fetch user ID
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+
+    getUser();
+  }, []);
 
   const estimate = 35.0;
   const split = (estimate / 2).toFixed(2);
   const fee = 1.5;
 
+  if (!ride) return <p>Loading ride...</p>;
+
   const handlePayment = async () => {
+    if (!userId) {
+      alert("User not logged in. Please log in and try again.");
+      return;
+    }
+
     setIsPaying(true);
     try {
       const response = await fetch(
@@ -47,6 +68,7 @@ export default function SplitRideConfirm() {
           body: JSON.stringify({
             rideId: ride.id,
             amount: 150,
+            user_id: userId, // ✅ Send user ID
           }),
         }
       );

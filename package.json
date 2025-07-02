@@ -16,7 +16,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^7.1.0",
     "@react-google-maps/api": "^2.20.6",
-    "@supabase/supabase-js": "^2.49.8",
+    "@supabase/supabase-js": "^2.50.2",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.0.0",

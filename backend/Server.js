@@ -1,10 +1,16 @@
-// ✅ Server.js (Backend)
+import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// ✅ Supabase client (using service role key, only on backend)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const app = express();
 app.use(cors());
@@ -14,7 +20,11 @@ const FRONTEND_BASE_URL =
   process.env.FRONTEND_BASE_URL || "http://localhost:5173/shareRide";
 
 app.post("/create-checkout-session", async (req, res) => {
-  const { rideId, amount } = req.body;
+  const { rideId, amount, user_id } = req.body;
+
+  if (!rideId || !amount || !user_id) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -37,13 +47,27 @@ app.post("/create-checkout-session", async (req, res) => {
       cancel_url: `${FRONTEND_BASE_URL}/#/splitride-confirm/${rideId}`,
     });
 
+    // ✅ Log payment in Supabase
+    const { error } = await supabase.from("payments").insert([
+      {
+        ride_id: rideId,
+        amount,
+        user_id,
+      },
+    ]);
+
+    if (error) {
+      console.error("Supabase logging error:", error.message);
+      // Don't fail the payment redirect if logging fails
+    }
+
     res.json({ url: session.url });
   } catch (error) {
     console.error("Stripe error:", error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Payment session creation failed" });
   }
 });
 
 app.listen(3000, () =>
-  console.log("Stripe server running on http://localhost:3000")
+  console.log("✅ Stripe server running on http://localhost:3000")
 );
