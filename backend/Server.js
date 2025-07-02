@@ -68,7 +68,6 @@ app.post("/create-checkout-session", async (req, res) => {
     res.status(500).json({ error: "Payment session creation failed" });
   }
 });
+const PORT = process.env.PORT || 3000;
 
-app.listen(3000, () =>
-  console.log("✅ Stripe server running on http://localhost:3000")
-);
+app.listen(PORT, () => console.log(`✅ Stripe server running on port ${PORT}`));
