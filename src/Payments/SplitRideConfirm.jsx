@@ -31,13 +31,21 @@ export default function SplitRideConfirm() {
     fetchRide();
   }, [rideId]);
 
-  // Fetch user ID
+  // Fetch user ID and email
   useEffect(() => {
     const getUser = async () => {
       const {
         data: { user },
+        error,
       } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("❌ Error getting user:", error.message);
+        return;
+      }
+
       if (user) {
+        console.log("✅ Logged-in user:", user);
         setUserId(user.id);
         setUserEmail(user.email);
       }
@@ -60,6 +68,15 @@ export default function SplitRideConfirm() {
 
     setIsPaying(true);
     try {
+      const payload = {
+        rideId: ride.id,
+        amount: 150,
+        user_id: userId,
+        email: userEmail,
+      };
+
+      console.log("🧾 Sending payment for:", payload);
+
       const response = await fetch(
         `${import.meta.env.VITE_STRIPE_BACKEND}/create-checkout-session`,
         {
@@ -67,12 +84,7 @@ export default function SplitRideConfirm() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            rideId: ride.id,
-            amount: 150,
-            user_id: userId,
-            email: userEmail,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
