@@ -20,7 +20,7 @@ const FRONTEND_BASE_URL =
   process.env.FRONTEND_BASE_URL || "http://localhost:5173/shareRide";
 
 app.post("/create-checkout-session", async (req, res) => {
-  const { rideId, amount, user_id } = req.body;
+  const { rideId, amount, user_id, email } = req.body;
 
   if (!rideId || !amount || !user_id) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -53,6 +53,7 @@ app.post("/create-checkout-session", async (req, res) => {
         ride_id: rideId,
         amount,
         user_id,
+        email,
       },
     ]);
 
