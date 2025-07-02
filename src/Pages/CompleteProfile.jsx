@@ -95,6 +95,7 @@ export default function CompleteProfile() {
         .from("profiles")
         .update({
           ...profile,
+          email: user.email,
           avatar_url: preview || profile.avatar_url,
         })
         .eq("id", user.id);

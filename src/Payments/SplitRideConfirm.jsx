@@ -8,6 +8,7 @@ export default function SplitRideConfirm() {
   const [ride, setRide] = useState(null);
   const [isPaying, setIsPaying] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
 
   // Fetch ride
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function SplitRideConfirm() {
       } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        setUserEmail(user.email);
       }
     };
 
@@ -68,7 +70,8 @@ export default function SplitRideConfirm() {
           body: JSON.stringify({
             rideId: ride.id,
             amount: 150,
-            user_id: userId, // ✅ Send user ID
+            user_id: userId,
+            email: userEmail,
           }),
         }
       );
