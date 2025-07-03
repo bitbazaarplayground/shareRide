@@ -1,5 +1,5 @@
 import { useState } from "react";
-import "./Styles/Navbar.css";
+import "./Styles/SearchBar.css";
 
 export default function PassengerCounter({ t }) {
   const [count, setCount] = useState(1);
