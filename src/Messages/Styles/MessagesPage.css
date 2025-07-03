@@ -35,12 +35,34 @@
   flex-direction: column;
   gap: 0.5rem;
 }
+.separator {
+  color: #bbb;
+  font-weight: 500;
+  margin: 0 0.5rem;
+}
 
 .conversation-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
+/* .conversation-card {
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  cursor: pointer;
+}
 
+.conversation-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: #d4d4d4;
+} */
 /* === LAYOUT === */
 
 .top-line {
@@ -85,6 +107,28 @@
 }
 
 /* === RESPONSIVE === */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.unread-badge {
+  color: #e66000;
+  font-size: 1.2rem;
+  margin-left: 6px;
+  line-height: 1;
+  vertical-align: middle;
+  animation: pulse 1.5s ease-in-out 3;
+}
 
 @media (max-width: 600px) {
   .top-line {

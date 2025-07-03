@@ -47,12 +47,16 @@ export default function MessagesPage() {
 
           const { data: latestMessageData } = await supabase
             .from("messages")
-            .select("content, created_at, sender_id, recipient_id")
+            .select("content, created_at, sender_id, recipient_id, seen")
             .eq("chat_id", chat.id)
             .order("created_at", { ascending: false })
             .limit(1);
 
           const latestMessage = latestMessageData?.[0];
+          const isUnread =
+            latestMessage &&
+            latestMessage.recipient_id === user.id &&
+            latestMessage.seen === false;
 
           return {
             id: chat.id,
@@ -64,6 +68,7 @@ export default function MessagesPage() {
             toLocation: chat.rides?.to,
             rideDate: chat.rides?.date,
             rideTime: chat.rides?.time,
+            isUnread,
           };
         })
       );
@@ -98,9 +103,15 @@ export default function MessagesPage() {
                 <div className="top-line">
                   <div className="name-destination">
                     <strong>{convo.partnerNickname || convo.partnerId}</strong>
+                    <span className="separator">|</span>
                     <span className="destination">
                       {convo.fromLocation} → {convo.toLocation}
                     </span>
+                    {convo.isUnread && (
+                      <span className="unread-badge" title="Unread message">
+                        ●
+                      </span>
+                    )}
                   </div>
                   <small className="timestamp">
                     {convo.created_at
