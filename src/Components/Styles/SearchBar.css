@@ -1,217 +1,104 @@
-/* Shared Styles */
+/* Reset basics */
 .search-container {
   font-family: "Helvetica Neue", sans-serif;
   width: 100%;
-}
-
-.input-box {
-  display: flex;
-  align-items: center;
-}
-
-.input-box input {
-  flex: 1;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: none;
-  background: transparent;
-  outline: none;
-}
-
-.input-box .icon {
-  margin-right: 0.75rem;
-  color: black;
-  font-size: 1rem;
-}
-
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.date-input {
-  border: none;
-  background: transparent;
-  font-size: 1rem;
-  outline: none;
-}
-
-.search-btn {
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  border-radius: 10px;
-  border: none;
-}
-
-/* -------------------------------
-          VERTICAL STYLES
----------------------------------- */
-.search-container.vertical {
-  max-width: 400px;
+  max-width: 960px;
   margin: 2rem auto;
   padding: 1.5rem;
   background-color: #fff;
-}
-
-.heading {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-}
-
-.input-box.vertical {
-  width: 100%;
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.date-time.vertical {
-  display: flex;
-  flex-direction: row;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  align-items: center;
-}
-
-.pill.vertical {
-  background: #f6f6f6;
   border-radius: 12px;
-  padding: 0.75rem 1rem;
-  border: 1px solid #ccc;
-}
-
-.date-input.vertical {
-  width: 100%;
-}
-
-.search-btn.vertical {
-  width: 100%;
-  padding: 0.9rem 1.2rem;
-  background-color: black;
-  color: white;
-  margin-bottom: 1rem;
-}
-
-.login-hint {
-  font-size: 0.9rem;
-  color: #333;
-  text-align: center;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-/* -------------------------------
-         HORIZONTAL STYLES
----------------------------------- */
-.search-container.horizontal {
-  display: flexbox;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: auto auto;
-  gap: 1rem 1.5rem;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 12px;
-  max-width: 1000px;
-  margin: 2rem auto;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 
-.input-box input {
-  flex: 1;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: none;
-  background: transparent;
+/* Shared box input styles */
+.input-box,
+.pill {
+  display: flex;
+  align-items: center;
+  background: #fdfdfd;
+}
+.icon {
+  margin-bottom: 0.5rem;
+}
+.date-input {
+  padding: 0.75rem 1rem;
+}
+.input-box input,
+.date-input {
+  border: 1px solid #ccc;
   outline: none;
+  font-size: 1rem;
+  flex: 1;
+  background: transparent;
 }
 
-.input-box .icon {
-  margin-right: 0.5rem;
+/* Icon styling */
+.icon {
+  margin-right: 0.6rem;
   font-size: 1rem;
   color: #333;
 }
 
-/* Calendar pill */
-.pill.horizontal {
+/* Horizontal layout: two rows using flex */
+.search-container.horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Top row */
+.row.top-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.row.top-row > * {
+  flex: 1;
+}
+
+/* Bottom row */
+.row.bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Passenger counter styling (assumes PassengerCounter already styled properly) */
+.passenger-counter {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 0.1rem 1rem;
-  background: #f6f6f6;
-  width: 55%;
-}
-
-.date-input.horizontal {
-  border: none;
-  background: transparent;
+  gap: 0.5rem;
   font-size: 1rem;
-  outline: none;
-  min-width: 110px;
 }
 
-/* Positioning */
-.input-box.from-field {
-  grid-column: 1 / 2;
-}
-
-.input-box.to-field {
-  grid-column: 2 / 3;
-}
-
-.pill.horizontal {
-  grid-column: 3 / 4;
-}
-
-/* Row 2 */
-.passenger-counter {
-  grid-column: 1 / 2;
-}
-
+/* Search button */
 .search-btn.horizontal {
-  grid-column: 3 / 4;
   background-color: #2e7d32;
   color: white;
-  padding: 0.75rem 1.2rem;
+  padding: 0.75rem 1.5rem;
   font-size: 1rem;
   border-radius: 8px;
   border: none;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease;
 }
 
 .search-btn.horizontal:hover {
   background-color: #1b5e20;
 }
 
-/* Responsive fix */
+/* Mobile responsiveness */
 @media (max-width: 768px) {
-  .search-container.horizontal {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
+  .row.top-row,
+  .row.bottom-row {
+    flex-direction: column;
   }
 
-  .search-btn.horizontal,
-  .pill.horizontal,
-  .input-box.horizontal,
-  .passenger-counter {
-    grid-column: span 1;
+  .search-btn.horizontal {
     width: 100%;
   }
-}
-
-.passenger-counter {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1rem;
 }
 
 .passenger-counter button {
@@ -238,11 +125,4 @@
   min-width: 90px;
   text-align: center;
   font-weight: 500;
-}
-
-.row.bottom-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
 }

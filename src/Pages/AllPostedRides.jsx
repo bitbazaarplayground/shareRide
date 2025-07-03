@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import SearchBar from "../Components/SearchBar";
 import { useAuth } from "../Contexts/AuthContext";
@@ -7,6 +8,7 @@ import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
   const [rides, setRides] = useState([]);
+  const [savedRideIds, setSavedRideIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -33,6 +35,40 @@ export default function AllPostedRides() {
 
     fetchRides();
   }, []);
+
+  useEffect(() => {
+    async function fetchSavedRides() {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("saved_rides")
+        .select("ride_id")
+        .eq("user_id", user.id);
+
+      if (!error && data) {
+        setSavedRideIds(data.map((entry) => entry.ride_id));
+      }
+    }
+    fetchSavedRides();
+  }, [user]);
+
+  const toggleSaveRide = async (rideId) => {
+    if (savedRideIds.includes(rideId)) {
+      await supabase
+        .from("saved_rides")
+        .delete()
+        .eq("ride_id", rideId)
+        .eq("user_id", user.id);
+      setSavedRideIds((prev) => prev.filter((id) => id !== rideId));
+    } else {
+      await supabase.from("saved_rides").insert([
+        {
+          ride_id: rideId,
+          user_id: user.id,
+        },
+      ]);
+      setSavedRideIds((prev) => [...prev, rideId]);
+    }
+  };
 
   function formatTime(timeStr) {
     if (!timeStr) return "N/A";
@@ -177,6 +213,16 @@ export default function AllPostedRides() {
                       className="book-now-btn"
                     >
                       Book Now
+                    </button>
+                    <button
+                      onClick={() => toggleSaveRide(ride.id)}
+                      className="save-ride-btn"
+                    >
+                      {savedRideIds.includes(ride.id) ? (
+                        <FaHeart color="red" />
+                      ) : (
+                        <FaRegHeart />
+                      )}
                     </button>
                   </>
                 ) : (
