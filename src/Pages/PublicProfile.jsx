@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Avatar from "../Components/Avatar";
 import { useAuth } from "../Contexts/AuthContext";
-import SendMessageForm from "../Messages/SendMessageForm";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/PublicProfile.css";
 
@@ -49,7 +48,7 @@ export default function PublicProfile() {
   const activeRides = rides.filter((r) => r.date >= today);
   const pastRides = rides.filter((r) => r.date < today);
 
-  const RideCard = ({ ride }) => (
+  const RideCard = ({ ride, showAvatar }) => (
     <div className="ride-card">
       <p>
         <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
@@ -60,16 +59,17 @@ export default function PublicProfile() {
       <p>
         <strong>Seats:</strong> {ride.seats}
       </p>
-      <div className="ride-author">
-        <Avatar
-          src={profileData.avatar_url}
-          name={profileData.name}
-          alt={`${profileData.name}'s avatar`}
-          className="small-avatar"
-        />
-        <span>{profileData.nickname}</span>
-      </div>
-      {user && user.id !== id && <SendMessageForm recipientId={id} />}
+      {showAvatar && (
+        <div className="ride-author">
+          <Avatar
+            src={profileData.avatar_url}
+            name={profileData.name}
+            alt={`${profileData.name}'s avatar`}
+            className="small-avatar"
+          />
+          <span>{profileData.nickname}</span>
+        </div>
+      )}
     </div>
   );
 
@@ -95,24 +95,21 @@ export default function PublicProfile() {
         <strong>About:</strong> {profileData.bio}
       </p>
 
-      {user && user.id !== id && (
-        <div className="message-section">
-          <h3>Send a Message</h3>
-          <SendMessageForm recipientId={id} />
-        </div>
-      )}
-
       <div className="rides-section">
         <h3>Active Rides</h3>
         {activeRides.length > 0 ? (
-          activeRides.map((ride) => <RideCard key={ride.id} ride={ride} />)
+          activeRides.map((ride) => (
+            <RideCard key={ride.id} ride={ride} showAvatar={true} />
+          ))
         ) : (
           <p>No active rides.</p>
         )}
 
         <h3>Past Rides</h3>
         {pastRides.length > 0 ? (
-          pastRides.map((ride) => <RideCard key={ride.id} ride={ride} />)
+          pastRides.map((ride) => (
+            <RideCard key={ride.id} ride={ride} showAvatar={false} />
+          ))
         ) : (
           <p>No past rides.</p>
         )}
@@ -120,4 +117,3 @@ export default function PublicProfile() {
     </div>
   );
 }
-//Just for save

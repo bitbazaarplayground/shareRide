@@ -74,7 +74,7 @@ export default function AllPostedRides() {
         ? [user.id, ridePosterId]
         : [ridePosterId, user.id];
 
-    const { data: existingChat, error: fetchError } = await supabase
+    const { data: existingChat } = await supabase
       .from("chats")
       .select("id")
       .eq("user1", userA)
@@ -118,10 +118,33 @@ export default function AllPostedRides() {
         <ul className="ride-list">
           {rides.map((ride) => (
             <li key={ride.id} className="ride-card">
-              <Link to={`/individual-ride/${ride.id}`} className="ride-link">
-                <strong>From:</strong> {ride.from} → <strong>To:</strong>{" "}
-                {ride.to}
-              </Link>
+              {ride.profiles && (
+                <div className="avatar-header">
+                  {ride.profiles.avatar_url ? (
+                    <img
+                      src={ride.profiles.avatar_url}
+                      alt={`${ride.profiles.nickname}'s avatar`}
+                    />
+                  ) : (
+                    <div className="poster-avatar initial-avatar">
+                      {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <div className="name-destination">
+                    <Link
+                      to={`/profile/${ride.profiles.id}`}
+                      className="poster-nickname"
+                    >
+                      {ride.profiles.nickname}
+                    </Link>
+                    <span className="separator">|</span>
+                    <span>
+                      {ride.from} → {ride.to}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="ride-details">
                 <p>
                   <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
@@ -133,32 +156,13 @@ export default function AllPostedRides() {
                   <strong>Seats:</strong> {ride.seats}
                 </p>
               </div>
-              {ride.profiles && (
-                <div className="poster-info">
-                  {ride.profiles.avatar_url ? (
-                    <img
-                      src={ride.profiles.avatar_url}
-                      alt={`${ride.profiles.nickname}'s avatar`}
-                      className="poster-avatar"
-                    />
-                  ) : (
-                    <div className="poster-avatar initial-avatar">
-                      {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                  )}
-                  <Link
-                    to={`/profile/${ride.profiles.id}`}
-                    className="poster-nickname"
-                  >
-                    <strong>{ride.profiles.nickname}</strong>
-                  </Link>
-                </div>
-              )}
+
               {ride.notes && (
                 <p className="ride-notes">
                   <em>{ride.notes}</em>
                 </p>
               )}
+
               <div className="ride-actions">
                 {user?.id !== ride.profiles.id ? (
                   <>

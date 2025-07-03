@@ -31,46 +31,90 @@ export default function SearchBar({ variant = "vertical" }) {
   return (
     <div className={`search-container ${variant}`}>
       {variant === "vertical" && (
-        <h1 className="heading">{t("Search for rides")}</h1>
+        <>
+          <h1 className="heading">{t("Search for rides")}</h1>
+
+          <div className={`input-box ${variant}`}>
+            <FaMapMarkerAlt className="icon" />
+            <AutocompleteInput
+              placeholder={t("from")}
+              onPlaceSelected={(place) => setFromPlace(place.formatted_address)}
+            />
+          </div>
+
+          <div className={`input-box ${variant}`}>
+            <FaSquare className="icon" />
+            <AutocompleteInput
+              placeholder={t("to")}
+              onPlaceSelected={(place) => setToPlace(place.formatted_address)}
+            />
+          </div>
+
+          <div className={`date-time ${variant}`}>
+            <div className="pill vertical">
+              <FaCalendarAlt className="icon" />
+              <input
+                type="date"
+                min={selectedDate}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className={`date-input ${variant}`}
+                aria-label="Select date"
+              />
+            </div>
+            <PassengerCounter t={t} />
+          </div>
+
+          <button className={`search-btn ${variant}`} onClick={handleSearch}>
+            {t("search")}
+          </button>
+
+          <div className="login-hint">{t("login_to_see_recent_activity")}</div>
+        </>
       )}
 
-      <div className={`input-box ${variant}`}>
-        <FaMapMarkerAlt className="icon start" />
-        <AutocompleteInput
-          placeholder={t("from")}
-          onPlaceSelected={(place) => setFromPlace(place.formatted_address)}
-        />
-      </div>
+      {variant === "horizontal" && (
+        <>
+          <div className="row top-row">
+            <div className={`input-box ${variant}`}>
+              <FaMapMarkerAlt className="icon" />
+              <AutocompleteInput
+                placeholder={t("from")}
+                onPlaceSelected={(place) =>
+                  setFromPlace(place.formatted_address)
+                }
+              />
+            </div>
 
-      <div className={`input-box ${variant}`}>
-        <FaSquare className="icon start" />
-        <AutocompleteInput
-          placeholder={t("to")}
-          onPlaceSelected={(place) => setToPlace(place.formatted_address)}
-        />
-      </div>
+            <div className={`input-box ${variant}`}>
+              <FaSquare className="icon" />
+              <AutocompleteInput
+                placeholder={t("to")}
+                onPlaceSelected={(place) => setToPlace(place.formatted_address)}
+              />
+            </div>
 
-      <div className={`date-time ${variant}`}>
-        <div className="pill">
-          <FaCalendarAlt className="icon" />
-          <input
-            type="date"
-            min={selectedDate}
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className={`date-input ${variant}`}
-            aria-label="Select date"
-          />
-        </div>
-        <PassengerCounter t={t} />
-      </div>
+            <div className={`pill ${variant}`}>
+              <FaCalendarAlt className="icon" />
+              <input
+                type="date"
+                min={selectedDate}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className={`date-input ${variant}`}
+                aria-label="Select date"
+              />
+            </div>
+          </div>
 
-      <button className={`search-btn ${variant}`} onClick={handleSearch}>
-        {t("search")}
-      </button>
+          <div className="row bottom-row">
+            <PassengerCounter t={t} />
 
-      {variant === "vertical" && (
-        <div className="login-hint">{t("login_to_see_recent_activity")}</div>
+            <button className={`search-btn ${variant}`} onClick={handleSearch}>
+              {t("search")}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
