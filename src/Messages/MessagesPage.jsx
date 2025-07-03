@@ -12,7 +12,6 @@ export default function MessagesPage() {
     if (!user) return;
 
     const fetchConversations = async () => {
-      // Step 1: Fetch all chats involving the user
       const { data: chats, error: chatsError } = await supabase
         .from("chats")
         .select(
@@ -20,8 +19,15 @@ export default function MessagesPage() {
           id,
           user1,
           user2,
+          ride_id,
           user1_profile:profiles!chats_user1_fkey(nickname),
-          user2_profile:profiles!chats_user2_fkey(nickname)
+          user2_profile:profiles!chats_user2_fkey(nickname),
+          rides (
+            from,
+            to,
+            date,
+            time
+          )
         `
         )
         .or(`user1.eq.${user.id},user2.eq.${user.id}`);
@@ -31,7 +37,6 @@ export default function MessagesPage() {
         return;
       }
 
-      // Step 2: Fetch the latest message for each chat separately
       const conversationsWithMessages = await Promise.all(
         chats.map(async (chat) => {
           const partnerId = chat.user1 === user.id ? chat.user2 : chat.user1;
@@ -40,13 +45,12 @@ export default function MessagesPage() {
               ? chat.user2_profile?.nickname
               : chat.user1_profile?.nickname;
 
-          const { data: latestMessageData, error: messageError } =
-            await supabase
-              .from("messages")
-              .select("content, created_at, sender_id, recipient_id")
-              .eq("chat_id", chat.id)
-              .order("created_at", { ascending: false })
-              .limit(1);
+          const { data: latestMessageData } = await supabase
+            .from("messages")
+            .select("content, created_at, sender_id, recipient_id")
+            .eq("chat_id", chat.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
 
           const latestMessage = latestMessageData?.[0];
 
@@ -56,11 +60,14 @@ export default function MessagesPage() {
             partnerNickname,
             content: latestMessage?.content || "(No messages yet)",
             created_at: latestMessage?.created_at || null,
+            fromLocation: chat.rides?.from,
+            toLocation: chat.rides?.to,
+            rideDate: chat.rides?.date,
+            rideTime: chat.rides?.time,
           };
         })
       );
 
-      // Step 3: Sort chats by most recent message
       conversationsWithMessages.sort((a, b) => {
         return new Date(b.created_at) - new Date(a.created_at);
       });
@@ -88,20 +95,28 @@ export default function MessagesPage() {
               className="conversation-link"
             >
               <div className="conversation-card">
-                <strong>{convo.partnerNickname || convo.partnerId}</strong>
+                <div className="top-line">
+                  <div className="name-destination">
+                    <strong>{convo.partnerNickname || convo.partnerId}</strong>
+                    <span className="destination">
+                      {convo.fromLocation} → {convo.toLocation}
+                    </span>
+                  </div>
+                  <small className="timestamp">
+                    {convo.created_at
+                      ? new Date(convo.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </small>
+                </div>
+
                 <p className="preview">
                   {convo.content.length > 60
                     ? convo.content.slice(0, 60) + "..."
                     : convo.content}
                 </p>
-                <small className="timestamp">
-                  {convo.created_at
-                    ? new Date(convo.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
-                </small>
               </div>
             </Link>
           ))}
