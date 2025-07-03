@@ -122,7 +122,7 @@ export default function CompleteProfile() {
     <div className="complete-profile-container">
       <h2>Edit Your Profile</h2>
       <form onSubmit={handleSubmit}>
-        <label>Name:</label>
+        <label>Full Name:</label>
         <input
           type="text"
           name="name"
@@ -131,7 +131,7 @@ export default function CompleteProfile() {
           onChange={handleInputChange}
         />
 
-        <label>Nickname:</label>
+        <label>Username:</label>
         <input
           type="text"
           name="nickname"

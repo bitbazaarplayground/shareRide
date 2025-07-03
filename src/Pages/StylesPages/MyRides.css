@@ -21,3 +21,16 @@
 .delete-btn:hover {
   background-color: #c82333;
 }
+.unsave-btn {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.unsave-btn:hover {
+  background-color: #dc2626;
+}
