@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
+import EmailCallback from "./Components/EmailCallback";
 import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
 import "./Components/Styles/Navbar.css";
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/individual-ride/:id" element={<IndividualRide />} />
           <Route path="/my-rides" element={<MyRidesRedirect />} />
           <Route path="/edit-ride/:rideId" element={<EditRide />} />
+          <Route path="/auth/callback" element={<EmailCallback />} />
 
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Payments */}
