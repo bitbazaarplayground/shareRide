@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
+import { Resend } from "resend"; // ✅ Corrected import
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -11,6 +12,8 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 app.use(cors());
@@ -62,12 +65,31 @@ app.post("/create-checkout-session", async (req, res) => {
       // Don't fail the payment redirect if logging fails
     }
 
+    // ✅ Send email receipt to user
+    try {
+      await resend.emails.send({
+        from: "GoDutch <noreply@godutch.dev>", // Update domain if needed
+        to: email,
+        subject: "Your GoDutch Payment Confirmation",
+        html: `
+          <h2>✅ Payment Received</h2>
+          <p>Hi there,</p>
+          <p>Thanks for using GoDutch! Your payment for Ride ID <strong>${rideId}</strong> was successful.</p>
+          <p>Amount Paid: £${(amount / 100).toFixed(2)}</p>
+          <p>If you have any issues, contact us any time.</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Resend email failed:", emailError);
+    }
+
     res.json({ url: session.url });
   } catch (error) {
     console.error("Stripe error:", error.message);
     res.status(500).json({ error: "Payment session creation failed" });
   }
 });
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => console.log(`✅ Stripe server running on port ${PORT}`));
