@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
-import { Resend } from "resend"; // ✅ Corrected import
+import { Resend } from "resend";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -13,6 +13,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ✅ Resend setup
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
@@ -30,6 +31,7 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 
   try {
+    // ✅ Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -62,21 +64,21 @@ app.post("/create-checkout-session", async (req, res) => {
 
     if (error) {
       console.error("Supabase logging error:", error.message);
-      // Don't fail the payment redirect if logging fails
+      // Continue even if logging fails
     }
 
-    // ✅ Send email receipt to user
+    // ✅ Send email receipt using Resend
     try {
       await resend.emails.send({
-        from: "GoDutch <noreply@godutch.dev>", // Update domain if needed
+        from: "GoDutch <onboarding@resend.dev>", // This must be verified in Resend
         to: email,
         subject: "Your GoDutch Payment Confirmation",
         html: `
-          <h2>✅ Payment Received</h2>
-          <p>Hi there,</p>
-          <p>Thanks for using GoDutch! Your payment for Ride ID <strong>${rideId}</strong> was successful.</p>
-          <p>Amount Paid: £${(amount / 100).toFixed(2)}</p>
-          <p>If you have any issues, contact us any time.</p>
+          <h2>✅ Payment Successful</h2>
+          <p>Thank you for splitting your ride with GoDutch!</p>
+          <p><strong>Ride ID:</strong> ${rideId}</p>
+          <p><strong>Amount Paid:</strong> £${(amount / 100).toFixed(2)}</p>
+          <p>If you have any questions, feel free to contact support.</p>
         `,
       });
     } catch (emailError) {
@@ -91,5 +93,4 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => console.log(`✅ Stripe server running on port ${PORT}`));
