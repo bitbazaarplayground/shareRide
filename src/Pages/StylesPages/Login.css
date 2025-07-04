@@ -68,3 +68,13 @@ h2 {
   color: #2a7a2a;
   font-weight: bold;
 }
+
+.forgot-password {
+  margin-top: 10px;
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.forgot-password:hover {
+  color: #0056b3;
+}
