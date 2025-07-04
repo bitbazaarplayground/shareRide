@@ -28,13 +28,6 @@ export default function Login() {
     }
   };
 
-  //   const handleSocialLogin = async (provider) => {
-  //     const { error } = await supabase.auth.signInWithOAuth({ provider });
-  //     if (error) {
-  //       console.error(`Error logging in with ${provider}:`, error.message);
-  //     }
-  //   };
-
   // Google OAuth login
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -48,6 +41,23 @@ export default function Login() {
       provider: "facebook",
     });
     if (error) setMessage(error.message);
+  };
+  const handleForgotPassword = async () => {
+    const userEmail = prompt("Please enter your email to reset your password:");
+    if (!userEmail) return;
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(
+      userEmail,
+      {
+        redirectTo: `${window.location.origin}/#/auth/callback`,
+      }
+    );
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Password reset email sent!");
+    }
   };
 
   return (
@@ -100,6 +110,9 @@ export default function Login() {
           </button>
         </div>
       </div>
+      <p className="forgot-password" onClick={() => handleForgotPassword()}>
+        Forgot your password?
+      </p>
 
       <p className="message">{message}</p>
     </div>

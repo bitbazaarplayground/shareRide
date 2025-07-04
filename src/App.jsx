@@ -4,6 +4,7 @@ import "./App.css";
 import EmailCallback from "./Components/EmailCallback";
 import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
+import ResetPassword from "./Components/ResetPassword";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
 import ChatRoom from "./Messages/ChatRoom";
@@ -91,7 +92,7 @@ export default function App() {
           <Route path="/my-rides" element={<MyRidesRedirect />} />
           <Route path="/edit-ride/:rideId" element={<EditRide />} />
           <Route path="/auth/callback" element={<EmailCallback />} />
-
+          <Route path="/auth/callback" element={<ResetPassword />} />
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Payments */}
           <Route
