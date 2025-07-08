@@ -48,7 +48,7 @@ export default function Login() {
     if (!userEmail) return;
 
     const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-      redirectTo: "https://bitbazaarplayground.github.io/shareRide/#/recovery",
+      redirectTo: "https://jade-rolypoly-5d4274.netlify.app/recovery",
     });
 
     if (error) {
