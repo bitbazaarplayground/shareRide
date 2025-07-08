@@ -5,53 +5,49 @@ import { supabase } from "../supabaseClient";
 export default function Recovery() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [mode, setMode] = useState("checking");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Processing recovery...");
+  const [mode, setMode] = useState("loading");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkSession = async () => {
+    const run = async () => {
       const { data } = await supabase.auth.getSession();
-
       if (data.session) {
         setMode("reset");
+        setMessage("");
       } else {
-        setMessage("Invalid or expired recovery link.");
-        setMode("error");
+        setMessage("⚠️ Recovery session invalid or expired.");
       }
     };
-
-    checkSession();
+    run();
   }, []);
 
-  const handleReset = async (e) => {
+  const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setMessage("❌ Passwords do not match");
+      setMessage("❌ Passwords do not match.");
       return;
     }
 
     setLoading(true);
+    setMessage("");
+
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
       setMessage("❌ " + error.message);
     } else {
       setMessage("✅ Password updated! Redirecting...");
-      setTimeout(() => navigate("/login"), 2000);
+      setTimeout(() => navigate("/account"), 2000);
     }
 
     setLoading(false);
   };
 
-  if (mode === "checking") {
-    return <p style={{ padding: "2rem" }}>Verifying recovery link...</p>;
-  }
-
   if (mode === "reset") {
     return (
-      <form onSubmit={handleReset} style={{ padding: "2rem" }}>
+      <form onSubmit={handlePasswordUpdate} style={{ padding: "2rem" }}>
         <h2>Reset Your Password</h2>
         <input
           type="password"
@@ -70,10 +66,10 @@ export default function Recovery() {
         <button type="submit" disabled={loading}>
           {loading ? "Updating..." : "Update Password"}
         </button>
-        <p>{message}</p>
+        {message && <p style={{ color: "crimson" }}>{message}</p>}
       </form>
     );
   }
 
-  return <p style={{ padding: "2rem", color: "crimson" }}>{message}</p>;
+  return <p style={{ padding: "2rem" }}>{message}</p>;
 }
