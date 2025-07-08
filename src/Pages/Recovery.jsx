@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
+// Helper to parse recovery tokens from hash or query
+function extractRecoveryParams() {
+  const hash = window.location.hash; // "#/recovery#access_token=...&refresh_token=...&type=recovery"
+  const queryString = hash.split("#").pop(); // take the last part
+  const params = new URLSearchParams(queryString);
+
+  return {
+    access_token: params.get("access_token"),
+    refresh_token: params.get("refresh_token"),
+    type: params.get("type"),
+  };
+}
+
 export default function Recovery() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -12,19 +25,34 @@ export default function Recovery() {
 
   useEffect(() => {
     const run = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setMode("reset");
-        setMessage("");
-      } else {
-        setMessage("⚠️ Recovery session invalid or expired.");
+      const { access_token, refresh_token, type } = extractRecoveryParams();
+
+      if (type !== "recovery" || !access_token || !refresh_token) {
+        setMessage("❌ Invalid recovery link.");
+        return;
       }
+
+      const { error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (error) {
+        console.error("setSession error:", error.message);
+        setMessage("❌ Failed to verify recovery link.");
+        return;
+      }
+
+      setMessage("");
+      setMode("reset");
     };
+
     run();
   }, []);
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       setMessage("❌ Passwords do not match.");
       return;
@@ -36,6 +64,7 @@ export default function Recovery() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
+      console.error("updateUser error:", error.message);
       setMessage("❌ " + error.message);
     } else {
       setMessage("✅ Password updated! Redirecting...");
