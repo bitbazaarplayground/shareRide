@@ -42,21 +42,19 @@ export default function Login() {
     });
     if (error) setMessage(error.message);
   };
+
   const handleForgotPassword = async () => {
     const userEmail = prompt("Please enter your email to reset your password:");
     if (!userEmail) return;
 
-    const { data, error } = await supabase.auth.resetPasswordForEmail(
-      userEmail,
-      {
-        redirectTo: `${window.location.origin}/#/auth/callback`,
-      }
-    );
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+      redirectTo: "https://bitbazaarplayground.github.io/shareRide/#/recovery",
+    });
 
     if (error) {
-      setMessage(error.message);
+      setMessage("❌ " + error.message);
     } else {
-      setMessage("Password reset email sent!");
+      setMessage("✅ Password reset email sent! Check your inbox.");
     }
   };
 

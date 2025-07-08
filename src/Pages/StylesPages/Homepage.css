@@ -1,3 +1,5 @@
+/* 
+#eab676 */
 .homepage {
   font-family: "Helvetica Neue", sans-serif;
   color: #333;
@@ -146,7 +148,9 @@
   padding: 1.5rem;
   max-width: 300px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
   animation: zoomIn 0.8s ease forwards;
 }
 

@@ -1,10 +1,8 @@
 import React, { useEffect } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
-import EmailCallback from "./Components/EmailCallback";
 import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
-import ResetPassword from "./Components/ResetPassword";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
 import ChatRoom from "./Messages/ChatRoom";
@@ -20,6 +18,7 @@ import Login from "./Pages/Login";
 import MyRidesRedirect from "./Pages/MyRidesRedirect";
 import OurMission from "./Pages/OurMission";
 import PublicProfile from "./Pages/PublicProfile";
+import Recovery from "./Pages/Recovery";
 import Results from "./Pages/Results";
 import SignUp from "./Pages/SignUp";
 import TermsofUse from "./Pages/TermsOfUse";
@@ -36,12 +35,19 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Only redirect if on the login or signup page
-      const isAtEntryPage =
-        window.location.hash.includes("login") ||
-        window.location.hash.includes("signup");
+      const hash = window.location.hash;
 
-      if (event === "SIGNED_IN" && session?.user && isAtEntryPage) {
+      const isAtEntryPage = hash.includes("login") || hash.includes("signup");
+
+      const isRecovery = hash.includes("recovery");
+
+      // ✅ Only redirect if NOT on recovery page
+      if (
+        event === "SIGNED_IN" &&
+        session?.user &&
+        isAtEntryPage &&
+        !isRecovery
+      ) {
         navigate("/homepage", { replace: true });
       }
     });
@@ -91,8 +97,7 @@ export default function App() {
           <Route path="/individual-ride/:id" element={<IndividualRide />} />
           <Route path="/my-rides" element={<MyRidesRedirect />} />
           <Route path="/edit-ride/:rideId" element={<EditRide />} />
-          <Route path="/auth/callback" element={<EmailCallback />} />
-          <Route path="/auth/callback" element={<ResetPassword />} />
+          <Route path="/recovery" element={<Recovery />} />
           <Route path="/Termsofuse" element={<TermsofUse />} />
           {/* Payments */}
           <Route
