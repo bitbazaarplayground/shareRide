@@ -21,7 +21,7 @@ app.use(cors());
 app.use(express.json());
 
 const FRONTEND_BASE_URL =
-  process.env.FRONTEND_BASE_URL || "http://localhost:5173/shareRide";
+  process.env.FRONTEND_BASE_URL || "http://localhost:5173";
 
 app.post("/create-checkout-session", async (req, res) => {
   const { rideId, amount, user_id, email } = req.body;
@@ -48,8 +48,8 @@ app.post("/create-checkout-session", async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `${FRONTEND_BASE_URL}/#/payment-success?rideId=${rideId}`,
-      cancel_url: `${FRONTEND_BASE_URL}/#/splitride-confirm/${rideId}`,
+      success_url: `${FRONTEND_BASE_URL}/payment-success?rideId=${rideId}`,
+      cancel_url: `${FRONTEND_BASE_URL}/splitride-confirm/${rideId}`,
     });
 
     // ✅ Log payment in Supabase
