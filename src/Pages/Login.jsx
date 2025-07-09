@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FaApple, FaFacebookF, FaGoogle, FaInstagram } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/Login.css";
 
@@ -7,6 +8,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -18,29 +20,41 @@ export default function Login() {
       });
 
       if (error) {
-        setMessage(error.message);
+        setMessage("❌ " + error.message);
       } else {
-        setMessage("Login successful!");
+        setMessage("✅ Login successful!");
         console.log("User:", data.user);
+
+        // Redirect after a short delay
+        setTimeout(() => {
+          navigate("/"); // Change to "/account" or "/dashboard" if needed
+        }, 1000);
       }
     } catch (err) {
-      setMessage("Something went wrong. Try again.");
+      setMessage("❌ Something went wrong. Try again.");
     }
   };
 
-  // Google OAuth login
   const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
-    if (error) setMessage(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+      if (error) setMessage("❌ " + error.message);
+    } catch (err) {
+      setMessage("❌ Something went wrong.");
+    }
   };
 
   const handleFacebookLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-    });
-    if (error) setMessage(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "facebook",
+      });
+      if (error) setMessage("❌ " + error.message);
+    } catch (err) {
+      setMessage("❌ Something went wrong.");
+    }
   };
 
   const handleForgotPassword = async () => {
@@ -102,13 +116,14 @@ export default function Login() {
           </button>
           <button
             className="social-btn apple"
-            onClick={() => handleSocialLogin("apple")}
+            onClick={() => alert("Apple login not implemented yet.")}
           >
             <FaApple size={24} color="#333" />
           </button>
         </div>
       </div>
-      <p className="forgot-password" onClick={() => handleForgotPassword()}>
+
+      <p className="forgot-password" onClick={handleForgotPassword}>
         Forgot your password?
       </p>
 
