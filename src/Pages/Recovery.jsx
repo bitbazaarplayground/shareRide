@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
-// Helper to parse recovery tokens from hash or query
-function extractRecoveryParams() {
-  const hash = window.location.hash; // "#/recovery#access_token=...&refresh_token=...&type=recovery"
-  const queryString = hash.split("#").pop(); // take the last part
+// Extracts tokens from: #/recovery?access_token=...&refresh_token=...
+function extractFromHashQuery() {
+  const hash = window.location.hash; // "#/recovery?access_token=..."
+  const queryIndex = hash.indexOf("?");
+  if (queryIndex === -1) return {};
+
+  const queryString = hash.substring(queryIndex + 1);
   const params = new URLSearchParams(queryString);
 
   return {
@@ -25,7 +28,7 @@ export default function Recovery() {
 
   useEffect(() => {
     const run = async () => {
-      const { access_token, refresh_token, type } = extractRecoveryParams();
+      const { access_token, refresh_token, type } = extractFromHashQuery();
 
       if (type !== "recovery" || !access_token || !refresh_token) {
         setMessage("❌ Invalid recovery link.");
@@ -38,12 +41,12 @@ export default function Recovery() {
       });
 
       if (error) {
-        console.error("setSession error:", error.message);
+        console.error("❌ setSession error:", error.message);
         setMessage("❌ Failed to verify recovery link.");
         return;
       }
 
-      setMessage("");
+      setMessage(""); // Clear message
       setMode("reset");
     };
 
@@ -64,7 +67,7 @@ export default function Recovery() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      console.error("updateUser error:", error.message);
+      console.error("❌ updateUser error:", error.message);
       setMessage("❌ " + error.message);
     } else {
       setMessage("✅ Password updated! Redirecting...");
