@@ -10,17 +10,17 @@ export default function Recovery() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Check if user is logged in (via recovery link)
   useEffect(() => {
     const run = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
 
-      if (data?.session) {
-        setMode("reset");
-        setMessage("");
-      } else {
+      if (error || !data?.session) {
         setMessage("❌ Recovery link is invalid or expired.");
+        return;
       }
+
+      setMode("reset");
+      setMessage("");
     };
     run();
   }, []);
@@ -39,12 +39,9 @@ export default function Recovery() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      console.error("updateUser error:", error.message);
-      setMessage("❌ Failed: " + error.message);
+      setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Password updated. Logging you out...");
-
-      // 👇 Log the user out and redirect to login
+      setMessage("✅ Password updated! Logging out...");
       await supabase.auth.signOut();
       setTimeout(() => navigate("/login"), 2000);
     }
@@ -56,7 +53,6 @@ export default function Recovery() {
     return (
       <form onSubmit={handlePasswordUpdate} style={{ padding: "2rem" }}>
         <h2>Reset Your Password</h2>
-
         <input
           type="password"
           placeholder="New password"
@@ -71,11 +67,9 @@ export default function Recovery() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
-
         <button type="submit" disabled={loading}>
           {loading ? "Updating..." : "Update Password"}
         </button>
-
         {message && (
           <p style={{ color: message.startsWith("✅") ? "green" : "crimson" }}>
             {message}
