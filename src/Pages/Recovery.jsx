@@ -10,21 +10,16 @@ export default function Recovery() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Check if user is logged in (via recovery link)
   useEffect(() => {
     const run = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error("getSession error:", error.message);
-        setMessage("❌ Failed to get session.");
-        return;
-      }
-
-      if (data.session) {
+      if (data?.session) {
         setMode("reset");
         setMessage("");
       } else {
-        setMessage("⚠️ Recovery session invalid or expired.");
+        setMessage("❌ Recovery link is invalid or expired.");
       }
     };
     run();
@@ -41,15 +36,17 @@ export default function Recovery() {
     setLoading(true);
     setMessage("Updating...");
 
-    const { data, error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
       console.error("updateUser error:", error.message);
-      setMessage("❌ " + error.message);
+      setMessage("❌ Failed: " + error.message);
     } else {
-      console.log("✅ Password updated:", data);
-      setMessage("✅ Password updated! Redirecting...");
-      setTimeout(() => navigate("/account"), 2000);
+      setMessage("✅ Password updated. Logging you out...");
+
+      // 👇 Log the user out and redirect to login
+      await supabase.auth.signOut();
+      setTimeout(() => navigate("/login"), 2000);
     }
 
     setLoading(false);
@@ -59,6 +56,7 @@ export default function Recovery() {
     return (
       <form onSubmit={handlePasswordUpdate} style={{ padding: "2rem" }}>
         <h2>Reset Your Password</h2>
+
         <input
           type="password"
           placeholder="New password"
@@ -73,11 +71,13 @@ export default function Recovery() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
+
         <button type="submit" disabled={loading}>
           {loading ? "Updating..." : "Update Password"}
         </button>
+
         {message && (
-          <p style={{ color: message.includes("✅") ? "green" : "crimson" }}>
+          <p style={{ color: message.startsWith("✅") ? "green" : "crimson" }}>
             {message}
           </p>
         )}
@@ -102,7 +102,14 @@ export default function Recovery() {
 
 //   useEffect(() => {
 //     const run = async () => {
-//       const { data } = await supabase.auth.getSession();
+//       const { data, error } = await supabase.auth.getSession();
+
+//       if (error) {
+//         console.error("getSession error:", error.message);
+//         setMessage("❌ Failed to get session.");
+//         return;
+//       }
+
 //       if (data.session) {
 //         setMode("reset");
 //         setMessage("");
@@ -115,19 +122,22 @@ export default function Recovery() {
 
 //   const handlePasswordUpdate = async (e) => {
 //     e.preventDefault();
+
 //     if (password !== confirmPassword) {
 //       setMessage("❌ Passwords do not match.");
 //       return;
 //     }
 
 //     setLoading(true);
-//     setMessage("");
+//     setMessage("Updating...");
 
-//     const { error } = await supabase.auth.updateUser({ password });
+//     const { data, error } = await supabase.auth.updateUser({ password });
 
 //     if (error) {
+//       console.error("updateUser error:", error.message);
 //       setMessage("❌ " + error.message);
 //     } else {
+//       console.log("✅ Password updated:", data);
 //       setMessage("✅ Password updated! Redirecting...");
 //       setTimeout(() => navigate("/account"), 2000);
 //     }
@@ -156,7 +166,11 @@ export default function Recovery() {
 //         <button type="submit" disabled={loading}>
 //           {loading ? "Updating..." : "Update Password"}
 //         </button>
-//         {message && <p style={{ color: "crimson" }}>{message}</p>}
+//         {message && (
+//           <p style={{ color: message.includes("✅") ? "green" : "crimson" }}>
+//             {message}
+//           </p>
+//         )}
 //       </form>
 //     );
 //   }
