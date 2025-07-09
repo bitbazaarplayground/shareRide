@@ -11,18 +11,26 @@ export default function Recovery() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const run = async () => {
+    const checkSession = async () => {
       const { data, error } = await supabase.auth.getSession();
 
-      if (error || !data?.session) {
-        setMessage("❌ Recovery link is invalid or expired.");
+      if (error) {
+        console.error("Session error:", error.message);
+        setMessage("⚠️ Error checking session.");
         return;
       }
 
-      setMode("reset");
-      setMessage("");
+      if (data.session) {
+        console.log("✅ Active recovery session found.");
+        setMode("reset");
+        setMessage("");
+      } else {
+        console.warn("❌ No valid recovery session.");
+        setMessage("⚠️ Recovery session invalid or expired.");
+      }
     };
-    run();
+
+    checkSession();
   }, []);
 
   const handlePasswordUpdate = async (e) => {
@@ -36,14 +44,28 @@ export default function Recovery() {
     setLoading(true);
     setMessage("Updating...");
 
+    // Confirm active session before trying to update
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    console.log("🔍 Current session data:", sessionData);
+
+    if (sessionError || !sessionData.session) {
+      setMessage("❌ No active session. Please request a new recovery link.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
+      console.error("❌ updateUser error:", error.message);
       setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Password updated! Logging out...");
-      await supabase.auth.signOut();
-      setTimeout(() => navigate("/login"), 2000);
+      setMessage("✅ Password updated! Redirecting to login...");
+      setTimeout(() => {
+        supabase.auth.signOut(); // Log the user out
+        navigate("/login");
+      }, 2000);
     }
 
     setLoading(false);
@@ -67,19 +89,15 @@ export default function Recovery() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} style={{ marginTop: "1rem" }}>
           {loading ? "Updating..." : "Update Password"}
         </button>
-        {message && (
-          <p style={{ color: message.startsWith("✅") ? "green" : "crimson" }}>
-            {message}
-          </p>
-        )}
+        {message && <p style={{ color: "crimson" }}>{message}</p>}
       </form>
     );
   }
 
-  return <p style={{ padding: "2rem" }}>{message}</p>;
+  return <p style={{ padding: "2rem", color: "crimson" }}>{message}</p>;
 }
 
 // import { useEffect, useState } from "react";
