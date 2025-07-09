@@ -22,28 +22,56 @@ export default function Recovery() {
     };
     run();
   }, []);
-
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       setMessage("❌ Passwords do not match.");
       return;
     }
 
     setLoading(true);
-    setMessage("");
+    setMessage("Updating...");
 
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
+      console.error("Update error:", error.message);
       setMessage("❌ " + error.message);
-    } else {
-      setMessage("✅ Password updated! Redirecting...");
-      setTimeout(() => navigate("/account"), 2000);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    setMessage("✅ Password updated! Redirecting...");
+
+    // Wait 1 second then redirect
+    setTimeout(() => {
+      setLoading(false);
+      navigate("/account");
+    }, 1000);
   };
+
+  // const handlePasswordUpdate = async (e) => {
+  //   e.preventDefault();
+  //   if (password !== confirmPassword) {
+  //     setMessage("❌ Passwords do not match.");
+  //     return;
+  //   }
+
+  //   setLoading(true);
+  //   setMessage("");
+
+  //   const { error } = await supabase.auth.updateUser({ password });
+
+  //   if (error) {
+  //     setMessage("❌ " + error.message);
+  //   } else {
+  //     setMessage("✅ Password updated! Redirecting...");
+  //     setTimeout(() => navigate("/account"), 2000);
+  //   }
+
+  //   setLoading(false);
+  // };
 
   if (mode === "reset") {
     return (
