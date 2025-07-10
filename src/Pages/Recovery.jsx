@@ -11,19 +11,22 @@ export default function Recovery() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+    const handleRecovery = async () => {
+      // This parses the URL fragment to complete login and set the session
+      const { data, error } = await supabase.auth.getSessionFromUrl({
+        storeSession: true,
+      });
 
-      if (error || !data.session) {
+      if (error || !data?.session) {
         setMessage("⚠️ Recovery session invalid or expired.");
         return;
       }
 
-      setMessage("");
+      setMessage(""); // clear message
       setMode("reset");
     };
 
-    checkSession();
+    handleRecovery();
   }, []);
 
   const handlePasswordUpdate = async (e) => {
@@ -42,16 +45,11 @@ export default function Recovery() {
     if (error) {
       setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Password updated! Logging you out...");
-
-      // Securely sign out and redirect to login page
-      await supabase.auth.signOut({ scope: "global" });
-
-      // Optionally clear any local storage tokens
-      localStorage.removeItem("supabase.auth.token");
-
-      // Redirect to login page
-      navigate("/login");
+      setMessage("✅ Password updated! Redirecting to login...");
+      await supabase.auth.signOut();
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     }
 
     setLoading(false);
