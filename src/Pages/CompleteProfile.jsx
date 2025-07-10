@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CropModal from "../Components/CropModal";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/CompleteProfile.css";
@@ -7,6 +8,7 @@ import "./StylesPages/CompleteProfile.css";
 export default function CompleteProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [profile, setProfile] = useState({
     name: "",
     nickname: "",
@@ -14,39 +16,37 @@ export default function CompleteProfile() {
     age: "",
     bio: "",
   });
+
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [preview, setPreview] = useState(null);
+  const [cropFile, setCropFile] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
 
+  // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
 
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("name, nickname, avatar_url, age, bio")
-          .eq("id", user.id)
-          .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("name, nickname, avatar_url, age, bio")
+        .eq("id", user.id)
+        .single();
 
-        if (data) {
-          setProfile({
-            name: data.name || "",
-            nickname: data.nickname || "",
-            avatar_url: data.avatar_url || "",
-            age: data.age || "",
-            bio: data.bio || "",
-          });
-
-          if (data.avatar_url) setPreview(data.avatar_url);
-        } else if (error) {
-          console.error("Error fetching profile:", error.message);
-        }
-      } catch (err) {
-        console.error("Unexpected error:", err.message);
-      } finally {
-        setInitialLoading(false);
+      if (data) {
+        setProfile({
+          name: data.name || "",
+          nickname: data.nickname || "",
+          avatar_url: data.avatar_url || "",
+          age: data.age || "",
+          bio: data.bio || "",
+        });
+        if (data.avatar_url) setPreview(data.avatar_url);
+      } else if (error) {
+        console.error("Error fetching profile:", error.message);
       }
+      setInitialLoading(false);
     };
 
     fetchProfile();
@@ -57,32 +57,44 @@ export default function CompleteProfile() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = async (e) => {
+  const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (!file || !user) return;
+    if (file) {
+      setCropFile(file);
+      setShowCropModal(true);
+    }
+  };
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}.${fileExt}`;
-    const filePath = `${fileName}`;
+  const handleCroppedUpload = async (croppedBlob) => {
+    if (!user || !croppedBlob) return;
+
+    const fileName = `${user.id}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("profilephotos")
-      .upload(filePath, file, { upsert: true });
+      .upload(fileName, croppedBlob, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: "image/jpeg",
+      });
 
     if (uploadError) {
-      console.error("Upload failed:", uploadError.message);
+      console.error("Image upload error:", uploadError.message);
       alert("Failed to upload image.");
       return;
     }
 
     const { data } = supabase.storage
       .from("profilephotos")
-      .getPublicUrl(filePath);
+      .getPublicUrl(fileName);
 
     if (data?.publicUrl) {
       setProfile((prev) => ({ ...prev, avatar_url: data.publicUrl }));
       setPreview(data.publicUrl);
     }
+
+    setShowCropModal(false);
+    setCropFile(null);
   };
 
   const handleSubmit = async (e) => {
@@ -90,28 +102,25 @@ export default function CompleteProfile() {
     if (!user) return;
 
     setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          ...profile,
-          email: user.email,
-          avatar_url: preview || profile.avatar_url,
-        })
-        .eq("id", user.id);
 
-      if (error) {
-        console.error("Error updating profile:", error.message);
-        alert("There was a problem updating your profile.");
-      } else {
-        alert("Profile updated successfully!");
-        navigate("/profile");
-      }
-    } catch (err) {
-      console.error("Unexpected error:", err.message);
-    } finally {
-      setLoading(false);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        ...profile,
+        email: user.email,
+        avatar_url: preview || profile.avatar_url,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error("Error updating profile:", error.message);
+      alert("There was a problem updating your profile.");
+    } else {
+      alert("Profile updated successfully!");
+      navigate("/profile");
     }
+
+    setLoading(false);
   };
 
   if (!user || initialLoading) {
@@ -142,7 +151,7 @@ export default function CompleteProfile() {
 
         <label>Photo:</label>
         {preview ? (
-          <img src={preview} alt="Avatar preview" className="avatar-preview" />
+          <img src={preview} alt="Avatar" className="avatar-preview" />
         ) : (
           <div className="avatar-placeholder">No image selected</div>
         )}
@@ -171,6 +180,14 @@ export default function CompleteProfile() {
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </form>
+
+      {showCropModal && cropFile && (
+        <CropModal
+          file={cropFile}
+          onCropComplete={handleCroppedUpload}
+          onCancel={() => setShowCropModal(false)}
+        />
+      )}
     </div>
   );
 }
