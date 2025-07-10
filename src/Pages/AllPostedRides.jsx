@@ -27,9 +27,20 @@ export default function AllPostedRides() {
       if (error) {
         setErrorMsg("Failed to fetch rides.");
         console.error("Error fetching rides:", error);
-      } else {
-        setRides(data);
+        setLoading(false);
+        return;
       }
+
+      const now = new Date();
+
+      const filteredRides = data.filter((ride) => {
+        if (!ride.date || !ride.time) return false;
+
+        const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+        return rideDateTime >= now;
+      });
+
+      setRides(filteredRides);
       setLoading(false);
     }
 
