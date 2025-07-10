@@ -42,12 +42,16 @@ export default function Recovery() {
     if (error) {
       setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Password updated! Redirecting...");
-      // Log out the user and redirect to homepage after 2s
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        navigate("/");
-      }, 2000);
+      setMessage("✅ Password updated! Logging you out...");
+
+      // Securely sign out and redirect to login page
+      await supabase.auth.signOut({ scope: "global" });
+
+      // Optionally clear any local storage tokens
+      localStorage.removeItem("supabase.auth.token");
+
+      // Redirect to login page
+      navigate("/login");
     }
 
     setLoading(false);
@@ -72,7 +76,7 @@ export default function Recovery() {
           required
         />
         <button type="submit" disabled={loading}>
-          {loading ? "✅ Password updated!" : "Update Password"}
+          {loading ? "Updating..." : "Update Password"}
         </button>
         {message && (
           <p
@@ -108,23 +112,19 @@ export default function Recovery() {
 //   const navigate = useNavigate();
 
 //   useEffect(() => {
-//     const run = async () => {
+//     const checkSession = async () => {
 //       const { data, error } = await supabase.auth.getSession();
 
-//       if (error) {
-//         console.error("getSession error:", error.message);
-//         setMessage("❌ Failed to get session.");
+//       if (error || !data.session) {
+//         setMessage("⚠️ Recovery session invalid or expired.");
 //         return;
 //       }
 
-//       if (data.session) {
-//         setMode("reset");
-//         setMessage("");
-//       } else {
-//         setMessage("⚠️ Recovery session invalid or expired.");
-//       }
+//       setMessage("");
+//       setMode("reset");
 //     };
-//     run();
+
+//     checkSession();
 //   }, []);
 
 //   const handlePasswordUpdate = async (e) => {
@@ -138,15 +138,17 @@ export default function Recovery() {
 //     setLoading(true);
 //     setMessage("Updating...");
 
-//     const { data, error } = await supabase.auth.updateUser({ password });
+//     const { error } = await supabase.auth.updateUser({ password });
 
 //     if (error) {
-//       console.error("updateUser error:", error.message);
 //       setMessage("❌ " + error.message);
 //     } else {
-//       console.log("✅ Password updated:", data);
 //       setMessage("✅ Password updated! Redirecting...");
-//       setTimeout(() => navigate("/account"), 2000);
+//       // Log out the user and redirect to homepage after 2s
+//       setTimeout(async () => {
+//         await supabase.auth.signOut();
+//         navigate("/");
+//       }, 2000);
 //     }
 
 //     setLoading(false);
@@ -171,10 +173,19 @@ export default function Recovery() {
 //           required
 //         />
 //         <button type="submit" disabled={loading}>
-//           {loading ? "Updating..." : "Update Password"}
+//           {loading ? "✅ Password updated!" : "Update Password"}
 //         </button>
 //         {message && (
-//           <p style={{ color: message.includes("✅") ? "green" : "crimson" }}>
+//           <p
+//             style={{
+//               color: message.startsWith("✅")
+//                 ? "green"
+//                 : message.startsWith("❌")
+//                   ? "crimson"
+//                   : "#333",
+//               marginTop: "1rem",
+//             }}
+//           >
 //             {message}
 //           </p>
 //         )}
@@ -182,5 +193,5 @@ export default function Recovery() {
 //     );
 //   }
 
-//   return <p style={{ padding: "2rem" }}>{message}</p>;
+//   return <p style={{ padding: "2rem", color: "crimson" }}>{message}</p>;
 // }
