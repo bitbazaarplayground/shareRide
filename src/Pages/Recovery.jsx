@@ -19,7 +19,7 @@ export default function Recovery() {
         return;
       }
 
-      setMessage("");
+      setMessage(""); // Clear message
       setMode("reset");
     };
 
@@ -42,16 +42,11 @@ export default function Recovery() {
     if (error) {
       setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Password updated! Logging you out...");
-
-      // Securely sign out and redirect to login page
-      await supabase.auth.signOut({ scope: "global" });
-
-      // Optionally clear any local storage tokens
-      localStorage.removeItem("supabase.auth.token");
-
-      // Redirect to login page
-      navigate("/login");
+      setMessage("✅ Password updated! Redirecting to login...");
+      await supabase.auth.signOut(); // Optional: add { scope: 'global' } to sign out everywhere
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     }
 
     setLoading(false);
