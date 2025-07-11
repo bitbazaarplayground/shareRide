@@ -8,7 +8,6 @@ import { supabase } from "../supabaseClient";
 export default function PublishRide() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const today = new Date().toISOString().split("T")[0];
 
   const [fromPlace, setFromPlace] = useState("");
@@ -19,6 +18,9 @@ export default function PublishRide() {
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("12:00");
   const [seats, setSeats] = useState(1);
+  const [seatLimit, setSeatLimit] = useState(4); // default
+  const [luggageLimit, setLuggageLimit] = useState(2); // default
+  const [vehicleType, setVehicleType] = useState("regular");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,14 +30,13 @@ export default function PublishRide() {
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
-
       if (!authUser) {
         alert("You must be logged in to publish a ride.");
         navigate("/login");
         return;
       }
 
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
         .select("nickname")
         .eq("id", authUser.id)
@@ -95,6 +96,9 @@ export default function PublishRide() {
           time,
           seats,
           notes,
+          luggage_limit: luggageLimit,
+          seat_limit: seatLimit,
+          vehicle_type: vehicleType,
           user_id: user.id,
           status: "active",
         },
@@ -104,7 +108,7 @@ export default function PublishRide() {
     setLoading(false);
 
     if (error) {
-      setMessage("Error publishing ride.");
+      setMessage("❌ Error publishing ride.");
       console.error("Supabase insert error:", error);
     } else {
       setMessage("✅ Ride published successfully!");
@@ -162,12 +166,36 @@ export default function PublishRide() {
         />
         <input
           type="number"
-          placeholder="Seats"
+          placeholder="Available Seats"
           value={seats}
           onChange={(e) => setSeats(Number(e.target.value))}
           min={1}
           required
         />
+
+        <label htmlFor="vehicleType">Vehicle Type</label>
+        <select
+          id="vehicleType"
+          value={vehicleType}
+          onChange={(e) => {
+            setVehicleType(e.target.value);
+            if (e.target.value === "van") {
+              setSeatLimit(6);
+              setLuggageLimit(4);
+            } else if (e.target.value === "minibus") {
+              setSeatLimit(8);
+              setLuggageLimit(6);
+            } else {
+              setSeatLimit(4);
+              setLuggageLimit(2);
+            }
+          }}
+        >
+          <option value="regular">Regular Taxi (4 seats, 2 large bags)</option>
+          <option value="van">Van (6 seats, 4 large bags)</option>
+          <option value="minibus">Minibus (8+ seats, many bags)</option>
+        </select>
+
         <textarea
           placeholder="Notes (optional)"
           value={notes}
@@ -181,4 +209,3 @@ export default function PublishRide() {
     </div>
   );
 }
-
