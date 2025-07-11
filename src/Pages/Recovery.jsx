@@ -72,7 +72,7 @@ export default function Recovery() {
           required
         />
         <button type="submit" disabled={loading}>
-          {loading ? "Updating..." : "Update Password"}
+          {loading ? "✅ Password updated!" : "Update Password"}
         </button>
         {message && (
           <p
