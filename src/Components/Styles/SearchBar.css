@@ -64,14 +64,6 @@
   gap: 1rem;
 }
 
-/* Passenger counter styling (assumes PassengerCounter already styled properly) */
-.passenger-counter {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-}
-
 /* Search button */
 .search-btn.horizontal {
   background-color: #2e7d32;
@@ -99,30 +91,4 @@
   .search-btn.horizontal {
     width: 100%;
   }
-}
-
-.passenger-counter button {
-  background-color: #f97316;
-  border: none;
-  color: white;
-  font-size: 1.25rem; /* slightly larger for visual balance */
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: 15px; /* optional tweak if still slightly off */
-  transition: background-color 0.2s ease;
-}
-
-.passenger-counter button:hover {
-  background-color: #ea580c;
-}
-
-.passenger-counter span {
-  min-width: 90px;
-  text-align: center;
-  font-weight: 500;
 }

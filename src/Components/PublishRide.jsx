@@ -17,13 +17,31 @@ export default function PublishRide() {
   const [estimate, setEstimate] = useState(null);
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("12:00");
-  const [seats, setSeats] = useState(1);
-  const [seatLimit, setSeatLimit] = useState(4); // default
-  const [luggageLimit, setLuggageLimit] = useState(2); // default
+
+  // ✅ New state
+  const [seatsReserved, setSeatsReserved] = useState(1);
+  const [backpacks, setBackpacks] = useState(0);
+  const [smallSuitcases, setSmallSuitcases] = useState(0);
+  const [largeSuitcases, setLargeSuitcases] = useState(0);
+
+  const [seatLimit, setSeatLimit] = useState(4);
   const [vehicleType, setVehicleType] = useState("regular");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showLuggage, setShowLuggage] = useState(false);
+
+  // ✅ Max limits based on vehicle type
+  function getMaxByVehicle(type) {
+    switch (type) {
+      case "van":
+        return { seat: 6, backpack: 6, small: 4, large: 4 };
+      case "minibus":
+        return { seat: 8, backpack: 8, small: 6, large: 6 };
+      default:
+        return { seat: 4, backpack: 3, small: 2, large: 2 };
+    }
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -84,6 +102,22 @@ export default function PublishRide() {
       return;
     }
 
+    const limits = getMaxByVehicle(vehicleType);
+
+    if (seatsReserved > limits.seat) {
+      setMessage(`❌ Max ${limits.seat} passengers allowed for this vehicle.`);
+      return;
+    }
+
+    if (
+      backpacks > limits.backpack ||
+      smallSuitcases > limits.small ||
+      largeSuitcases > limits.large
+    ) {
+      setMessage("❌ Luggage exceeds vehicle limit.");
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase
@@ -94,11 +128,14 @@ export default function PublishRide() {
           to: toPlace,
           date,
           time,
-          seats,
+          seats: seatsReserved,
           notes,
-          luggage_limit: luggageLimit,
-          seat_limit: seatLimit,
           vehicle_type: vehicleType,
+          seat_limit: limits.seat,
+          luggage_limit: limits.large,
+          backpack_count: backpacks,
+          small_suitcase_count: smallSuitcases,
+          large_suitcase_count: largeSuitcases,
           user_id: user.id,
           status: "active",
         },
@@ -119,6 +156,8 @@ export default function PublishRide() {
       }, 1500);
     }
   };
+
+  const limits = getMaxByVehicle(vehicleType);
 
   return (
     <div className="publish-container">
@@ -164,14 +203,55 @@ export default function PublishRide() {
           onChange={(e) => setTime(e.target.value)}
           required
         />
+
+        <label>How many passengers are traveling with you?</label>
         <input
           type="number"
-          placeholder="Available Seats"
-          value={seats}
-          onChange={(e) => setSeats(Number(e.target.value))}
+          value={seatsReserved}
+          onChange={(e) => setSeatsReserved(Number(e.target.value))}
           min={1}
-          required
+          max={limits.seat}
         />
+
+        <label>Are you carrying any luggage?</label>
+        <select
+          value={showLuggage ? "yes" : "no"}
+          onChange={(e) => setShowLuggage(e.target.value === "yes")}
+        >
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+        </select>
+
+        {showLuggage && (
+          <>
+            <label>How many backpacks?</label>
+            <input
+              type="number"
+              value={backpacks}
+              onChange={(e) => setBackpacks(Number(e.target.value))}
+              min={0}
+              max={limits.backpack}
+            />
+
+            <label>How many small suitcases?</label>
+            <input
+              type="number"
+              value={smallSuitcases}
+              onChange={(e) => setSmallSuitcases(Number(e.target.value))}
+              min={0}
+              max={limits.small}
+            />
+
+            <label>How many large suitcases?</label>
+            <input
+              type="number"
+              value={largeSuitcases}
+              onChange={(e) => setLargeSuitcases(Number(e.target.value))}
+              min={0}
+              max={limits.large}
+            />
+          </>
+        )}
 
         <label htmlFor="vehicleType">Vehicle Type</label>
         <select
@@ -179,21 +259,13 @@ export default function PublishRide() {
           value={vehicleType}
           onChange={(e) => {
             setVehicleType(e.target.value);
-            if (e.target.value === "van") {
-              setSeatLimit(6);
-              setLuggageLimit(4);
-            } else if (e.target.value === "minibus") {
-              setSeatLimit(8);
-              setLuggageLimit(6);
-            } else {
-              setSeatLimit(4);
-              setLuggageLimit(2);
-            }
+            const max = getMaxByVehicle(e.target.value);
+            setSeatLimit(max.seat);
           }}
         >
           <option value="regular">Regular Taxi (4 seats, 2 large bags)</option>
           <option value="van">Van (6 seats, 4 large bags)</option>
-          <option value="minibus">Minibus (8+ seats, many bags)</option>
+          <option value="minibus">Minibus (8 seats, 6 large bags)</option>
         </select>
 
         <textarea
@@ -201,6 +273,7 @@ export default function PublishRide() {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+
         <button type="submit" disabled={loading}>
           {loading ? "Publishing..." : "Publish"}
         </button>
