@@ -1,0 +1,130 @@
+/* Passenger counter styling (assumes PassengerCounter already styled properly) */
+.passenger-dropdown-wrapper {
+  margin: 1rem 0;
+}
+
+.dropdown-toggle {
+  cursor: pointer;
+  display: inline-block;
+  background-color: #6366f1;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+  user-select: none;
+}
+
+.dropdown-toggle:hover {
+  background-color: #4f46e5;
+}
+
+.passenger-counter {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  max-width: 400px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.passenger-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.passenger-controls button {
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  background-color: #e5e5e5;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.passenger-controls button:hover {
+  background-color: #d4d4d4;
+}
+
+.passenger-controls span {
+  font-weight: 500;
+}
+
+.luggage-section label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.luggage-section input {
+  width: 60px;
+  padding: 4px 6px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+/* .passenger-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+}
+
+.passenger-counter button {
+  background-color: #f97316;
+  border: none;
+  color: white;
+  font-size: 1.25rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 15px;
+  transition: background-color 0.2s ease;
+}
+
+.passenger-counter button:hover {
+  background-color: #ea580c;
+}
+
+.passenger-counter span {
+  min-width: 90px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.passenger-dropdown-wrapper {
+  margin: 1rem 0;
+}
+
+.dropdown-toggle {
+  cursor: pointer;
+  font-weight: bold;
+  color: #444;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.luggage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.luggage-section label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+} */

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import SearchBar from "../Components/SearchBar";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
@@ -178,12 +178,18 @@ export default function AllPostedRides() {
                     </div>
                   )}
                   <div className="name-destination">
-                    <Link
-                      to={`/profile/${ride.profiles.id}`}
-                      className="poster-nickname"
+                    <span
+                      className="poster-nickname clickable"
+                      onClick={() => {
+                        if (user) {
+                          navigate(`/profile/${ride.profiles.id}`);
+                        } else {
+                          alert("You must be logged in to view user profiles.");
+                        }
+                      }}
                     >
                       {ride.profiles.nickname}
-                    </Link>
+                    </span>
                     <span className="separator">|</span>
                     <span>
                       {ride.from} → {ride.to}
@@ -211,44 +217,73 @@ export default function AllPostedRides() {
               )}
 
               <div className="ride-actions">
-                {user?.id !== ride.profiles.id ? (
+                {user ? (
+                  user.id !== ride.profiles.id ? (
+                    <>
+                      <button
+                        onClick={() =>
+                          handleStartChat(ride.profiles.id, ride.id)
+                        }
+                        className="send-message-btn"
+                      >
+                        Send Message
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/splitride-confirm/${ride.id}`)
+                        }
+                        className="book-now-btn"
+                      >
+                        Book Now
+                      </button>
+                      <button
+                        onClick={() => toggleSaveRide(ride.id)}
+                        className="save-ride-btn"
+                      >
+                        {savedRideIds.includes(ride.id) ? (
+                          <FaHeart color="red" />
+                        ) : (
+                          <FaRegHeart />
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => navigate(`/edit-ride/${ride.id}`)}
+                        className="edit-ride-btn"
+                      >
+                        Edit Ride
+                      </button>
+                      <button
+                        onClick={() => handleDelete(ride.id)}
+                        className="delete-ride-btn"
+                      >
+                        Delete Ride
+                      </button>
+                    </>
+                  )
+                ) : (
                   <>
                     <button
-                      onClick={() => handleStartChat(ride.profiles.id, ride.id)}
+                      onClick={() =>
+                        alert("Please log in to message the ride poster.")
+                      }
                       className="send-message-btn"
                     >
                       Send Message
                     </button>
                     <button
-                      onClick={() => navigate(`/splitride-confirm/${ride.id}`)}
+                      onClick={() => alert("Please log in to book this ride.")}
                       className="book-now-btn"
                     >
                       Book Now
                     </button>
                     <button
-                      onClick={() => toggleSaveRide(ride.id)}
+                      onClick={() => alert("Please log in to save this ride.")}
                       className="save-ride-btn"
                     >
-                      {savedRideIds.includes(ride.id) ? (
-                        <FaHeart color="red" />
-                      ) : (
-                        <FaRegHeart />
-                      )}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => navigate(`/edit-ride/${ride.id}`)}
-                      className="edit-ride-btn"
-                    >
-                      Edit Ride
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ride.id)}
-                      className="delete-ride-btn"
-                    >
-                      Delete Ride
+                      <FaRegHeart />
                     </button>
                   </>
                 )}
