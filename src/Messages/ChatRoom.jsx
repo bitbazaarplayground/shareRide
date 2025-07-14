@@ -147,7 +147,7 @@ export default function ChatRoom() {
               : "Not specified"}
           </p>
           <p>
-            <strong>Seats:</strong> {ride.seats}
+            <strong>Seats Available:</strong> {ride.seats}
           </p>
           {ride.note && (
             <p>
