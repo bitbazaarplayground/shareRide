@@ -204,7 +204,10 @@ export default function PublishRide() {
           required
         />
 
-        <label>How many passengers are traveling with you?</label>
+        <label>
+          How many passengers are traveling with you?{" "}
+          <em>(including yourself)</em>
+        </label>
         <input
           type="number"
           value={seatsReserved}

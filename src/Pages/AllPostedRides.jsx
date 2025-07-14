@@ -12,6 +12,12 @@ export default function AllPostedRides() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // New state for passenger/luggage filters
+  const [passengerCount, setPassengerCount] = useState(1);
+  const [backpacks, setBackpacks] = useState(0);
+  const [smallSuitcases, setSmallSuitcases] = useState(0);
+  const [largeSuitcases, setLargeSuitcases] = useState(0);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -32,20 +38,49 @@ export default function AllPostedRides() {
       }
 
       const now = new Date();
-
       const filteredRides = data.filter((ride) => {
         if (!ride.date || !ride.time) return false;
-
         const rideDateTime = new Date(`${ride.date}T${ride.time}`);
         return rideDateTime >= now;
       });
 
-      setRides(filteredRides);
+      const matchingRides = filteredRides.filter((ride) => {
+        const remainingSeats = ride.seat_limit - ride.seats;
+
+        const hasDetailedLuggageFields =
+          ride.backpack_count !== null ||
+          ride.small_suitcase_count !== null ||
+          ride.large_suitcase_count !== null;
+
+        if (hasDetailedLuggageFields) {
+          const remainingBackpacks = ride.backpack_count || 0;
+          const remainingSmall = ride.small_suitcase_count || 0;
+          const remainingLarge = ride.large_suitcase_count || 0;
+
+          return (
+            remainingSeats >= passengerCount &&
+            remainingBackpacks >= backpacks &&
+            remainingSmall >= smallSuitcases &&
+            remainingLarge >= largeSuitcases
+          );
+        } else if (ride.luggage_limit !== null) {
+          const totalRequestedLuggage =
+            backpacks + smallSuitcases + largeSuitcases;
+          return (
+            remainingSeats >= passengerCount &&
+            ride.luggage_limit >= totalRequestedLuggage
+          );
+        }
+
+        return remainingSeats >= passengerCount; // fallback if no luggage info
+      });
+
+      setRides(matchingRides);
       setLoading(false);
     }
 
     fetchRides();
-  }, []);
+  }, [passengerCount, backpacks, smallSuitcases, largeSuitcases]);
 
   useEffect(() => {
     async function fetchSavedRides() {
@@ -153,7 +188,17 @@ export default function AllPostedRides() {
 
   return (
     <div className="all-rides-container">
-      <SearchBar variant="horizontal" />
+      <SearchBar
+        variant="horizontal"
+        passengerCount={passengerCount}
+        setPassengerCount={setPassengerCount}
+        backpacks={backpacks}
+        setBackpacks={setBackpacks}
+        smallSuitcases={smallSuitcases}
+        setSmallSuitcases={setSmallSuitcases}
+        largeSuitcases={largeSuitcases}
+        setLargeSuitcases={setLargeSuitcases}
+      />
       {successMessage && <p className="success">{successMessage}</p>}
       {loading ? (
         <p>Loading rides...</p>
