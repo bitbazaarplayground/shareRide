@@ -1,11 +1,24 @@
+/* Container & Animation */
 .all-rides-container {
-  max-width: 1008px;
+  max-width: 1056px;
   margin: 2rem auto;
   padding: 1.5rem 0;
   font-family: "Segoe UI", sans-serif;
   animation: fadeIn 0.6s ease-in;
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success toast message */
 .success {
   background-color: #e6ffed;
   border-left: 5px solid #2ecc71;
@@ -16,17 +29,19 @@
   color: #2b7a4b;
 }
 
+/* Ride card list container */
 .ride-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
+/* Each ride card box */
 .ride-card {
   width: 100%;
   background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-left: 5px solid #007aff;
+  /* border: 1px solid #e0e0e0;
+  border-left: 5px solid #007aff; */
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   border-radius: 12px;
@@ -35,67 +50,84 @@
     transform 0.2s ease,
     box-shadow 0.2s ease;
 }
+/* #007aff */
 
 .ride-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 
-.ride-details p,
-.ride-notes {
-  margin: 0.3rem 0;
-  font-size: 0.95rem;
-}
-
-.ride-notes {
-  margin-top: 1rem;
-  font-style: italic;
-  color: #555;
-}
-
+/* Avatar + Username Row */
 .avatar-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .avatar-header img,
 .poster-avatar {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #007aff;
 }
 
 .initial-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
   background-color: #007aff;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  font-size: 1rem;
 }
 
-.name-destination {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 1rem;
+.username {
   font-weight: 600;
+  font-size: 1rem;
+  color: #007aff;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* From and To */
+.ride-locations {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #1a1a1a;
+}
+
+/* Ride detail lines: Date, Time, Seats */
+.ride-details {
+  margin-bottom: 0.75rem;
+}
+
+.ride-details p {
+  margin: 0.25rem 0;
+  font-size: 0.95rem;
   color: #333;
 }
 
-.separator {
-  color: #999;
+/* Comments/Notes */
+.ride-notes {
+  margin-top: 0.75rem;
+  font-style: italic;
+  color: #666;
+  font-size: 0.92rem;
 }
 
+/* Buttons */
 .ride-actions {
-  margin-top: 1.5rem;
+  margin-top: 1.2rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .send-message-btn,
@@ -111,6 +143,7 @@
   transition: all 0.25s ease;
 }
 
+/* Individual Button Styles */
 .send-message-btn {
   background-color: #34a853;
   color: white;
@@ -147,27 +180,19 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
+  font-size: 1.25rem;
+  color: red;
+}
+
+/* Utility */
+.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  color: #f17863;
 }
 
 hr {
   margin-top: 1.5rem;
   border: none;
   border-top: 1px solid #e0e0e0;
-}
-
-.clickable {
-  cursor: pointer;
-  text-decoration: underline;
-  color: #6366f1;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

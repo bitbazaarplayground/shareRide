@@ -66,13 +66,13 @@ export default function RideCard({
             >
               {ride.profiles.nickname}
             </span>
-            <span className="separator">|</span>
-            <span>
-              {ride.from} → {ride.to}
-            </span>
           </div>
         </div>
       )}
+
+      <div className="ride-locations">
+        <strong>{ride.from}</strong> → <strong>{ride.to}</strong>
+      </div>
 
       <div className="ride-details">
         <p>
