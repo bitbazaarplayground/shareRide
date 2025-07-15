@@ -27,14 +27,14 @@ export default function RideCard({ ride }) {
     if (existingChat) {
       chatId = existingChat.id;
     } else {
-      const { data: newChat, error: createError } = await supabase
+      const { data: newChat, error } = await supabase
         .from("chats")
         .insert([{ user1: userA, user2: userB, ride_id: ride.id }])
         .select()
         .single();
 
-      if (createError) {
-        console.error("Error creating chat:", createError);
+      if (error) {
+        console.error("Error creating chat:", error);
         return;
       }
 
@@ -49,6 +49,7 @@ export default function RideCard({ ride }) {
       <Link to={`/individual-ride/${ride.id}`} className="ride-link">
         <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
       </Link>
+
       <div className="ride-details">
         <p>
           <strong>Date:</strong> {ride.date}
@@ -65,6 +66,7 @@ export default function RideCard({ ride }) {
           </p>
         )}
       </div>
+
       {ride.profiles && (
         <div className="poster-info">
           {ride.profiles.avatar_url ? (
@@ -83,13 +85,15 @@ export default function RideCard({ ride }) {
           </Link>
         </div>
       )}
-      <div className="ride-actions">
-        {user?.id !== ride.profiles.id && (
+
+      {user?.id !== ride.profiles.id && (
+        <div className="ride-actions">
           <button onClick={handleStartChat} className="send-message-btn">
             Send Message
           </button>
-        )}
-      </div>
+        </div>
+      )}
+
       <hr />
     </li>
   );
