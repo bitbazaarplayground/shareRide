@@ -1,61 +1,85 @@
+// RideCard.jsx
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../Contexts/AuthContext";
-import { supabase } from "../supabaseClient";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import "./Styles/RideCard.css";
 
-export default function RideCard({ ride }) {
-  const { user } = useAuth();
+export default function RideCard({
+  ride,
+  user,
+  showAvatar = true,
+  canEdit = false,
+  canSave = false,
+  isSaved = false,
+  onEdit,
+  onDelete,
+  onSaveToggle,
+  onStartChat,
+  showBookNow = false,
+}) {
   const navigate = useNavigate();
 
-  const handleStartChat = async () => {
-    const [userA, userB] =
-      user.id < ride.profiles.id
-        ? [user.id, ride.profiles.id]
-        : [ride.profiles.id, user.id];
+  const formatTime = (timeStr) => {
+    if (!timeStr) return "N/A";
+    const [hours, minutes] = timeStr.split(":");
+    const date = new Date();
+    date.setHours(+hours, +minutes);
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
-    const { data: existingChat } = await supabase
-      .from("chats")
-      .select("id")
-      .eq("user1", userA)
-      .eq("user2", userB)
-      .eq("ride_id", ride.id)
-      .maybeSingle();
-
-    let chatId;
-
-    if (existingChat) {
-      chatId = existingChat.id;
-    } else {
-      const { data: newChat, error } = await supabase
-        .from("chats")
-        .insert([{ user1: userA, user2: userB, ride_id: ride.id }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating chat:", error);
-        return;
-      }
-
-      chatId = newChat.id;
-    }
-
-    navigate(`/chat/${chatId}`);
+  const formatDateWithWeekday = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const dateObj = new Date(dateStr);
+    return dateObj.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
     <li className="ride-card">
-      <Link to={`/individual-ride/${ride.id}`} className="ride-link">
-        <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
-      </Link>
+      {showAvatar && ride.profiles && (
+        <div className="avatar-header">
+          {ride.profiles.avatar_url ? (
+            <img
+              src={ride.profiles.avatar_url}
+              alt={`${ride.profiles.nickname}'s avatar`}
+            />
+          ) : (
+            <div className="poster-avatar initial-avatar">
+              {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+            </div>
+          )}
+          <div className="name-destination">
+            <span
+              className="poster-nickname clickable"
+              onClick={() => {
+                if (user) navigate(`/profile/${ride.profiles.id}`);
+                else alert("Please log in to view profiles.");
+              }}
+            >
+              {ride.profiles.nickname}
+            </span>
+            <span className="separator">|</span>
+            <span>
+              {ride.from} → {ride.to}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="ride-details">
         <p>
-          <strong>Date:</strong> {ride.date}
+          <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
         </p>
         <p>
-          <strong>Time:</strong> {ride.time?.slice(0, 5)}
+          <strong>Time:</strong> {formatTime(ride.time)}
         </p>
         <p>
           <strong>Seats:</strong> {ride.seats}
@@ -67,32 +91,52 @@ export default function RideCard({ ride }) {
         )}
       </div>
 
-      {ride.profiles && (
-        <div className="poster-info">
-          {ride.profiles.avatar_url ? (
-            <img
-              src={ride.profiles.avatar_url}
-              alt={`${ride.profiles.nickname}'s avatar`}
-              className="poster-avatar"
-            />
-          ) : (
-            <div className="poster-avatar initial-avatar">
-              {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
-            </div>
-          )}
-          <Link to={`/profile/${ride.profiles.id}`} className="poster-nickname">
-            <strong>{ride.profiles.nickname}</strong>
-          </Link>
-        </div>
-      )}
-
-      {user?.id !== ride.profiles.id && (
-        <div className="ride-actions">
-          <button onClick={handleStartChat} className="send-message-btn">
-            Send Message
-          </button>
-        </div>
-      )}
+      <div className="ride-actions">
+        {canEdit ? (
+          <>
+            <button onClick={() => onEdit(ride.id)} className="edit-ride-btn">
+              Edit Ride
+            </button>
+            <button
+              onClick={() => onDelete(ride.id)}
+              className="delete-ride-btn"
+            >
+              Delete Ride
+            </button>
+          </>
+        ) : (
+          <>
+            {user && ride.profiles?.id !== user.id && (
+              <>
+                {onStartChat && (
+                  <button
+                    onClick={() => onStartChat(ride.profiles.id, ride.id)}
+                    className="send-message-btn"
+                  >
+                    Send Message
+                  </button>
+                )}
+                {showBookNow && (
+                  <button
+                    onClick={() => navigate(`/splitride-confirm/${ride.id}`)}
+                    className="book-now-btn"
+                  >
+                    Book Now
+                  </button>
+                )}
+                {canSave && onSaveToggle && (
+                  <button
+                    onClick={() => onSaveToggle(ride.id)}
+                    className="save-ride-btn"
+                  >
+                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
+                  </button>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
 
       <hr />
     </li>
