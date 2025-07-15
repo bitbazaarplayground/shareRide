@@ -12,7 +12,6 @@ export default function AllPostedRides() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // New state for passenger/luggage filters
   const [passengerCount, setPassengerCount] = useState(1);
   const [backpacks, setBackpacks] = useState(0);
   const [smallSuitcases, setSmallSuitcases] = useState(0);
@@ -72,7 +71,7 @@ export default function AllPostedRides() {
           );
         }
 
-        return remainingSeats >= passengerCount; // fallback if no luggage info
+        return remainingSeats >= passengerCount;
       });
 
       setRides(matchingRides);
@@ -187,7 +186,7 @@ export default function AllPostedRides() {
   };
 
   return (
-    <div className="all-rides-container">
+    <div style={{ maxWidth: "1008px", margin: "0 auto" }}>
       <SearchBar
         variant="horizontal"
         passengerCount={passengerCount}
@@ -199,75 +198,125 @@ export default function AllPostedRides() {
         largeSuitcases={largeSuitcases}
         setLargeSuitcases={setLargeSuitcases}
       />
+
       {successMessage && <p className="success">{successMessage}</p>}
-      {loading ? (
-        <p>Loading rides...</p>
-      ) : errorMsg ? (
-        <p>{errorMsg}</p>
-      ) : rides.length === 0 ? (
-        <p>No rides have been published yet.</p>
-      ) : (
-        <ul className="ride-list">
-          {rides.map((ride) => (
-            <li key={ride.id} className="ride-card">
-              {ride.profiles && (
-                <div className="avatar-header">
-                  {ride.profiles.avatar_url ? (
-                    <img
-                      src={ride.profiles.avatar_url}
-                      alt={`${ride.profiles.nickname}'s avatar`}
-                    />
-                  ) : (
-                    <div className="poster-avatar initial-avatar">
-                      {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+
+      <div className="all-rides-container" style={{ padding: "1.5rem 0" }}>
+        {loading ? (
+          <p>Loading rides...</p>
+        ) : errorMsg ? (
+          <p>{errorMsg}</p>
+        ) : rides.length === 0 ? (
+          <p>No rides have been published yet.</p>
+        ) : (
+          <ul className="ride-list">
+            {rides.map((ride) => (
+              <li key={ride.id} className="ride-card">
+                {ride.profiles && (
+                  <div className="avatar-header">
+                    {ride.profiles.avatar_url ? (
+                      <img
+                        src={ride.profiles.avatar_url}
+                        alt={`${ride.profiles.nickname}'s avatar`}
+                      />
+                    ) : (
+                      <div className="poster-avatar initial-avatar">
+                        {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <div className="name-destination">
+                      <span
+                        className="poster-nickname clickable"
+                        onClick={() => {
+                          if (user) {
+                            navigate(`/profile/${ride.profiles.id}`);
+                          } else {
+                            alert(
+                              "You must be logged in to view user profiles."
+                            );
+                          }
+                        }}
+                      >
+                        {ride.profiles.nickname}
+                      </span>
+                      <span className="separator">|</span>
+                      <span>
+                        {ride.from} → {ride.to}
+                      </span>
                     </div>
-                  )}
-                  <div className="name-destination">
-                    <span
-                      className="poster-nickname clickable"
-                      onClick={() => {
-                        if (user) {
-                          navigate(`/profile/${ride.profiles.id}`);
-                        } else {
-                          alert("You must be logged in to view user profiles.");
-                        }
-                      }}
-                    >
-                      {ride.profiles.nickname}
-                    </span>
-                    <span className="separator">|</span>
-                    <span>
-                      {ride.from} → {ride.to}
-                    </span>
                   </div>
+                )}
+
+                <div className="ride-details">
+                  <p>
+                    <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
+                  </p>
+                  <p>
+                    <strong>Time:</strong> {formatTime(ride.time)}
+                  </p>
+                  <p>
+                    <strong>Seats:</strong> {ride.seats}
+                  </p>
                 </div>
-              )}
 
-              <div className="ride-details">
-                <p>
-                  <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
-                </p>
-                <p>
-                  <strong>Time:</strong> {formatTime(ride.time)}
-                </p>
-                <p>
-                  <strong>Seats:</strong> {ride.seats}
-                </p>
-              </div>
+                {ride.notes && (
+                  <p className="ride-notes">
+                    <em>{ride.notes}</em>
+                  </p>
+                )}
 
-              {ride.notes && (
-                <p className="ride-notes">
-                  <em>{ride.notes}</em>
-                </p>
-              )}
-
-              <div className="ride-actions">
-                {user ? (
-                  user.id !== ride.profiles.id ? (
+                <div className="ride-actions">
+                  {user ? (
+                    user.id !== ride.profiles.id ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleStartChat(ride.profiles.id, ride.id)
+                          }
+                          className="send-message-btn"
+                        >
+                          Send Message
+                        </button>
+                        <button
+                          onClick={() =>
+                            navigate(`/splitride-confirm/${ride.id}`)
+                          }
+                          className="book-now-btn"
+                        >
+                          Book Now
+                        </button>
+                        <button
+                          onClick={() => toggleSaveRide(ride.id)}
+                          className="save-ride-btn"
+                        >
+                          {savedRideIds.includes(ride.id) ? (
+                            <FaHeart color="red" />
+                          ) : (
+                            <FaRegHeart />
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => navigate(`/edit-ride/${ride.id}`)}
+                          className="edit-ride-btn"
+                        >
+                          Edit Ride
+                        </button>
+                        <button
+                          onClick={() => handleDelete(ride.id)}
+                          className="delete-ride-btn"
+                        >
+                          Delete Ride
+                        </button>
+                      </>
+                    )
+                  ) : (
                     <>
                       <button
                         onClick={() =>
-                          handleStartChat(ride.profiles.id, ride.id)
+                          alert("Please log in to message the ride poster.")
                         }
                         className="send-message-btn"
                       >
@@ -275,69 +324,29 @@ export default function AllPostedRides() {
                       </button>
                       <button
                         onClick={() =>
-                          navigate(`/splitride-confirm/${ride.id}`)
+                          alert("Please log in to book this ride.")
                         }
                         className="book-now-btn"
                       >
                         Book Now
                       </button>
                       <button
-                        onClick={() => toggleSaveRide(ride.id)}
+                        onClick={() =>
+                          alert("Please log in to save this ride.")
+                        }
                         className="save-ride-btn"
                       >
-                        {savedRideIds.includes(ride.id) ? (
-                          <FaHeart color="red" />
-                        ) : (
-                          <FaRegHeart />
-                        )}
+                        <FaRegHeart />
                       </button>
                     </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => navigate(`/edit-ride/${ride.id}`)}
-                        className="edit-ride-btn"
-                      >
-                        Edit Ride
-                      </button>
-                      <button
-                        onClick={() => handleDelete(ride.id)}
-                        className="delete-ride-btn"
-                      >
-                        Delete Ride
-                      </button>
-                    </>
-                  )
-                ) : (
-                  <>
-                    <button
-                      onClick={() =>
-                        alert("Please log in to message the ride poster.")
-                      }
-                      className="send-message-btn"
-                    >
-                      Send Message
-                    </button>
-                    <button
-                      onClick={() => alert("Please log in to book this ride.")}
-                      className="book-now-btn"
-                    >
-                      Book Now
-                    </button>
-                    <button
-                      onClick={() => alert("Please log in to save this ride.")}
-                      className="save-ride-btn"
-                    >
-                      <FaRegHeart />
-                    </button>
-                  </>
-                )}
-              </div>
-              <hr />
-            </li>
-          ))}
-        </ul>
-      )}
+                  )}
+                </div>
+                <hr />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

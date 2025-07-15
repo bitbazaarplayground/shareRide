@@ -1,11 +1,15 @@
-/* RideCard.css - shared styling for Ride cards used in Results and AllPostedRides */
+/* Container to align with SearchBar */
+.ride-card-container {
+  max-width: 1008px;
+  margin: 0 auto 1.5rem auto;
+  padding: 0 1rem;
+}
 
 .ride-card {
-  background: #fff;
+  background: #f9f9f9;
   border: 1px solid #ccc;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 1rem;
-  margin-bottom: 1rem;
   list-style: none;
 }
 
@@ -79,4 +83,10 @@
 
 .send-message-btn:hover {
   background-color: #1b5e20;
+}
+
+hr {
+  margin-top: 1rem;
+  border: none;
+  border-top: 1px solid #ddd;
 }
