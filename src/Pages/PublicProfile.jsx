@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Avatar from "../Components/Avatar";
+import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/PublicProfile.css";
@@ -8,6 +9,7 @@ import "./StylesPages/PublicProfile.css";
 export default function PublicProfile() {
   const { id } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
   const [rides, setRides] = useState([]);
 
@@ -36,6 +38,42 @@ export default function PublicProfile() {
     fetchRides();
   }, [id]);
 
+  const handleStartChat = async (ridePosterId, rideId) => {
+    const [userA, userB] =
+      user.id < ridePosterId
+        ? [user.id, ridePosterId]
+        : [ridePosterId, user.id];
+
+    const { data: existingChat } = await supabase
+      .from("chats")
+      .select("id")
+      .eq("user1", userA)
+      .eq("user2", userB)
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    let chatId;
+
+    if (existingChat) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: createError } = await supabase
+        .from("chats")
+        .insert([{ user1: userA, user2: userB, ride_id: rideId }])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating chat:", createError);
+        return;
+      }
+
+      chatId = newChat.id;
+    }
+
+    navigate(`/chat/${chatId}`);
+  };
+
   if (!profileData) return <p>Loading...</p>;
 
   const parsedInterests = profileData.interests
@@ -48,34 +86,10 @@ export default function PublicProfile() {
   const activeRides = rides.filter((r) => r.date >= today);
   const pastRides = rides.filter((r) => r.date < today);
 
-  const RideCard = ({ ride, showAvatar }) => (
-    <div className="ride-card">
-      <p>
-        <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
-      </p>
-      <p>
-        <strong>Date:</strong> {ride.date}
-      </p>
-      <p>
-        <strong>Seats:</strong> {ride.seats}
-      </p>
-      {showAvatar && (
-        <div className="ride-author">
-          <Avatar
-            src={profileData.avatar_url}
-            name={profileData.name}
-            alt={`${profileData.name}'s avatar`}
-            className="small-avatar"
-          />
-          <span>{profileData.nickname}</span>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="public-profile">
       <h2>{profileData.nickname}'s Profile</h2>
+
       <Avatar
         src={profileData.avatar_url}
         name={profileData.nickname}
@@ -98,18 +112,34 @@ export default function PublicProfile() {
       <div className="rides-section">
         <h3>Active Rides</h3>
         {activeRides.length > 0 ? (
-          activeRides.map((ride) => (
-            <RideCard key={ride.id} ride={ride} showAvatar={true} />
-          ))
+          <ul className="ride-list">
+            {activeRides.map((ride) => (
+              <RideCard
+                key={ride.id}
+                ride={{ ...ride, profiles: profileData }}
+                user={user}
+                showAvatar={true}
+                showBookNow={user && user.id !== profileData.id}
+                onStartChat={handleStartChat}
+              />
+            ))}
+          </ul>
         ) : (
           <p>No active rides.</p>
         )}
 
         <h3>Past Rides</h3>
         {pastRides.length > 0 ? (
-          pastRides.map((ride) => (
-            <RideCard key={ride.id} ride={ride} showAvatar={false} />
-          ))
+          <ul className="ride-list">
+            {pastRides.map((ride) => (
+              <RideCard
+                key={ride.id}
+                ride={{ ...ride, profiles: profileData }}
+                user={user}
+                showAvatar={false}
+              />
+            ))}
+          </ul>
         ) : (
           <p>No past rides.</p>
         )}

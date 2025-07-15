@@ -1,28 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import ConfirmModal from "../Components/ConfirmModal";
+import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/MyRides.css";
 
-export default function MyRides() {
+export default function MyRidesRedirect() {
   const { user } = useAuth();
-  const [rides, setRides] = useState([]);
+  const navigate = useNavigate();
+
+  const [publishedRides, setPublishedRides] = useState([]);
   const [savedRides, setSavedRides] = useState([]);
   const [activeTab, setActiveTab] = useState("published");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rideToDelete, setRideToDelete] = useState(null);
 
   useEffect(() => {
     if (!user) return;
 
-    const fetchRides = async () => {
+    const fetchPublishedRides = async () => {
       const { data, error } = await supabase
         .from("rides")
         .select("*")
         .eq("user_id", user.id)
         .order("date", { ascending: true });
 
-      if (!error) setRides(data);
+      if (!error) setPublishedRides(data);
     };
 
     const fetchSavedRides = async () => {
@@ -34,29 +41,39 @@ export default function MyRides() {
       if (!error) setSavedRides(data.map((entry) => entry.rides));
     };
 
-    fetchRides();
+    fetchPublishedRides();
     fetchSavedRides();
   }, [user]);
 
   const today = new Date().toISOString().split("T")[0];
-  const activeRides = rides.filter((r) => r.date >= today);
-  const pastRides = rides.filter((r) => r.date < today);
+  const activeRides = publishedRides.filter((r) => r.date >= today);
+  const pastRides = publishedRides.filter((r) => r.date < today);
 
   const handleEdit = (rideId) => {
     navigate(`/edit-ride/${rideId}`);
   };
 
-  const handleDelete = async (rideId) => {
-    const confirm = window.confirm(
-      "Are you sure you want to delete this ride?"
-    );
-    if (!confirm) return;
+  const confirmDelete = (rideId) => {
+    setRideToDelete(rideId);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!rideToDelete) return;
 
     setLoading(true);
-    const { error } = await supabase.from("rides").delete().eq("id", rideId);
+    const { error } = await supabase
+      .from("rides")
+      .delete()
+      .eq("id", rideToDelete);
     if (!error) {
-      setRides((prev) => prev.filter((r) => r.id !== rideId));
+      setPublishedRides((prev) => prev.filter((r) => r.id !== rideToDelete));
+      toast.success("Ride deleted successfully.");
+    } else {
+      toast.error("Failed to delete ride.");
     }
+    setConfirmOpen(false);
+    setRideToDelete(null);
     setLoading(false);
   };
 
@@ -69,52 +86,14 @@ export default function MyRides() {
 
     if (!error) {
       setSavedRides((prev) => prev.filter((r) => r.id !== rideId));
+      toast.info("Ride removed from saved rides.");
     }
   };
-
-  const RideCard = ({ ride, canEdit }) => (
-    <div className="ride-card">
-      <p>
-        <strong>From:</strong> {ride.from} → <strong>To:</strong> {ride.to}
-      </p>
-      <p>
-        <strong>Date:</strong> {ride.date}
-      </p>
-      <p>
-        <strong>Seats:</strong> {ride.seats}
-      </p>
-      <div className="ride-actions">
-        {canEdit ? (
-          <>
-            <button
-              onClick={() => handleEdit(ride.id)}
-              className="btn edit-btn"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => handleDelete(ride.id)}
-              className="btn delete-btn"
-              disabled={loading}
-            >
-              {loading ? "Deleting..." : "Delete"}
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => handleUnsave(ride.id)}
-            className="btn unsave-btn"
-          >
-            Unsave
-          </button>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="public-profile">
       <h2>My Rides</h2>
+
       <div className="tab-buttons">
         <button
           onClick={() => setActiveTab("published")}
@@ -134,18 +113,36 @@ export default function MyRides() {
         <div className="rides-section">
           <h3>Active Rides</h3>
           {activeRides.length > 0 ? (
-            activeRides.map((ride) => (
-              <RideCard key={ride.id} ride={ride} canEdit={true} />
-            ))
+            <ul className="ride-list">
+              {activeRides.map((ride) => (
+                <RideCard
+                  key={ride.id}
+                  ride={ride}
+                  user={user}
+                  canEdit={true}
+                  onEdit={handleEdit}
+                  onDelete={() => confirmDelete(ride.id)}
+                />
+              ))}
+            </ul>
           ) : (
             <p>No active rides.</p>
           )}
 
           <h3>Past Rides</h3>
           {pastRides.length > 0 ? (
-            pastRides.map((ride) => (
-              <RideCard key={ride.id} ride={ride} canEdit={true} />
-            ))
+            <ul className="ride-list">
+              {pastRides.map((ride) => (
+                <RideCard
+                  key={ride.id}
+                  ride={ride}
+                  user={user}
+                  canEdit={true}
+                  onEdit={handleEdit}
+                  onDelete={() => confirmDelete(ride.id)}
+                />
+              ))}
+            </ul>
           ) : (
             <p>No past rides.</p>
           )}
@@ -155,14 +152,32 @@ export default function MyRides() {
       {activeTab === "saved" && (
         <div className="rides-section">
           {savedRides.length > 0 ? (
-            savedRides.map((ride) => (
-              <RideCard key={ride.id} ride={ride} canEdit={false} />
-            ))
+            <ul className="ride-list">
+              {savedRides.map((ride) => (
+                <RideCard
+                  key={ride.id}
+                  ride={ride}
+                  user={user}
+                  canSave={true}
+                  isSaved={true}
+                  onSaveToggle={handleUnsave}
+                />
+              ))}
+            </ul>
           ) : (
             <p>No saved rides.</p>
           )}
         </div>
       )}
+
+      <ToastContainer position="top-center" autoClose={2500} />
+
+      <ConfirmModal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        message="Are you sure you want to delete this ride?"
+      />
     </div>
   );
 }

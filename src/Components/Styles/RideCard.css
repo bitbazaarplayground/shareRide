@@ -1,92 +1,120 @@
-/* Container to align with SearchBar */
-.ride-card-container {
-  max-width: 1008px;
-  margin: 0 auto 1.5rem auto;
-  padding: 0 1rem;
-}
+/* Styles/RideCard.css */
 
 .ride-card {
-  background: #f9f9f9;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  padding: 1rem;
   list-style: none;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.ride-link {
-  font-size: 1.1rem;
-  color: #333;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.ride-link:hover {
-  text-decoration: underline;
-}
-
-.ride-details {
-  margin-top: 0.5rem;
-}
-
-.ride-details p {
-  margin: 0.3rem 0;
-  font-size: 0.95rem;
-}
-
-.ride-notes {
-  font-style: italic;
-  color: #555;
-}
-
-.poster-info {
+.avatar-header {
   display: flex;
   align-items: center;
-  margin-top: 0.8rem;
-  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
-.poster-avatar {
+.avatar-header img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  background-color: #e0e0e0;
+  margin-right: 0.75rem;
 }
 
-.initial-avatar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.poster-avatar.initial-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ccc;
+  color: #fff;
   font-weight: bold;
-  font-size: 1rem;
-  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
 }
 
-.poster-nickname {
-  color: #333;
-  text-decoration: none;
+.name-destination {
+  display: flex;
+  flex-direction: column;
+}
+
+.poster-nickname.clickable {
+  color: #007bff;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.poster-nickname.clickable:hover {
+  text-decoration: underline;
+}
+
+.separator {
+  display: none; /* remove if you use nickname | route format */
+}
+
+.ride-details p {
+  margin: 0.25rem 0;
+}
+
+.ride-notes {
+  margin-top: 0.5rem;
+  font-style: italic;
+  color: #555;
 }
 
 .ride-actions {
-  margin-top: 0.7rem;
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ride-actions .btn,
+.send-message-btn,
+.book-now-btn,
+.save-ride-btn,
+.edit-ride-btn,
+.delete-ride-btn,
+.unsave-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease-in-out;
 }
 
 .send-message-btn {
-  padding: 0.5rem 1rem;
-  background-color: #2e7d32;
+  background-color: #007bff;
   color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  cursor: pointer;
 }
 
-.send-message-btn:hover {
-  background-color: #1b5e20;
+.book-now-btn {
+  background-color: #28a745;
+  color: white;
 }
 
-hr {
-  margin-top: 1rem;
-  border: none;
-  border-top: 1px solid #ddd;
+.save-ride-btn {
+  background: none;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.edit-ride-btn {
+  background-color: #ffc107;
+  color: black;
+}
+
+.delete-ride-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.unsave-btn {
+  background-color: #6c757d;
+  color: white;
 }
