@@ -4,7 +4,7 @@ import { VscChevronDown } from "react-icons/vsc";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
-import LanguageSwitcher from "./LanguageSwitcher";
+
 import "./Styles/Navbar.css";
 
 export default function Navbar() {
@@ -92,6 +92,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ✅ Wrap the JSX in a return statement:
   return (
     <nav className="navbar">
       <div className="navbar-left-group">
@@ -103,7 +104,7 @@ export default function Navbar() {
         <div className="navbar-center">
           <Link to="/publishride">Publish Ride</Link>
           <Link to="/all-rides">View All Rides</Link>
-          <Link to="/ourmission">Our Mission</Link>
+
           <div className="about-dropdown" ref={aboutDropdownRef}>
             <button
               className={`about-btn ${aboutOpen ? "open" : ""}`}
@@ -113,9 +114,10 @@ export default function Navbar() {
             </button>
             {aboutOpen && (
               <div className="about-dropdown-content">
+                <Link to="/ourmission">Our Mission</Link>
                 <Link to="/about-us">About Us</Link>
                 <Link to="/careers">Careers</Link>
-                <Link to="/Termsofuse">Term of use</Link>
+                <Link to="/Termsofuse">Terms of Use</Link>
               </div>
             )}
           </div>
@@ -123,7 +125,6 @@ export default function Navbar() {
       </div>
 
       <div className="navbar-right">
-        <LanguageSwitcher />
         <Link to="/help" className="help-link">
           Help
         </Link>
@@ -132,9 +133,6 @@ export default function Navbar() {
           <>
             <Link to="/login" className="btn black">
               Log in
-            </Link>
-            <Link to="/register" className="btn white">
-              Sign up
             </Link>
           </>
         ) : (
