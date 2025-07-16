@@ -97,7 +97,7 @@ export default function Navbar() {
       <div className="navbar-left-group">
         <div className="navbar-left">
           <Link to="/" className="brand">
-            GoDutch
+            Tabfair
           </Link>
         </div>
         <div className="navbar-center">

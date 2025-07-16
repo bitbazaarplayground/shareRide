@@ -31,29 +31,34 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: white;
   text-align: center;
   z-index: 2;
   padding: 1rem 2rem;
   max-width: 90%;
+  color: white; /* Ensure all children inherit white color */
 }
 
 .hero-overlay .brand-title {
-  font-size: 3rem;
-  font-weight: bold;
+  font-size: 4rem; /* Bigger brand name */
+  font-weight: 800;
+  color: white;
+  margin-bottom: 1rem;
   animation: slideInLeft 0.8s ease forwards;
 }
 
 .hero-overlay .tagline {
-  font-size: 1.25rem;
-  margin-bottom: 1.5rem;
-  animation: fadeInDown 1s ease-in-out;
+  font-size: 2.3rem;
+  font-weight: 500;
+  /* margin-bottom: 2rem; */
+  margin-top: 580px;
+  color: white;
+  animation: fadeInDown 3s ease-in-out;
 }
-
 .initial-message {
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: bold;
-  animation: fadeInDown 2.5s ease-in-out;
+  color: white;
+  animation: fadeInDown 3s ease-in-out;
 }
 
 /* CTA Button */
@@ -69,7 +74,10 @@
   animation: pulseBtn 2s ease infinite;
   z-index: 3;
 }
-
+.hero-overlay .cta-button {
+  font-size: 1.25rem;
+  padding: 1rem 2rem;
+}
 .cta-button:hover {
   background-color: #f9f9f9;
 }
@@ -314,54 +322,3 @@
     font-size: 0.9rem;
   }
 }
-/* @media (min-width: 1800px) {
-  .hero-wrapper {
-    aspect-ratio: 16 / 6.5; 
-  }
-}
-@media (max-width: 1024px) {
-  .hero-overlay .brand-title {
-    font-size: 2.5rem;
-  }
-  .hero-overlay .tagline {
-    font-size: 1.1rem;
-  }
-  .hero-wrapper {
-    height: 70vh;
-  }
-}
-
-@media (max-width: 768px) {
-  .hero-overlay {
-    padding: 1rem;
-  }
-  .hero-wrapper {
-    aspect-ratio: 3 / 4;
-  }
-  .hero-overlay .brand-title {
-    font-size: 2rem;
-  }
-  .hero-overlay .tagline {
-    font-size: 1rem;
-  }
-  .features-grid,
-  .steps-grid,
-  .testimonial-grid {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .hero-overlay .brand-title {
-    font-size: 1.8rem;
-  }
-  @media (max-width: 480px) {
-    .hero-wrapper {
-      height: 50vh;
-    }
-    .hero-overlay .tagline {
-      font-size: 0.9rem;
-    }
-  }
-} */

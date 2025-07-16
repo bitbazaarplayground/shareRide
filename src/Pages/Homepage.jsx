@@ -11,7 +11,7 @@ export default function Homepage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowMainText(true);
-    }, 3000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -38,15 +38,9 @@ export default function Homepage() {
           </picture>
           <div className="hero-overlay">
             {showMainText ? (
-              <>
-                <h1 className="brand-title">TabFair</h1>
-                <p className="tagline">
-                  Find and share rides easily with trusted users
-                </p>
-                <Link to="/all-rides" className="cta-button">
-                  {t("Find a Ride")}
-                </Link>
-              </>
+              <p className="tagline">
+                Find and share rides easily with trusted users
+              </p>
             ) : (
               <h1 className="tagline initial-message">
                 Share the ride. Split the cost.
@@ -70,7 +64,7 @@ export default function Homepage() {
               <span className="note">Heathrow Express</span>
             </div>
             <div className="savings-card highlight">
-              <h3>🤝 GoDutch</h3>
+              <h3>🤝 Tabfair</h3>
               <p>£16.50</p>
               <span className="note">Split Taxi (4 People)</span>
             </div>
@@ -82,7 +76,7 @@ export default function Homepage() {
 
         {/* FEATURES */}
         <section className="features">
-          <h2>Why GoDutch?</h2>
+          <h2>Why Tabfair?</h2>
           <div className="features-grid">
             <div className="feature-card">
               <h3>🌍 Eco-friendly</h3>
@@ -129,7 +123,7 @@ export default function Homepage() {
                 className="testimonial-avatar"
               />
               <blockquote>
-                “GoDutch made my arrival in Manchester stress-free. I found a
+                “Tabfair made my arrival in Manchester stress-free. I found a
                 ride from the airport to my hotel in minutes.”
                 <footer>— Sarah, Tourist from Spain</footer>
               </blockquote>
