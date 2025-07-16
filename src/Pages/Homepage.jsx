@@ -1,35 +1,61 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import Footer from "../Footer/Footer";
-import carpoolImage from "../Images/carpoolImage.png";
 import "./StylesPages/Homepage.css";
 
 export default function Homepage() {
   const { t } = useTranslation();
+  const [showMainText, setShowMainText] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowMainText(true);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <>
       <main className="homepage">
-        <img
-          src={carpoolImage}
-          alt="Carpooling city scene"
-          className="hero-banner"
-        />
-
-        {/* Hero Section */}
-        <section className="hero">
-          <div className="hero-content">
-            <h1 className="brand-title">TabFair</h1>
-            <p className="tagline">
-              Find and share rides easily with trusted users
-            </p>
-            <Link to="/all-rides" className="cta-button">
-              {t("Find a Ride")}
-            </Link>
+        {/* HERO SECTION */}
+        <section className="hero-wrapper">
+          <picture>
+            <source
+              srcSet="/images/carpoolImage-small.jpg"
+              media="(max-width: 480px)"
+            />
+            <source
+              srcSet="/images/carpoolImage-medium.jpg"
+              media="(max-width: 1024px)"
+            />
+            <img
+              src="/images/carpoolImage.png"
+              alt="Happy people in a car sharing a ride"
+              className="hero-img"
+            />
+          </picture>
+          <div className="hero-overlay">
+            {showMainText ? (
+              <>
+                <h1 className="brand-title">TabFair</h1>
+                <p className="tagline">
+                  Find and share rides easily with trusted users
+                </p>
+                <Link to="/all-rides" className="cta-button">
+                  {t("Find a Ride")}
+                </Link>
+              </>
+            ) : (
+              <h1 className="tagline initial-message">
+                Share the ride. Split the cost.
+              </h1>
+            )}
           </div>
         </section>
-        {/* Savings Comparison */}
+
+        {/* SAVINGS SECTION */}
         <section className="savings-comparison">
           <h2>See the Savings</h2>
           <div className="savings-grid">
@@ -54,7 +80,7 @@ export default function Homepage() {
           </p>
         </section>
 
-        {/* Features */}
+        {/* FEATURES */}
         <section className="features">
           <h2>Why GoDutch?</h2>
           <div className="features-grid">
@@ -73,7 +99,7 @@ export default function Homepage() {
           </div>
         </section>
 
-        {/* How It Works */}
+        {/* HOW IT WORKS */}
         <section className="how-it-works">
           <h2>How It Works</h2>
           <div className="steps-grid">
@@ -92,7 +118,7 @@ export default function Homepage() {
           </div>
         </section>
 
-        {/* Testimonials */}
+        {/* TESTIMONIALS */}
         <section className="testimonials">
           <h2>What Our Users Say</h2>
           <div className="testimonial-grid">
@@ -135,7 +161,7 @@ export default function Homepage() {
           </div>
         </section>
 
-        {/* Trust Section */}
+        {/* TRUST SECTION */}
         <section className="trust">
           <h2>Travel Safely</h2>
           <ul>
