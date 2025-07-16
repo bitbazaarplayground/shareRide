@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import Footer from "../Footer/Footer";
+import carpoolImage from "../Images/carpoolImage.png";
 import "./StylesPages/Homepage.css";
 
 export default function Homepage() {
@@ -10,10 +11,16 @@ export default function Homepage() {
   return (
     <>
       <main className="homepage">
+        <img
+          src={carpoolImage}
+          alt="Carpooling city scene"
+          className="hero-banner"
+        />
+
         {/* Hero Section */}
         <section className="hero">
           <div className="hero-content">
-            <h1 className="brand-title">GoDutch</h1>
+            <h1 className="brand-title">TabFair</h1>
             <p className="tagline">
               Find and share rides easily with trusted users
             </p>

@@ -17,7 +17,7 @@ body {
   z-index: 1000;
   width: 100%;
   margin: 0;
-  padding: 12px 0;
+  padding: 20px 0;
   font-family: "Inter", sans-serif;
 }
 
@@ -52,21 +52,27 @@ body {
 
 /* ABOUT BUTTON FIX */
 .about-btn {
-  appearance: none; /* Normalize button */
-  background: none; /* Remove background */
-  border: none; /* Remove border */
-  padding: 0; /* ✅ Remove space */
-  margin: 0; /* ✅ Just in case */
-  line-height: 1; /* ✅ Shrink spacing */
-  font: inherit; /* Inherit font */
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0; /* ✅ Remove padding */
+  margin: 0; /* ✅ Remove margin */
+  font: inherit; /* ✅ Inherit font styles */
   color: white;
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex; /* ✅ Not block-level */
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  line-height: 1; /* ✅ Shrinks box height */
+  vertical-align: middle; /* ✅ Aligns with text baseline */
+  box-sizing: content-box; /* ✅ Prevents extra box space */
+}
+.about-btn:hover {
+  background-color: transparent; /* good */
+  padding: 0; /* ensure this exists */
 }
 
 /* Dropdown Arrow */
