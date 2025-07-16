@@ -1,10 +1,12 @@
 /* #3c1900 , #913d00*/
+/* Reset */
 html,
 body {
-  margin-top: 0;
+  margin: 0;
   padding: 0;
 }
 
+/* Navbar Container */
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -19,6 +21,7 @@ body {
   font-family: "Inter", sans-serif;
 }
 
+/* Left Branding Section */
 .navbar-left-group {
   display: flex;
   align-items: center;
@@ -33,23 +36,40 @@ body {
   text-decoration: none;
 }
 
+/* Center Links */
 .navbar-center {
   display: flex;
   gap: 1.5rem;
   align-items: center;
 }
 
-.navbar-center a,
-.about-btn {
+.navbar-center a {
   color: white;
   text-decoration: none;
   font-weight: bold;
-  background: transparent;
-  border: none;
-  cursor: pointer;
   font-size: 16px;
 }
 
+/* ABOUT BUTTON FIX */
+.about-btn {
+  appearance: none; /* Normalize button */
+  background: none; /* Remove background */
+  border: none; /* Remove border */
+  padding: 0; /* ✅ Remove space */
+  margin: 0; /* ✅ Just in case */
+  line-height: 1; /* ✅ Shrink spacing */
+  font: inherit; /* Inherit font */
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Dropdown Arrow */
 .arrow {
   display: inline-block;
   margin-left: 4px;
@@ -65,21 +85,10 @@ body {
   transform: rotate(180deg);
 }
 
+/* Dropdown Containers */
 .about-dropdown,
 .user-dropdown {
   position: relative;
-}
-
-.user-btn {
-  background: none;
-  border: none;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 1rem;
-  color: white;
 }
 
 .user-dropdown-content,
@@ -117,6 +126,20 @@ body {
   background-color: #f6f6f6;
 }
 
+/* User Dropdown Trigger */
+.user-btn {
+  background: none;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1rem;
+  color: white;
+}
+
+/* Highlight classes */
 .logout-btn {
   color: #e66000;
   font-weight: bold;
@@ -127,6 +150,7 @@ body {
   color: #e66000;
 }
 
+/* Right Section (login/signup) */
 .navbar-right {
   display: flex;
   align-items: center;
@@ -134,12 +158,18 @@ body {
   margin-right: 2rem;
 }
 
+.navbar-right .btn {
+  margin: 0;
+}
+
+/* Help link */
 .help-link {
   color: white;
   font-weight: bold;
   text-decoration: none;
 }
 
+/* Buttons (log in / sign up) */
 .btn {
   font-weight: bold;
   padding: 0.5rem 1rem;
@@ -148,33 +178,53 @@ body {
   cursor: pointer;
   text-decoration: none;
   transition: background 0.3s ease;
+  white-space: nowrap;
+  display: inline-block;
 }
 
+/* Log in button */
 .btn.black {
   background: black;
   color: white;
 }
 
+.btn.black:hover {
+  background: #333;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Sign up button */
 .btn.white {
   background: transparent;
   color: white;
+  border: 2px solid white;
 }
 
 .btn.white:hover {
-  background: #f2f2f2;
+  background: white;
+  color: #e66000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.btn.black:hover {
-  background: #333;
+/* Avatar in navbar */
+.nav-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
+/* Notification badge */
 .notif-bubble {
-  background-color: red;
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: red;
   color: white;
-  border-radius: 999px;
-  padding: 0 6px;
   font-size: 0.75rem;
-  margin-left: 6px;
+  border-radius: 50%;
+  padding: 2px 6px;
+  line-height: 1;
 }
 
 .btn.icon-btn {
@@ -193,18 +243,7 @@ body {
   animation: pulse 1s ease-in-out infinite;
 }
 
-.notif-bubble {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: red;
-  color: white;
-  font-size: 0.75rem;
-  border-radius: 50%;
-  padding: 2px 6px;
-  line-height: 1;
-}
-
+/* Pulse animation for icon */
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -217,9 +256,27 @@ body {
   }
 }
 
-.nav-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
+/* Responsive navbar */
+@media (max-width: 768px) {
+  .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .navbar-right {
+    margin-right: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .navbar-left-group {
+    margin-bottom: 1rem;
+  }
 }
