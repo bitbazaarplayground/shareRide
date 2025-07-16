@@ -126,7 +126,12 @@ export default function Login() {
       <p className="forgot-password" onClick={handleForgotPassword}>
         Forgot your password?
       </p>
-
+      <p className="signup-redirect">
+        Don’t have an account?{" "}
+        <span onClick={() => navigate("/register")} className="signup-link">
+          Sign up
+        </span>
+      </p>
       <p className="message">{message}</p>
     </div>
   );

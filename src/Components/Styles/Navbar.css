@@ -16,7 +16,6 @@ body {
   top: 0;
   z-index: 1000;
   width: 100%;
-  margin: 0;
   padding: 45px 0;
   font-family: "Inter", sans-serif;
 }
@@ -25,13 +24,13 @@ body {
 .navbar-left-group {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 6.5rem;
 }
 
 .navbar-left .brand {
   color: white;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 48px;
+  font-weight: 700;
   margin-left: 2rem;
   text-decoration: none;
 }
@@ -39,59 +38,56 @@ body {
 /* Center Links */
 .navbar-center {
   display: flex;
-  gap: 1.5rem;
+  gap: 2rem;
   align-items: center;
+  /* margin-left: 6rem; */
 }
 
 .navbar-center a {
   color: white;
   text-decoration: none;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 33px;
 }
 
-/* ABOUT BUTTON FIX */
+/* ABOUT BUTTON */
 .about-btn {
   appearance: none;
   background: none;
   border: none;
-  padding: 0; /* ✅ Remove padding */
-  margin: 0; /* ✅ Remove margin */
-  font: inherit; /* ✅ Inherit font styles */
+  padding: 0;
+  margin: 0;
+  font: inherit;
   color: white;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 33px;
   cursor: pointer;
-  display: inline-flex; /* ✅ Not block-level */
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  line-height: 1; /* ✅ Shrinks box height */
-  vertical-align: middle; /* ✅ Aligns with text baseline */
-  box-sizing: content-box; /* ✅ Prevents extra box space */
+  line-height: 1;
+  vertical-align: middle;
+  box-sizing: content-box;
 }
 .about-btn:hover {
-  background-color: transparent; /* good */
-  padding: 0; /* ensure this exists */
+  background-color: transparent;
 }
 
 /* Dropdown Arrow */
 .arrow {
-  display: inline-block;
   margin-left: 4px;
   transition: transform 0.2s ease;
   vertical-align: middle;
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: 1.2rem;
   transform: scale(1.2);
 }
-
 .about-btn.open .arrow,
 .user-btn.open .arrow {
   transform: rotate(180deg);
 }
 
-/* Dropdown Containers */
+/* Dropdown Menus */
 .about-dropdown,
 .user-dropdown {
   position: relative;
@@ -102,20 +98,20 @@ body {
   position: absolute;
   top: 2.5rem;
   right: 0;
-  background-color: white;
+  background: white;
   border: 1px solid #ddd;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   z-index: 100;
-  min-width: 150px;
+  min-width: 160px;
   display: flex;
   flex-direction: column;
   padding: 0.5rem 0;
 }
 
+.about-dropdown-content a,
 .user-dropdown-content a,
-.user-dropdown-content button,
-.about-dropdown-content a {
+.user-dropdown-content button {
   padding: 0.5rem 1rem;
   text-align: left;
   background: none;
@@ -126,93 +122,26 @@ body {
   text-decoration: none;
 }
 
+.about-dropdown-content a:hover,
 .user-dropdown-content a:hover,
-.user-dropdown-content button:hover,
-.about-dropdown-content a:hover {
+.user-dropdown-content button:hover {
   background-color: #f6f6f6;
 }
 
-/* User Dropdown Trigger */
+/* User Button */
 .user-btn {
   background: none;
   border: none;
   font-weight: bold;
+  font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 1rem;
   color: white;
 }
 
-/* Highlight classes */
-.logout-btn {
-  color: #e66000;
-  font-weight: bold;
-}
-
-.highlight {
-  font-weight: bold;
-  color: #e66000;
-}
-
-/* Right Section (login/signup) */
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-right: 2rem;
-}
-
-.navbar-right .btn {
-  margin: 0;
-}
-
-/* Help link */
-.help-link {
-  color: white;
-  font-weight: bold;
-  text-decoration: none;
-}
-
-/* Buttons (log in / sign up) */
-.btn {
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.3s ease;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-/* Log in button */
-.btn.black {
-  background: black;
-  color: white;
-}
-
-.btn.black:hover {
-  background: #333;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-/* Sign up button */
-.btn.white {
-  background: transparent;
-  color: white;
-  border: 2px solid white;
-}
-
-.btn.white:hover {
-  background: white;
-  color: #e66000;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Avatar in navbar */
+/* Avatar */
 .nav-avatar {
   width: 24px;
   height: 24px;
@@ -220,7 +149,7 @@ body {
   object-fit: cover;
 }
 
-/* Notification badge */
+/* Notification Badge */
 .notif-bubble {
   position: absolute;
   top: -4px;
@@ -230,39 +159,70 @@ body {
   font-size: 0.75rem;
   border-radius: 50%;
   padding: 2px 6px;
-  line-height: 1;
 }
 
-.btn.icon-btn {
-  position: relative;
-  padding: 8px;
-  background: transparent;
-  border: none;
-  color: var(--text-dark);
+/* Logout */
+.logout-btn {
+  color: #e66000;
+  font-weight: bold;
+}
+
+/* Highlight link */
+.highlight {
+  color: #e66000;
+  font-weight: bold;
+}
+
+/* Right Links */
+.navbar-right {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 1.2rem;
+  margin-right: 2rem;
+  font-weight: bold;
+  font-size: 33px;
 }
 
-.btn.icon-btn.highlight {
-  color: #ff5722;
-  animation: pulse 1s ease-in-out infinite;
+/* Help link */
+.help-link {
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
 }
 
-/* Pulse animation for icon */
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
+/* Buttons */
+.btn {
+  font-weight: bold;
+  padding: 0.55rem 1.3rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.3s ease;
+  white-space: nowrap;
 }
 
-/* Responsive navbar */
+/* Log in */
+.btn.black {
+  background: black;
+  color: white;
+}
+.btn.black:hover {
+  background: #333;
+}
+
+/* Sign up */
+.btn.white {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+.btn.white:hover {
+  background: white;
+  color: #e66000;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .btn {
     font-size: 0.85rem;
@@ -285,4 +245,56 @@ body {
   .navbar-left-group {
     margin-bottom: 1rem;
   }
+
+  .navbar-center {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .navbar-center a,
+  .about-btn {
+    font-size: 15px;
+  }
+
+  .navbar-left .brand {
+    font-size: 18px;
+  }
 }
+
+/* Pulse animation for icon */
+/* @keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+} */
+
+/* Responsive navbar */
+/* @media (max-width: 768px) {
+  .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .navbar-right {
+    margin-right: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .navbar-left-group {
+    margin-bottom: 1rem;
+  }
+} */

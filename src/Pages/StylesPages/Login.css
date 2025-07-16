@@ -78,3 +78,19 @@ h2 {
 .forgot-password:hover {
   color: #0056b3;
 }
+
+.signup-redirect {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.signup-link {
+  color: #e66000;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.signup-link:hover {
+  opacity: 0.9;
+}
