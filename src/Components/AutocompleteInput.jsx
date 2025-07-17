@@ -52,14 +52,6 @@ export default function AutocompleteInput({
         onChange={handleInput}
         disabled={!ready}
         placeholder={placeholder}
-        style={{
-          width: "100%",
-          padding: "10px",
-          fontSize: "16px",
-          borderRadius: "6px",
-          border: "1px solid #ccc",
-          marginBottom: "10px",
-        }}
       />
       {status === "OK" && (
         <ul
@@ -75,15 +67,7 @@ export default function AutocompleteInput({
           }}
         >
           {data.map(({ place_id, description }) => (
-            <li
-              key={place_id}
-              onClick={() => handleSelect(description)}
-              style={{
-                padding: "10px",
-                cursor: "pointer",
-                borderBottom: "1px solid #eee",
-              }}
-            >
+            <li key={place_id} onClick={() => handleSelect(description)}>
               {description}
             </li>
           ))}
@@ -92,4 +76,3 @@ export default function AutocompleteInput({
     </div>
   );
 }
-
