@@ -1,10 +1,9 @@
-/* === HOMEPAGE BASE STYLES === */
 .homepage {
   font-family: "Helvetica Neue", sans-serif;
   color: #333;
 }
 
-/* === HERO SECTION === */
+/* HERO SECTION */
 .hero-wrapper {
   position: relative;
   width: 100%;
@@ -12,50 +11,57 @@
   overflow: hidden;
 }
 
+.hero-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
 .hero-img {
   width: 100%;
-  height: 95%;
-  margin-top: -45px;
+  height: 100%;
   object-fit: cover;
   object-position: top center;
   display: block;
 }
 
-/* === TEXT OVERLAY ON IMAGE === */
 .hero-overlay {
   position: absolute;
-  bottom: 25%;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
+  inset: 0;
   z-index: 2;
-  width: 75%;
-  max-width: 100%;
-  padding: 0 1rem;
+  text-align: center;
+  padding: 1rem 2rem;
+  max-width: 90%;
   color: white;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 280px; /* adjust to taste */
 }
 
 .hero-overlay .brand-title {
-  font-size: calc(1.5rem + 2vw);
+  font-size: 4rem; /* Bigger brand name */
   font-weight: 800;
-  color: white;
   margin-bottom: 1rem;
   animation: slideInLeft 0.8s ease forwards;
 }
 
-.hero-overlay .tagline,
-.initial-message {
-  font-size: calc(1rem + 1vw);
+.hero-overlay .tagline {
   font-weight: 500;
-  color: white;
+  animation: fadeInDown 3s ease-in-out;
+}
+.initial-message {
+  font-size: 3rem;
+  font-weight: bold;
+
   animation: fadeInDown 3s ease-in-out;
 }
 
-.initial-message {
-  font-weight: bold;
-}
-
-/* === CTA BUTTON STYLING === */
+/* CTA Button */
 .cta-button {
   background-color: white;
   color: #e66000;
@@ -68,12 +74,10 @@
   animation: pulseBtn 2s ease infinite;
   z-index: 3;
 }
-
 .hero-overlay .cta-button {
   font-size: 1.25rem;
   padding: 1rem 2rem;
 }
-
 .cta-button:hover {
   background-color: #f9f9f9;
 }
@@ -87,7 +91,7 @@
   background-color: #cc5000;
 }
 
-/* === SAVINGS SECTION === */
+/* Savings Section */
 .savings-comparison {
   text-align: center;
   padding: 3rem 1rem;
@@ -141,7 +145,7 @@
   margin-top: 1rem;
 }
 
-/* === FEATURES, HOW IT WORKS, TESTIMONIALS, TRUST === */
+/* Features, How it works, Testimonials, Trust */
 .features,
 .how-it-works,
 .testimonials,
@@ -161,7 +165,7 @@
 }
 
 .feature-card,
-.step,
+.step-card,
 .testimonial-card {
   background: #fff;
   border-radius: 12px;
@@ -172,7 +176,7 @@
 }
 
 .feature-card:hover,
-.step:hover,
+.step-card:hover,
 .testimonial-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
@@ -197,7 +201,7 @@
   color: #999;
 }
 
-/* === TRUST SECTION === */
+/* Trust Section */
 .trust {
   background: #fff7f2;
   border-top: 2px solid #ffd2b3;
@@ -225,14 +229,14 @@
   color: #e66000;
 }
 
-/* === JOIN NOW CTA SECTION === */
+/* Join Now CTA */
 .join-now {
   background: #f9f9f9;
   padding: 3rem 2rem;
   text-align: center;
 }
 
-/* === ANIMATIONS === */
+/* Animations */
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -265,28 +269,45 @@
   }
 }
 
-/* === RESPONSIVE DESIGN === */
+/* Responsive Design */
+/* Extra large screens */
 @media (min-width: 1800px) {
   .hero-wrapper {
     aspect-ratio: 16 / 6.5;
   }
 }
 
+/* Tablets and below */
+@media (max-width: 1024px) {
+  .hero-overlay .brand-title {
+    font-size: 2.5rem;
+  }
+  .hero-overlay .tagline {
+    font-size: 1.1rem;
+  }
+}
+
 @media (max-width: 768px) {
+  .hero-overlay {
+    padding-top: 120px;
+  }
+
+  .hero-overlay .brand-title {
+    font-size: 2rem;
+  }
+  .hero-overlay .tagline {
+    font-size: 1rem;
+  }
   .features-grid,
   .steps-grid,
   .testimonial-grid {
     flex-direction: column;
     align-items: center;
   }
-
-  .hero-overlay {
-    bottom: 10%;
-  }
 }
 
 @media (max-width: 480px) {
   .hero-overlay {
-    bottom: 8%;
+    padding-top: 80px;
   }
 }

@@ -16,7 +16,7 @@ body {
   top: 0;
   z-index: 1000;
   width: 100%;
-  padding: 45px 0;
+  padding: 10px 0;
   font-family: "Inter", sans-serif;
 }
 
@@ -29,25 +29,24 @@ body {
 
 .navbar-left .brand {
   color: white;
-  font-size: 48px;
+  font-size: 28px;
   font-weight: 700;
-  margin-left: 2rem;
+  margin-left: 1rem;
   text-decoration: none;
 }
 
 /* Center Links */
 .navbar-center {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   align-items: center;
-  /* margin-left: 6rem; */
 }
 
 .navbar-center a {
   color: white;
   text-decoration: none;
   font-weight: bold;
-  font-size: 33px;
+  font-size: 1;
 }
 
 /* ABOUT BUTTON */
@@ -60,7 +59,7 @@ body {
   font: inherit;
   color: white;
   font-weight: bold;
-  font-size: 33px;
+  font-size: 1;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -79,7 +78,7 @@ body {
   margin-left: 4px;
   transition: transform 0.2s ease;
   vertical-align: middle;
-  font-size: 1.2rem;
+  font-size: 1;
   transform: scale(1.2);
 }
 .about-btn.open .arrow,
@@ -133,7 +132,7 @@ body {
   background: none;
   border: none;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -177,10 +176,10 @@ body {
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 1.2;
   margin-right: 2rem;
   font-weight: bold;
-  font-size: 33px;
+  font-size: 1;
 }
 
 /* Help link */
@@ -188,6 +187,7 @@ body {
   color: white;
   font-weight: bold;
   text-decoration: none;
+  margin-right: 1rem;
 }
 
 /* Buttons */
