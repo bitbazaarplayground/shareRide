@@ -117,7 +117,7 @@ export default function Navbar() {
                 <Link to="/ourmission">Our Mission</Link>
                 <Link to="/about-us">About Us</Link>
                 <Link to="/careers">Careers</Link>
-                <Link to="/Termsofuse">Terms of Use</Link>
+                <Link to="/Termsofuse">Terms and Conditions</Link>
               </div>
             )}
           </div>

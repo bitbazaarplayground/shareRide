@@ -3,12 +3,12 @@ import "./StylesPages/TermsOfUse.css";
 const TermsOfUse = () => {
   return (
     <div className="terms-container">
-      <h1>Terms of Use</h1>
+      <h1>Terms and Conditions</h1>
       <p className="effective-date">Effective Date: 3rd of June 2025</p>
       <p className="platform-info">
-        Platform Name: <strong>GoDutch</strong>
+        Platform Name: <strong>Tabfair</strong>
         <br />
-        Company Name: <strong>[GoDutch Ltd]</strong>
+        Company Name: <strong>Tabfair Ltd</strong>
         <br />
         Jurisdiction: <strong>United Kingdom</strong>
       </p>
@@ -25,7 +25,7 @@ const TermsOfUse = () => {
 
       <section>
         <h2>2. Service Overview</h2>
-        <p>RideShareMatch provides a platform where users can:</p>
+        <p>Tabfair provides a platform where users can:</p>
         <ul>
           <li>Post or view arrival times and destinations</li>
           <li>Match with others to share a taxi</li>
@@ -35,7 +35,9 @@ const TermsOfUse = () => {
         </ul>
         <p>
           We do not operate taxis or provide transportation services. We only
-          facilitate coordination and payment between users.
+          facilitate coordination and payment between users. Some ride listings
+          or images on the platform may be illustrative, including AI-generated
+          photos or simulated examples.
         </p>
       </section>
 
@@ -110,7 +112,17 @@ const TermsOfUse = () => {
       </section>
 
       <section>
-        <h2>8. Disclaimers</h2>
+        <h2>8. Use of AI and Simulated Content</h2>
+        <p>
+          Some images, user profiles, or ride listings may be generated using
+          artificial intelligence or simulations to improve user experience,
+          clarity, or safety. These do not represent real individuals or actual
+          rides unless explicitly stated.
+        </p>
+      </section>
+
+      <section>
+        <h2>9. Disclaimers</h2>
         <p>
           We do not guarantee a ride will take place or that users will honor
           commitments. Use the platform at your own risk.
@@ -118,10 +130,9 @@ const TermsOfUse = () => {
       </section>
 
       <section>
-        <h2>9. Limitation of Liability</h2>
+        <h2>10. Limitation of Liability</h2>
         <p>
-          To the fullest extent permitted by law, [Company Name] is not liable
-          for:
+          To the fullest extent permitted by law, Tabfair Ltd is not liable for:
         </p>
         <ul>
           <li>Loss of earnings, time, or data</li>
@@ -131,25 +142,24 @@ const TermsOfUse = () => {
       </section>
 
       <section>
-        <h2>10. Intellectual Property</h2>
+        <h2>11. Intellectual Property</h2>
         <p>
-          All content, code, logos, and trademarks are property of [Company
-          Name] unless otherwise stated. You may not copy or redistribute
-          without written permission.
+          All content, code, logos, and trademarks are property of Tabfair Ltd
+          unless otherwise stated. You may not copy or redistribute without
+          written permission.
         </p>
       </section>
 
       <section>
-        <h2>11. Privacy</h2>
+        <h2>12. Privacy</h2>
         <p>
           Our use of your personal data is governed by our Privacy Policy,
-          available at{" "}
-          <a href="[your-website.com/privacy]">your-website.com/privacy</a>.
+          available at <a href="/privacy">tabfair.com/privacy</a>.
         </p>
       </section>
 
       <section>
-        <h2>12. Modifications</h2>
+        <h2>13. Modifications</h2>
         <p>
           We may update these Terms at any time. Continued use after changes
           means you accept the new Terms.
@@ -157,20 +167,20 @@ const TermsOfUse = () => {
       </section>
 
       <section>
-        <h2>13. Governing Law</h2>
+        <h2>14. Governing Law</h2>
         <p>
-          These Terms are governed by the laws of [England and Wales]. Disputes
-          will be resolved in the courts of [City, UK].
+          These Terms are governed by the laws of England and Wales. Disputes
+          will be resolved in the courts of London, UK.
         </p>
       </section>
 
       <section>
-        <h2>14. Contact Us</h2>
+        <h2>15. Contact Us</h2>
         <p>
-          📧{" "}
-          <a href="mailto:support@yourwebsite.com">support@yourwebsite.com</a>
+          📧 <a href="mailto:Hello@tabfair.com">Hello@tabfair.com</a>
           <br />
-          🏢 [Your Company Address]
+          🏢 Tabfair Ltd, UK
+          {/* include full address */}
         </p>
       </section>
     </div>
