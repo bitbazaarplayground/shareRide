@@ -193,47 +193,31 @@ export default function MessagesPage() {
                     <strong>{selectedChat.partnerNickname}</strong>
                     <div className="destination">
                       {selectedChat.ride?.from} ➞ {selectedChat.ride?.to}
+                      <br />
+                      {selectedChat.ride?.date && selectedChat.ride?.time && (
+                        <>
+                          <span>
+                            {new Date(
+                              selectedChat.ride.date
+                            ).toLocaleDateString()}{" "}
+                            at{" "}
+                            {new Date(
+                              `${selectedChat.ride.date}T${selectedChat.ride.time}`
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          <br />
+                        </>
+                      )}
+                      {selectedChat.ride?.seats && (
+                        <span>{selectedChat.ride.seats} seat(s) available</span>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
-
-              {selectedChat.ride && (
-                <div className="ride-details">
-                  <h3>Ride Details</h3>
-                  <p>
-                    <strong>From:</strong> {selectedChat.ride.from}
-                  </p>
-                  <p>
-                    <strong>To:</strong> {selectedChat.ride.to}
-                  </p>
-                  <p>
-                    <strong>Date & Time:</strong>{" "}
-                    {selectedChat.ride.date && selectedChat.ride.time
-                      ? `${new Date(selectedChat.ride.date).toLocaleDateString()} at ${new Date(
-                          `${selectedChat.ride.date}T${selectedChat.ride.time}`
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}`
-                      : "Not specified"}
-                  </p>
-                  {selectedChat.ride.seats && (
-                    <p>
-                      <strong>Seats Available:</strong>{" "}
-                      {selectedChat.ride.seats}
-                    </p>
-                  )}
-                  {selectedChat.ride.notes && (
-                    <p>
-                      <strong>Note:</strong> {selectedChat.ride.notes}
-                    </p>
-                  )}
-                  <p>
-                    <strong>Status:</strong> {selectedChat.ride.status}
-                  </p>
-                </div>
-              )}
 
               <div className="chat-thread">
                 {messages.map((msg) => {
