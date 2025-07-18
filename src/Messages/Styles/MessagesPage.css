@@ -86,12 +86,12 @@
 
 .chat-bubble.received {
   align-self: flex-start;
-  background-color: #ffffff;
+  background-color: #fff;
   border: 1px solid #eee;
 }
 
 .chat-bubble.unread {
-  animation: pulse 3s;
+  animation: pulse s;
   border: 1px solid #e66000;
 }
 
@@ -221,4 +221,28 @@
   color: #e66000;
   font-size: 1.2rem;
   margin-left: 0.3rem;
+}
+
+.ride-details {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  margin: 1rem 0;
+}
+
+.ride-details h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: #333;
+}
+
+.ride-details p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.ride-details strong {
+  color: #000;
 }
