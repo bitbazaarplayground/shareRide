@@ -5,7 +5,7 @@ import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
-import ChatRoom from "./Messages/ChatRoom";
+
 import MessagesPage from "./Messages/MessagesPage";
 import AdminDashboard from "./Pages/AdminDashboard";
 import AllPostedRides from "./Pages/AllPostedRides";
@@ -107,7 +107,7 @@ export default function App() {
           <Route path="/payment-success" element={<PaymentSuccess />} />
           {/* Messaging */}
           <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/chat/:chatId" element={<ChatRoom />} />
+          <Route path="/messages/:chatId" element={<MessagesPage />} />
         </Routes>
       </div>
     </AuthProvider>
