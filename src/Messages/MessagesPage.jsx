@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
+import SendMessageForm from "./SendMessageForm";
 import "./Styles/MessagesPage.css";
 
 export default function MessagesPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [partner, setPartner] = useState(null);
 
   useEffect(() => {
     if (!user) return;
 
     const fetchConversations = async () => {
-      const { data: chats, error: chatsError } = await supabase
+      const { data: chats, error } = await supabase
         .from("chats")
         .select(
           `
@@ -20,119 +23,161 @@ export default function MessagesPage() {
           user1,
           user2,
           ride_id,
-          user1_profile:profiles!chats_user1_fkey(nickname),
-          user2_profile:profiles!chats_user2_fkey(nickname),
-          rides (
-            from,
-            to,
-            date,
-            time
-          )
+          user1_profile:profiles!chats_user1_fkey(nickname, avatar_url),
+          user2_profile:profiles!chats_user2_fkey(nickname, avatar_url),
+          rides (from, to, date, time)
         `
         )
         .or(`user1.eq.${user.id},user2.eq.${user.id}`);
 
-      if (chatsError) {
-        console.error("Error fetching chats:", chatsError);
+      if (error) {
+        console.error("Error fetching chats:", error);
         return;
       }
 
-      const conversationsWithMessages = await Promise.all(
+      const result = await Promise.all(
         chats.map(async (chat) => {
-          const partnerId = chat.user1 === user.id ? chat.user2 : chat.user1;
-          const partnerNickname =
-            chat.user1 === user.id
-              ? chat.user2_profile?.nickname
-              : chat.user1_profile?.nickname;
-
-          const { data: latestMessageData } = await supabase
+          const isUser1 = chat.user1 === user.id;
+          const partnerProfile = isUser1
+            ? chat.user2_profile
+            : chat.user1_profile;
+          const { data: lastMsg } = await supabase
             .from("messages")
             .select("content, created_at, sender_id, recipient_id, seen")
             .eq("chat_id", chat.id)
             .order("created_at", { ascending: false })
             .limit(1);
 
-          const latestMessage = latestMessageData?.[0];
-          const isUnread =
-            latestMessage &&
-            latestMessage.recipient_id === user.id &&
-            latestMessage.seen === false;
-
           return {
-            id: chat.id,
-            partnerId,
-            partnerNickname,
-            content: latestMessage?.content || "(No messages yet)",
-            created_at: latestMessage?.created_at || null,
-            fromLocation: chat.rides?.from,
-            toLocation: chat.rides?.to,
-            rideDate: chat.rides?.date,
-            rideTime: chat.rides?.time,
-            isUnread,
+            ...chat,
+            partnerId: isUser1 ? chat.user2 : chat.user1,
+            partnerNickname: partnerProfile?.nickname || "Unknown",
+            partnerAvatar: partnerProfile?.avatar_url || null,
+            content: lastMsg?.[0]?.content || "(No messages yet)",
+            created_at: lastMsg?.[0]?.created_at || null,
+            isUnread:
+              lastMsg?.[0]?.recipient_id === user.id && !lastMsg?.[0]?.seen,
           };
         })
       );
 
-      conversationsWithMessages.sort((a, b) => {
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-
-      setConversations(conversationsWithMessages);
+      setConversations(
+        result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      );
     };
 
     fetchConversations();
   }, [user]);
 
+  const loadMessages = async (chat) => {
+    setSelectedChat(chat);
+    setPartner({ id: chat.partnerId, nickname: chat.partnerNickname });
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("chat_id", chat.id)
+      .order("created_at", { ascending: true });
+    setMessages(data);
+  };
+
+  const handleNewMessage = (newMessage) => {
+    setMessages((prev) => [...prev, newMessage]);
+  };
+
   if (!user) return <p>Please log in to view your messages.</p>;
 
   return (
     <div className="messages-page">
-      <h2>Your Conversations</h2>
+      <aside className="sidebar">
+        <h3>Contacts</h3>
+        {conversations.map((convo) => (
+          <div
+            className="contact"
+            key={convo.id}
+            onClick={() => loadMessages(convo)}
+          >
+            <div className="avatar">
+              {convo.partnerAvatar ? (
+                <img src={convo.partnerAvatar} alt={convo.partnerNickname} />
+              ) : (
+                <span>{convo.partnerNickname.charAt(0)}</span>
+              )}
+            </div>
+            <span>{convo.partnerNickname}</span>
+          </div>
+        ))}
+      </aside>
 
-      {conversations.length === 0 ? (
-        <p>No messages yet.</p>
-      ) : (
-        <div className="conversation-list">
-          {conversations.map((convo) => (
-            <Link
-              key={convo.id}
-              to={`/chat/${convo.id}`}
-              className="conversation-link"
-            >
-              <div className="conversation-card">
-                <div className="top-line">
-                  <div className="name-destination">
-                    <strong>{convo.partnerNickname || convo.partnerId}</strong>
-                    <span className="separator">|</span>
-                    <span className="destination">
-                      {convo.fromLocation} → {convo.toLocation}
-                    </span>
-                    {convo.isUnread && (
-                      <span className="unread-badge" title="Unread message">
-                        ●
-                      </span>
+      <main className="chat-preview">
+        {selectedChat ? (
+          <>
+            <div className="conversation-card">
+              <div className="top-line">
+                <div className="top-left">
+                  <div className="avatar">
+                    {selectedChat.partnerAvatar ? (
+                      <img
+                        src={selectedChat.partnerAvatar}
+                        alt={selectedChat.partnerNickname}
+                      />
+                    ) : (
+                      <span>{selectedChat.partnerNickname.charAt(0)}</span>
                     )}
                   </div>
-                  <small className="timestamp">
-                    {convo.created_at
-                      ? new Date(convo.created_at).toLocaleTimeString([], {
+                  <div>
+                    <strong>{selectedChat.partnerNickname}</strong>
+                    <div className="destination">
+                      {selectedChat.from} ➞ {selectedChat.to}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="chat-thread">
+                {messages.map((msg) => {
+                  const isSender = msg.sender_id === user.id;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`chat-bubble ${isSender ? "sent" : "received"} ${
+                        !msg.seen && !isSender ? "unread" : ""
+                      }`}
+                    >
+                      <p>{msg.content}</p>
+
+                      <small>
+                        {new Date(msg.created_at).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
-                        })
-                      : ""}
-                  </small>
-                </div>
-
-                <p className="preview">
-                  {convo.content.length > 60
-                    ? convo.content.slice(0, 60) + "..."
-                    : convo.content}
-                </p>
+                        })}
+                        {isSender && (
+                          <>
+                            {" "}
+                            ✓
+                            <span
+                              className={`status-icon ${msg.seen ? "read" : ""}`}
+                            >
+                              {msg.seen ? "✓" : ""}
+                            </span>
+                          </>
+                        )}
+                      </small>
+                    </div>
+                  );
+                })}
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
+
+              <SendMessageForm
+                chatId={selectedChat.id}
+                recipientId={selectedChat.partnerId}
+                onNewMessage={handleNewMessage}
+              />
+            </div>
+          </>
+        ) : (
+          <h2>Your Conversations</h2>
+        )}
+      </main>
     </div>
   );
 }
