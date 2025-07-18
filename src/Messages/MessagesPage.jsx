@@ -57,6 +57,7 @@ export default function MessagesPage() {
             created_at: lastMsg?.[0]?.created_at || null,
             isUnread:
               lastMsg?.[0]?.recipient_id === user.id && !lastMsg?.[0]?.seen,
+            ride: chat.rides || null,
           };
         })
       );
@@ -132,6 +133,28 @@ export default function MessagesPage() {
                   </div>
                 </div>
               </div>
+              {/* Ride details */}
+              {selectedChat.ride && (
+                <div className="ride-details">
+                  <h3>Ride Details</h3>
+                  <p>
+                    <strong>From:</strong> {selectedChat.ride.from}
+                  </p>
+                  <p>
+                    <strong>To:</strong> {selectedChat.ride.to}
+                  </p>
+                  <p>
+                    <strong>Date & Time:</strong>{" "}
+                    {new Date(selectedChat.ride.date).toLocaleDateString()} at{" "}
+                    {new Date(
+                      `1970-01-01T${selectedChat.ride.time}`
+                    ).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              )}
 
               <div className="chat-thread">
                 {messages.map((msg) => {
