@@ -49,7 +49,7 @@ export default function AllPostedRides() {
       });
 
       const matchingRides = filteredRides.filter((ride) => {
-        const remainingSeats = ride.seat_limit - ride.seats;
+        const remainingSeats = ride.seats;
 
         const hasDetailedLuggageFields =
           ride.backpack_count !== null ||
