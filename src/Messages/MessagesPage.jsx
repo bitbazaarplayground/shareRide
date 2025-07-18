@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import SendMessageForm from "./SendMessageForm";
@@ -6,10 +7,13 @@ import "./Styles/MessagesPage.css";
 
 export default function MessagesPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { chatId } = useParams();
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [partner, setPartner] = useState(null);
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -25,7 +29,7 @@ export default function MessagesPage() {
           ride_id,
           user1_profile:profiles!chats_user1_fkey(nickname, avatar_url),
           user2_profile:profiles!chats_user2_fkey(nickname, avatar_url),
-          rides (from, to, date, time)
+          rides (from, to, date, time, seats, notes, status)
         `
         )
         .or(`user1.eq.${user.id},user2.eq.${user.id}`);
@@ -70,16 +74,76 @@ export default function MessagesPage() {
     fetchConversations();
   }, [user]);
 
-  const loadMessages = async (chat) => {
-    setSelectedChat(chat);
-    setPartner({ id: chat.partnerId, nickname: chat.partnerNickname });
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("chat_id", chat.id)
-      .order("created_at", { ascending: true });
-    setMessages(data);
-  };
+  useEffect(() => {
+    if (!user || !chatId) return;
+
+    const fetchSelectedChatDetails = async () => {
+      const chatIdInt = parseInt(chatId);
+
+      const { data: chat, error } = await supabase
+        .from("chats")
+        .select(
+          `
+          id,
+          user1,
+          user2,
+          ride_id,
+          user1_profile:profiles!chats_user1_fkey(nickname, avatar_url),
+          user2_profile:profiles!chats_user2_fkey(nickname, avatar_url),
+          rides (from, to, date, time, seats, notes, status)
+        `
+        )
+        .eq("id", chatIdInt)
+        .single();
+
+      if (error || !chat) {
+        console.error("Chat not found:", error);
+        return;
+      }
+
+      const isUser1 = chat.user1 === user.id;
+      const partnerProfile = isUser1 ? chat.user2_profile : chat.user1_profile;
+
+      const chatData = {
+        ...chat,
+        partnerId: isUser1 ? chat.user2 : chat.user1,
+        partnerNickname: partnerProfile?.nickname || "Unknown",
+        partnerAvatar: partnerProfile?.avatar_url || null,
+        ride: chat.rides || null,
+      };
+
+      setSelectedChat(chatData);
+      setPartner({
+        id: chatData.partnerId,
+        nickname: chatData.partnerNickname,
+      });
+
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("chat_id", chatIdInt)
+        .order("created_at", { ascending: true });
+
+      setMessages(msgs);
+
+      const unseen = msgs.filter((m) => m.recipient_id === user.id && !m.seen);
+      if (unseen.length > 0) {
+        await supabase
+          .from("messages")
+          .update({ seen: true })
+          .in(
+            "id",
+            unseen.map((m) => m.id)
+          );
+      }
+    };
+
+    fetchSelectedChatDetails();
+  }, [chatId, user]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleNewMessage = (newMessage) => {
     setMessages((prev) => [...prev, newMessage]);
@@ -95,7 +159,7 @@ export default function MessagesPage() {
           <div
             className="contact"
             key={convo.id}
-            onClick={() => loadMessages(convo)}
+            onClick={() => navigate(`/messages/${convo.id}`)}
           >
             <div className="avatar">
               {convo.partnerAvatar ? (
@@ -128,12 +192,12 @@ export default function MessagesPage() {
                   <div>
                     <strong>{selectedChat.partnerNickname}</strong>
                     <div className="destination">
-                      {selectedChat.from} ➞ {selectedChat.to}
+                      {selectedChat.ride?.from} ➞ {selectedChat.ride?.to}
                     </div>
                   </div>
                 </div>
               </div>
-              {/* Ride details */}
+
               {selectedChat.ride && (
                 <div className="ride-details">
                   <h3>Ride Details</h3>
@@ -145,13 +209,28 @@ export default function MessagesPage() {
                   </p>
                   <p>
                     <strong>Date & Time:</strong>{" "}
-                    {new Date(selectedChat.ride.date).toLocaleDateString()} at{" "}
-                    {new Date(
-                      `1970-01-01T${selectedChat.ride.time}`
-                    ).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {selectedChat.ride.date && selectedChat.ride.time
+                      ? `${new Date(selectedChat.ride.date).toLocaleDateString()} at ${new Date(
+                          `${selectedChat.ride.date}T${selectedChat.ride.time}`
+                        ).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : "Not specified"}
+                  </p>
+                  {selectedChat.ride.seats && (
+                    <p>
+                      <strong>Seats Available:</strong>{" "}
+                      {selectedChat.ride.seats}
+                    </p>
+                  )}
+                  {selectedChat.ride.notes && (
+                    <p>
+                      <strong>Note:</strong> {selectedChat.ride.notes}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Status:</strong> {selectedChat.ride.status}
                   </p>
                 </div>
               )}
@@ -167,7 +246,6 @@ export default function MessagesPage() {
                       }`}
                     >
                       <p>{msg.content}</p>
-
                       <small>
                         {new Date(msg.created_at).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -188,6 +266,7 @@ export default function MessagesPage() {
                     </div>
                   );
                 })}
+                <div ref={chatEndRef} />
               </div>
 
               <SendMessageForm
