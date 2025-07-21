@@ -5,18 +5,19 @@ import Navbar from "./Components/Navbar";
 import PublishRide from "./Components/PublishRide";
 import "./Components/Styles/Navbar.css";
 import { AuthProvider } from "./Contexts/AuthContext";
-
 import MessagesPage from "./Messages/MessagesPage";
 import AdminDashboard from "./Pages/AdminDashboard";
 import AllPostedRides from "./Pages/AllPostedRides";
 import AuthCallback from "./Pages/AuthCallback";
 import CompleteProfile from "./Pages/CompleteProfile";
+import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
 import MyRidesRedirect from "./Pages/MyRidesRedirect";
 import OurMission from "./Pages/OurMission";
+import PrivacyPolicy from "./Pages/PrivacyPolicy";
 import PublicProfile from "./Pages/PublicProfile";
 import Recovery from "./Pages/Recovery";
 import Results from "./Pages/Results";
@@ -98,7 +99,10 @@ export default function App() {
           <Route path="/my-rides" element={<MyRidesRedirect />} />
           <Route path="/edit-ride/:rideId" element={<EditRide />} />
           <Route path="/recovery" element={<Recovery />} />
+          {/* Terms and Conditions */}
           <Route path="/Termsofuse" element={<TermsofUse />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/cookies" element={<CookiesPolicy />} />
           {/* Payments */}
           <Route
             path="/splitride-confirm/:rideId"

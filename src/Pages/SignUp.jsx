@@ -11,6 +11,8 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
@@ -123,33 +125,67 @@ export default function SignUp() {
 
       <div className="social-icons">
         <p>Or sign up with:</p>
-        <button
-          className="social-btn google"
-          onClick={() => handleOAuthSignup("google")}
-        >
-          <FaGoogle size={24} color="#DB4437" />
-        </button>
-        <button
-          className="social-btn facebook"
-          onClick={() => handleOAuthSignup("facebook")}
-        >
-          <FaFacebookF size={24} color="#1877F2" />
-        </button>
-        <button
-          className="social-btn instagram"
-          onClick={() => setMessage("Instagram sign-up not yet implemented.")}
-        >
-          <FaInstagram size={24} color="#E4405F" />
-        </button>
-        <button
-          className="social-btn apple"
-          onClick={() => setMessage("Apple sign-up not yet implemented.")}
-        >
-          <FaApple size={24} color="#333" />
-        </button>
-      </div>
 
-      {message && <p className="message">{message}</p>}
+        <div className="tooltip-wrapper">
+          <div className="social-icons-buttons">
+            <button
+              className="social-btn google"
+              onClick={() => handleOAuthSignup("google")}
+              disabled={!termsAccepted}
+            >
+              <FaGoogle size={24} color="#DB4437" />
+            </button>
+
+            <button
+              className="social-btn facebook"
+              onClick={() => handleOAuthSignup("facebook")}
+              disabled={!termsAccepted}
+            >
+              <FaFacebookF size={24} color="#1877F2" />
+            </button>
+
+            <button
+              className="social-btn instagram"
+              onClick={() =>
+                setMessage("Instagram sign-up not yet implemented.")
+              }
+              disabled={!termsAccepted}
+            >
+              <FaInstagram size={24} color="#E4405F" />
+            </button>
+
+            <button
+              className="social-btn apple"
+              onClick={() => setMessage("Apple sign-up not yet implemented.")}
+              disabled={!termsAccepted}
+            >
+              <FaApple size={24} color="#333" />
+            </button>
+          </div>
+
+          {!termsAccepted && (
+            <span className="tooltip-text">
+              Please accept Terms & Conditions
+            </span>
+          )}
+        </div>
+
+        <div className="terms-checkbox">
+          <label>
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={() => setTermsAccepted(!termsAccepted)}
+            />
+            I accept the{" "}
+            <a href="/Termsofuse" target="_blank" rel="noopener noreferrer">
+              Terms and Conditions
+            </a>
+          </label>
+        </div>
+
+        {message && <p className="message">{message}</p>}
+      </div>
     </div>
   );
 }

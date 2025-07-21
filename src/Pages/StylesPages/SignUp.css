@@ -37,11 +37,27 @@ h2 {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
+.social-icons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.social-icons-buttons {
+  display: flex;
+
+  justify-content: center;
+}
 
 .signup-btn:hover {
   background-color: #753d13;
 }
-
+.social-icons p {
+  text-align: center;
+  margin-bottom: 0.2rem;
+  margin-top: 1.9rem;
+}
 .social-login {
   text-align: center;
   margin-top: 1.5rem;
@@ -62,6 +78,48 @@ h2 {
 
 .social-btn:hover {
   transform: scale(1.2);
+}
+.terms-checkbox {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+.terms-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.terms-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem; /* spacing between checkbox and text */
+  line-height: 1.4;
+}
+.tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  background-color: #333;
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 10;
+}
+
+.tooltip-wrapper:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
 }
 
 .message {
