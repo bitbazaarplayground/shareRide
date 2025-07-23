@@ -181,57 +181,63 @@ export default function AllPostedRides() {
   };
 
   return (
-    <div style={{ maxWidth: "1008px", margin: "0 auto" }}>
-      <SearchBar
-        variant="horizontal"
-        passengerCount={passengerCount}
-        setPassengerCount={setPassengerCount}
-        backpacks={backpacks}
-        setBackpacks={setBackpacks}
-        smallSuitcases={smallSuitcases}
-        setSmallSuitcases={setSmallSuitcases}
-        largeSuitcases={largeSuitcases}
-        setLargeSuitcases={setLargeSuitcases}
-      />
-
-      {successMessage && <p className="success">{successMessage}</p>}
-
-      <div className="all-rides-container" style={{ padding: "1.5rem 0" }}>
-        {loading ? (
-          <p>Loading rides...</p>
-        ) : errorMsg ? (
-          <p>{errorMsg}</p>
-        ) : rides.length === 0 ? (
-          <p>No rides have been published yet.</p>
-        ) : (
-          <ul className="ride-list">
-            {rides.map((ride) => (
-              <RideCard
-                key={ride.id}
-                ride={ride}
-                user={user}
-                isSaved={savedRideIds.includes(ride.id)}
-                canSave={true}
-                canEdit={user?.id === ride.profiles?.id}
-                showBookNow={user && user.id !== ride.profiles?.id}
-                onSaveToggle={toggleSaveRide}
-                onDelete={() => confirmDelete(ride.id)}
-                onEdit={(id) => navigate(`/edit-ride/${id}`)}
-                onStartChat={handleStartChat}
-              />
-            ))}
-          </ul>
-        )}
+    <>
+      <div className="hero-header">
+        <div className="overlay-content">
+          <SearchBar
+            variant="horizontal"
+            passengerCount={passengerCount}
+            setPassengerCount={setPassengerCount}
+            backpacks={backpacks}
+            setBackpacks={setBackpacks}
+            smallSuitcases={smallSuitcases}
+            setSmallSuitcases={setSmallSuitcases}
+            largeSuitcases={largeSuitcases}
+            setLargeSuitcases={setLargeSuitcases}
+          />
+        </div>
       </div>
 
-      <ToastContainer position="top-center" autoClose={2500} />
+      <div className="rides-page-wrapper">
+        {successMessage && <p className="success">{successMessage}</p>}
 
-      <ConfirmModal
-        isOpen={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        message="Are you sure you want to delete this ride?"
-      />
-    </div>
+        <div className="all-rides-container">
+          {loading ? (
+            <p>Loading rides...</p>
+          ) : errorMsg ? (
+            <p>{errorMsg}</p>
+          ) : rides.length === 0 ? (
+            <p>No rides have been published yet.</p>
+          ) : (
+            <ul className="ride-list">
+              {rides.map((ride) => (
+                <RideCard
+                  key={ride.id}
+                  ride={ride}
+                  user={user}
+                  isSaved={savedRideIds.includes(ride.id)}
+                  canSave={true}
+                  canEdit={user?.id === ride.profiles?.id}
+                  showBookNow={user && user.id !== ride.profiles?.id}
+                  onSaveToggle={toggleSaveRide}
+                  onDelete={() => confirmDelete(ride.id)}
+                  onEdit={(id) => navigate(`/edit-ride/${id}`)}
+                  onStartChat={handleStartChat}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <ToastContainer position="top-center" autoClose={2500} />
+
+        <ConfirmModal
+          isOpen={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={handleConfirmDelete}
+          message="Are you sure you want to delete this ride?"
+        />
+      </div>
+    </>
   );
 }

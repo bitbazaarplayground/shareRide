@@ -6,6 +6,13 @@
   font-family: "Segoe UI", sans-serif;
   animation: fadeIn 0.6s ease-in;
 }
+.rides-page-wrapper {
+  margin-top: 80px; /* gives space below the SearchBar */
+  max-width: 1056px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1rem;
+}
 
 @keyframes fadeIn {
   from {
@@ -55,6 +62,26 @@
 .ride-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+/* Hero Header */
+.hero-header {
+  background-image: url("/images/backgroundAllRides.png");
+  background-size: cover;
+  background-position: center;
+  height: 350px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.overlay-content {
+  position: absolute;
+  bottom: -70px;
+  width: 100%;
+  max-width: 1008px;
+  padding: 0 1rem;
+  z-index: 5;
 }
 
 /* Avatar + Username Row */

@@ -92,35 +92,33 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Wrap the JSX in a return statement:
   return (
     <nav className="navbar">
-      <div className="navbar-left-group">
-        <div className="navbar-left">
-          <Link to="/" className="brand">
-            Tabfair
-          </Link>
-        </div>
-        <div className="navbar-center">
-          <Link to="/publishride">Publish Ride</Link>
-          <Link to="/all-rides">View All Rides</Link>
+      <div className="navbar-left">
+        <Link to="/" className="brand">
+          Tabfair
+        </Link>
+      </div>
 
-          <div className="about-dropdown" ref={aboutDropdownRef}>
-            <button
-              className={`about-btn ${aboutOpen ? "open" : ""}`}
-              onClick={() => setAboutOpen((prev) => !prev)}
-            >
-              About <VscChevronDown className="arrow" />
-            </button>
-            {aboutOpen && (
-              <div className="about-dropdown-content">
-                <Link to="/ourmission">Our Mission</Link>
-                <Link to="/about-us">About Us</Link>
-                <Link to="/careers">Careers</Link>
-                <Link to="/Termsofuse">Terms and Conditions</Link>
-              </div>
-            )}
-          </div>
+      <div className="navbar-center">
+        <Link to="/publishride">Publish Ride</Link>
+        <Link to="/all-rides">View All Rides</Link>
+
+        <div className="about-dropdown" ref={aboutDropdownRef}>
+          <button
+            className={`about-btn ${aboutOpen ? "open" : ""}`}
+            onClick={() => setAboutOpen((prev) => !prev)}
+          >
+            About <VscChevronDown className="arrow" />
+          </button>
+          {aboutOpen && (
+            <div className="about-dropdown-content">
+              <Link to="/ourmission">Our Mission</Link>
+              <Link to="/about-us">About Us</Link>
+              <Link to="/careers">Careers</Link>
+              <Link to="/Termsofuse">Terms and Conditions</Link>
+            </div>
+          )}
         </div>
       </div>
 
@@ -130,11 +128,9 @@ export default function Navbar() {
         </Link>
 
         {!user ? (
-          <>
-            <Link to="/login" className="btn black">
-              Log in
-            </Link>
-          </>
+          <Link to="/login" className="btn black">
+            Log in
+          </Link>
         ) : (
           <div className="user-dropdown" ref={userDropdownRef}>
             <button
