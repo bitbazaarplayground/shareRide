@@ -74,6 +74,7 @@ h2 {
   color: #007bff;
   text-decoration: underline;
   cursor: pointer;
+  text-align: center;
 }
 .forgot-password:hover {
   color: #0056b3;

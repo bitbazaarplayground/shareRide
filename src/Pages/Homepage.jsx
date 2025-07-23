@@ -118,38 +118,44 @@ export default function Homepage() {
           <div className="testimonial-grid">
             <div className="testimonial-card">
               <img
-                src="https://api.dicebear.com/8.x/thumbs/svg?seed=Emily"
+                src="/images/testimonial3.png"
                 alt="User avatar"
                 className="testimonial-avatar"
               />
               <blockquote>
-                “Tabfair made my arrival in Manchester stress-free. I found a
-                ride from the airport to my hotel in minutes.”
-                <footer>— Sarah, Tourist from Spain</footer>
+                “We had just landed from Mexico and dreaded the long trip to
+                Chelmsford. Then we found Tabfair. Shared a taxi from Heathrow
+                and ended up saving money — plus, we had great company the whole
+                way!”
+                <footer>— James & Ana, Returning from Holiday</footer>
               </blockquote>
             </div>
+
             <div className="testimonial-card">
               <img
-                src="https://api.dicebear.com/8.x/thumbs/svg?seed=Ahmed"
+                src="/images/testimonial2.png"
                 alt="User avatar"
                 className="testimonial-avatar"
               />
               <blockquote>
-                “I travel for business often, and this platform has been a
-                game-changer for quick airport pickups.”
-                <footer>— Ahmed, Business Traveller</footer>
+                “I booked a ride to catch a football match — trains were packed,
+                but sharing a taxi was smooth, cheaper, and actually fun. It
+                just makes sense.”
+                <footer>— Liam, Football Fan</footer>
               </blockquote>
             </div>
+
             <div className="testimonial-card">
               <img
-                src="https://api.dicebear.com/8.x/thumbs/svg?seed=Sarah"
+                src="/images/testimonial1.png"
                 alt="User avatar"
                 className="testimonial-avatar"
               />
               <blockquote>
-                “Booked a ride from Heathrow to my Airbnb — affordable and met a
-                friendly local!”
-                <footer>— Emily, Backpacker</footer>
+                “After a long flight from Singapore, I really didn’t want to
+                deal with expensive taxis alone. Sharing my ride helped me save
+                money and felt good knowing I was making a greener choice.”
+                <footer>— Mei, International Student</footer>
               </blockquote>
             </div>
           </div>
@@ -162,6 +168,7 @@ export default function Homepage() {
             <li>✔ Verified profiles</li>
             <li>✔ Chat before your ride</li>
             <li>✔ Transparent reviews and ratings</li>
+            <li>Suppor local taxi drivers</li>
           </ul>
         </section>
 

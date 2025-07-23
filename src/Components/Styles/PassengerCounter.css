@@ -1,130 +1,135 @@
-/* Passenger counter styling (assumes PassengerCounter already styled properly) */
-.passenger-dropdown-wrapper {
-  margin: 1rem 0;
-}
-
-.dropdown-toggle {
-  cursor: pointer;
+.passenger-container {
+  position: relative;
   display: inline-block;
-  background-color: #6366f1;
-  color: white;
+  width: 100%;
+}
+
+.passenger-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: background 0.3s ease;
-  user-select: none;
-}
-
-.dropdown-toggle:hover {
-  background-color: #4f46e5;
-}
-
-.passenger-counter {
-  background-color: #f9f9f9;
+  background-color: #fff;
   border: 1px solid #ddd;
   border-radius: 10px;
-  margin-top: 0.75rem;
-  padding: 1rem;
-  max-width: 400px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.passenger-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.passenger-controls button {
-  font-size: 1.2rem;
-  width: 32px;
-  height: 32px;
-  background-color: #e5e5e5;
-  border: none;
-  border-radius: 6px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background-color 0.3s ease;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.passenger-controls button:hover {
-  background-color: #d4d4d4;
+.passenger-toggle:hover {
+  background-color: #f0f0f0;
 }
 
-.passenger-controls span {
+.passenger-toggle .icon {
+  font-size: 18px;
+}
+
+.dropdown-arrow {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+/* Modern white dropdown with fade */
+.passenger-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  min-width: 340px;
+  color: #1f2937;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
-.luggage-section label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-}
-
-.luggage-section input {
-  width: 60px;
-  padding: 4px 6px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-
-/* .passenger-counter {
+.dropdown-row label {
+  flex: 1.2;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
+  gap: 8px;
+  color: #374151;
 }
 
-.passenger-counter button {
-  background-color: #f97316;
-  border: none;
-  color: white;
-  font-size: 1.25rem;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+.dropdown-row input[type="range"] {
+  flex: 2;
+  appearance: none;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  outline: none;
+  transition: background 0.3s ease;
+}
+
+.dropdown-row input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #00c6ff;
+  border-radius: 50%;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: 15px;
-  transition: background-color 0.2s ease;
+  border: 2px solid white;
 }
 
-.passenger-counter button:hover {
-  background-color: #ea580c;
-}
-
-.passenger-counter span {
-  min-width: 90px;
-  text-align: center;
-  font-weight: 500;
-}
-
-.passenger-dropdown-wrapper {
-  margin: 1rem 0;
-}
-
-.dropdown-toggle {
+.dropdown-row input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #00c6ff;
+  border-radius: 50%;
   cursor: pointer;
-  font-weight: bold;
-  color: #444;
-  display: inline-block;
-  margin-bottom: 0.5rem;
+  border: 2px solid white;
 }
 
-.luggage-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1rem;
+.dropdown-row span {
+  min-width: 20px;
+  text-align: right;
+  font-weight: 600;
 }
 
-.luggage-section label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-} */
+/* Mobile responsiveness */
+@media (max-width: 500px) {
+  .passenger-dropdown {
+    min-width: 90vw;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .dropdown-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dropdown-row input[type="range"] {
+    width: 100%;
+    margin: 8px 0;
+  }
+
+  .dropdown-row span {
+    align-self: flex-end;
+  }
+}
