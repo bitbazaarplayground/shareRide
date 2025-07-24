@@ -73,66 +73,74 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container">
-      <h2>Login</h2>
+    <div className="login-page">
+      <div className="login-container">
+        <h2>Login</h2>
 
-      <form className="login-form" onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <form className="login-form" onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button className="login-btn" type="submit">
-          Log In
-        </button>
-      </form>
+          <button className="login-submit-btn" type="submit">
+            Log In
+          </button>
+        </form>
 
-      <div className="social-login">
-        <p>Or log in with:</p>
-        <div className="social-icons">
-          <button className="social-btn google" onClick={handleGoogleLogin}>
-            <FaGoogle size={24} color="#DB4437" />
-          </button>
-          <button className="social-btn facebook" onClick={handleFacebookLogin}>
-            <FaFacebookF size={24} color="#1877F2" />
-          </button>
-          <button
-            className="social-btn instagram"
-            title="Instagram not supported"
-            disabled
-          >
-            <FaInstagram size={24} color="#E4405F" />
-          </button>
-          <button
-            className="social-btn apple"
-            onClick={() => alert("Apple login not implemented yet.")}
-          >
-            <FaApple size={24} color="#333" />
-          </button>
+        <div className="login-social-login">
+          <p>Or log in with:</p>
+          <div className="login-social-icons">
+            <button
+              className="login-social-btn google"
+              onClick={handleGoogleLogin}
+            >
+              <FaGoogle size={24} color="#DB4437" />
+            </button>
+            <button
+              className="login-social-btn facebook"
+              onClick={handleFacebookLogin}
+            >
+              <FaFacebookF size={24} color="#1877F2" />
+            </button>
+            <button
+              className="login-social-btn instagram"
+              title="Instagram not supported"
+              disabled
+            >
+              <FaInstagram size={24} color="#E4405F" />
+            </button>
+            <button
+              className="login-social-btn apple"
+              onClick={() => alert("Apple login not implemented yet.")}
+            >
+              <FaApple size={24} color="#333" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      <p className="forgot-password" onClick={handleForgotPassword}>
-        Forgot your password?
-      </p>
-      <p className="signup-redirect">
-        Don’t have an account?{" "}
-        <span onClick={() => navigate("/register")} className="signup-link">
-          Sign up
-        </span>
-      </p>
-      <p className="message">{message}</p>
+        <p className="forgot-password" onClick={handleForgotPassword}>
+          Forgot your password?
+        </p>
+        <p className="signup-redirect">
+          Don’t have an account?{" "}
+          <span onClick={() => navigate("/register")} className="signup-link">
+            Sign up
+          </span>
+        </p>
+        <p className="message">{message}</p>
+      </div>
     </div>
   );
 }
