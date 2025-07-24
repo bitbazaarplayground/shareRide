@@ -1,11 +1,24 @@
+/* Login.css */
+
+.login-page {
+  min-height: 100vh;
+  background: url("/images/LoginBackground.png") center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
 .login-container {
   max-width: 400px;
-  margin: 2rem auto;
-  padding: 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  background: #fafafa;
-  font-family: Arial, sans-serif;
+  width: 100%;
+  padding: 2rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  margin-top: 45px;
 }
 
 h2 {
@@ -24,7 +37,7 @@ h2 {
   box-sizing: border-box;
 }
 
-.login-btn {
+.login-submit-btn {
   width: 100%;
   padding: 0.75rem;
   font-size: 1.1rem;
@@ -36,21 +49,29 @@ h2 {
   transition: background-color 0.3s ease;
 }
 
-.login-btn:hover {
+.login-submit-btn:hover {
   background-color: #753d13;
 }
 
-.social-login {
+.login-social-login {
   text-align: center;
   margin-top: 1.5rem;
 }
 
-.social-login p {
+.login-social-login p {
   margin-bottom: 0.5rem;
   color: #555;
 }
 
-.social-btn {
+.login-social-icons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.login-social-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -58,7 +79,7 @@ h2 {
   transition: transform 0.2s ease;
 }
 
-.social-btn:hover {
+.login-social-btn:hover {
   transform: scale(1.2);
 }
 
@@ -76,6 +97,7 @@ h2 {
   cursor: pointer;
   text-align: center;
 }
+
 .forgot-password:hover {
   color: #0056b3;
 }
@@ -92,6 +114,18 @@ h2 {
   cursor: pointer;
   text-decoration: underline;
 }
+
 .signup-link:hover {
   opacity: 0.9;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 1.2rem;
+  }
+
+  .login-social-icons {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
 }

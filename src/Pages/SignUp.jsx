@@ -38,7 +38,6 @@ export default function SignUp() {
         return;
       }
 
-      // Insert profile data manually
       const { error: profileError } = await supabase.from("profiles").insert([
         {
           id: user.id,
@@ -78,113 +77,109 @@ export default function SignUp() {
   };
 
   return (
-    <div className="signup-container">
-      <h2>Create an Account</h2>
-      <form onSubmit={handleSignUp} className="signup-form">
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Nickname (optional)"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Age"
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          min="18"
-          max="120"
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password (min 6 characters)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-        />
-        <button type="submit" className="signup-btn">
-          Sign Up
-        </button>
-      </form>
+    <div className="login-page">
+      <div className="login-container">
+        <h2>Create an Account</h2>
+        <form onSubmit={handleSignUp} className="login-form">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Nickname (optional)"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Age"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            min="18"
+            max="120"
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password (min 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+          <button type="submit" className="login-btn">
+            Sign Up
+          </button>
+        </form>
 
-      <div className="social-icons">
-        <p>Or sign up with:</p>
+        <div className="social-login">
+          <p>Or sign up with:</p>
+          <div className="login-social-icons">
+            {["google", "facebook", "instagram", "apple"].map((provider) => {
+              const icons = {
+                google: <FaGoogle size={24} color="#DB4437" />,
+                facebook: <FaFacebookF size={24} color="#1877F2" />,
+                instagram: <FaInstagram size={24} color="#E4405F" />,
+                apple: <FaApple size={24} color="#333" />,
+              };
 
-        <div className="tooltip-wrapper">
-          <div className="social-icons-buttons">
-            <button
-              className="social-btn google"
-              onClick={() => handleOAuthSignup("google")}
-              disabled={!termsAccepted}
-            >
-              <FaGoogle size={24} color="#DB4437" />
-            </button>
+              const isDisabled = !termsAccepted;
+              const handler =
+                provider === "instagram" || provider === "apple"
+                  ? () =>
+                      setMessage(
+                        `${
+                          provider.charAt(0).toUpperCase() + provider.slice(1)
+                        } sign-up not yet implemented.`
+                      )
+                  : () => handleOAuthSignup(provider);
 
-            <button
-              className="social-btn facebook"
-              onClick={() => handleOAuthSignup("facebook")}
-              disabled={!termsAccepted}
-            >
-              <FaFacebookF size={24} color="#1877F2" />
-            </button>
-
-            <button
-              className="social-btn instagram"
-              onClick={() =>
-                setMessage("Instagram sign-up not yet implemented.")
-              }
-              disabled={!termsAccepted}
-            >
-              <FaInstagram size={24} color="#E4405F" />
-            </button>
-
-            <button
-              className="social-btn apple"
-              onClick={() => setMessage("Apple sign-up not yet implemented.")}
-              disabled={!termsAccepted}
-            >
-              <FaApple size={24} color="#333" />
-            </button>
+              return (
+                <div key={provider} className="tooltip-wrapper">
+                  <button
+                    className="login-social-btn"
+                    onClick={handler}
+                    disabled={isDisabled}
+                  >
+                    {icons[provider]}
+                  </button>
+                  {isDisabled && (
+                    <span className="tooltip-text">
+                      Please accept Terms & Conditions
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {!termsAccepted && (
-            <span className="tooltip-text">
-              Please accept Terms & Conditions
-            </span>
-          )}
-        </div>
+          <div className="terms-checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={() => setTermsAccepted(!termsAccepted)}
+              />
+              I accept the{" "}
+              <a href="/Termsofuse" target="_blank" rel="noopener noreferrer">
+                Terms and Conditions
+              </a>
+            </label>
+          </div>
 
-        <div className="terms-checkbox">
-          <label>
-            <input
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={() => setTermsAccepted(!termsAccepted)}
-            />
-            I accept the{" "}
-            <a href="/Termsofuse" target="_blank" rel="noopener noreferrer">
-              Terms and Conditions
-            </a>
-          </label>
+          {message && <p className="message">{message}</p>}
         </div>
-
-        {message && <p className="message">{message}</p>}
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+/* === Base Layout === */
 .searchbar-container {
   display: flex;
   justify-content: center;
@@ -21,9 +22,11 @@
   gap: 0.5rem;
   flex: 1;
   min-width: 150px;
+  transition: background 0.3s ease;
 }
 
-.searchbar-item input {
+.searchbar-item input,
+.searchbar-item .autocomplete-input {
   border: none;
   background: transparent;
   font-size: 1rem;
@@ -57,26 +60,132 @@
   background-color: #007acc;
 }
 
+/* === Responsive for Tablets === */
 @media (max-width: 768px) {
-  .searchbar-box {
+  .searchbar-container {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
+    padding: 16px;
     border-radius: 20px;
   }
 
-  .searchbar-field {
+  .searchbar-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 10px 0;
     border: none;
     border-bottom: 1px solid #eee;
-    justify-content: flex-start;
   }
 
-  .searchbar-field:last-child {
+  .searchbar-item:last-child {
     border-bottom: none;
   }
 
-  .passenger-dropdown-panel {
-    top: auto;
-    left: 0;
-    right: auto;
+  .searchbar-button {
+    align-self: center;
+    width: 100%;
+    max-width: 200px;
+    font-size: 1.1rem;
+    padding: 12px;
+    margin-top: 12px;
   }
+
+  .passenger-dropdown-panel {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .passenger-item {
+    width: 100%;
+  }
+}
+/* === Calendar === */
+/* Calendar container */
+.react-datepicker {
+  border-radius: 20px;
+  font-family: "Poppins", sans-serif;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+/* Header */
+.react-datepicker__current-month {
+  font-weight: bold;
+  font-size: 1.25rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: #003049;
+}
+
+.react-datepicker__header {
+  background-color: white;
+  border: none;
+}
+
+/* Days of the week */
+.react-datepicker__day-name {
+  color: #f4aa0a;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Day cells */
+.react-datepicker__day {
+  color: #555;
+  border-radius: 50%;
+  width: 2.4rem;
+  line-height: 2.4rem;
+  margin: 0.2rem;
+  font-size: 0.95rem;
+}
+
+.react-datepicker__day--selected {
+  background-color: #f4aa0a;
+  color: white;
+  font-weight: bold;
+}
+
+.react-datepicker__day:hover {
+  background-color: #e0f7ff;
+  color: #f4aa0a;
+}
+
+/* Navigation arrows */
+.react-datepicker__navigation-icon::before {
+  border-color: #f4aa0a;
+}
+
+/* === Responsive for Phones === */
+@media (max-width: 480px) {
+  .searchbar-container {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .searchbar-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .searchbar-button {
+    font-size: 1rem;
+    padding: 10px;
+  }
+
+  .searchbar-item input,
+  .searchbar-item .autocomplete-input {
+    width: 100%;
+  }
+}
+
+/* === Accessibility and Prefixed Fix === */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
 }

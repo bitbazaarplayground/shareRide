@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -38,7 +40,7 @@ export default function SearchBar({
   };
 
   return (
-    <div className="searchbar-container">
+    <div className="searchbar-container glass">
       <div className="searchbar-item">
         <FaMapMarkerAlt className="icon" />
         <AutocompleteInput
@@ -57,10 +59,12 @@ export default function SearchBar({
 
       <div className="searchbar-item">
         <FaCalendarAlt className="icon" />
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
+        <DatePicker
+          selected={new Date(selectedDate)}
+          onChange={(date) => setSelectedDate(date.toISOString().split("T")[0])}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Select a date"
+          className="custom-datepicker"
         />
       </div>
 
