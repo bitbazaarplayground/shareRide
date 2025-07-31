@@ -12,7 +12,11 @@ import AuthCallback from "./Pages/AuthCallback";
 import CompleteProfile from "./Pages/CompleteProfile";
 import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
-import Help from "./Pages/Help";
+import CreatingAccount from "./Pages/Help/CreatingAccount";
+import Help from "./Pages/Help/Help";
+import AccountHelp from "./Pages/Help/HelpAccount";
+import LoginTroubleshooting from "./Pages/Help/HelpTroubleshooting";
+import ManageProfile from "./Pages/Help/ManageProfile";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
@@ -104,8 +108,24 @@ export default function App() {
           <Route path="/Termsofuse" element={<TermsofUse />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiesPolicy />} />
+
           {/* Help */}
+
           <Route path="/help" element={<Help />} />
+          <Route path="/help/account" element={<AccountHelp />} />
+          <Route
+            path="/help/account/creating-account"
+            element={<CreatingAccount />}
+          />
+          <Route
+            path="/help/account/manage-profile"
+            element={<ManageProfile />}
+          />
+          <Route
+            path="/help/account/login-troubleshooting"
+            element={<LoginTroubleshooting />}
+          />
+
           {/* Redirects */}
           {/* Payments */}
           <Route

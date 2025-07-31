@@ -1,0 +1,180 @@
+.help-wrapper {
+  font-family: "Segoe UI", sans-serif;
+  color: #333;
+  padding: 2rem 1rem;
+  background: #fff;
+  max-width: 1200px;
+  margin: 0 auto;
+  margin-top: 6rem;
+}
+
+.help-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.help-header h1 {
+  font-size: 2.5rem;
+  color: #05445e;
+  margin-bottom: 1rem;
+}
+
+.search-box {
+  display: flex;
+  justify-content: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 25px 0 0 25px;
+  outline: none;
+}
+
+.search-box button {
+  padding: 0 1.2rem;
+  background-color: #00a8e8;
+  color: #fff;
+  border: none;
+  border-radius: 0 25px 25px 0;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.help-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.help-card {
+  flex: 1 1 180px;
+  max-width: 220px;
+  background-color: #f9f9f9;
+  text-align: center;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.2s ease;
+}
+
+.help-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.help-card img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 0.75rem;
+}
+
+.help-card span {
+  font-weight: 600;
+  display: block;
+  font-size: 1rem;
+}
+
+.articles-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 2rem;
+  background-color: #e6f7ff;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.articles-box {
+  flex: 1;
+  min-width: 220px;
+}
+
+.articles-box h2 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #003f5c;
+}
+
+.articles-box ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.articles-box li {
+  margin-bottom: 0.5rem;
+}
+
+.articles-box a {
+  text-decoration: none;
+  color: #0077b6;
+}
+
+.articles-box a:hover {
+  text-decoration: underline;
+}
+/* Help Account */
+.subtext {
+  font-size: 1rem;
+  color: #555;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+}
+
+.help-links-section {
+  margin-top: 2rem;
+  padding: 1rem 0;
+}
+
+.help-sublinks {
+  list-style: none;
+  padding: 0;
+}
+
+.help-sublinks li {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.help-sublinks a {
+  color: #0077b6;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.help-sublinks a:hover {
+  text-decoration: underline;
+  color: #023e8a;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .search-box {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .search-box input,
+  .search-box button {
+    width: 100%;
+    border-radius: 25px;
+  }
+
+  .help-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .articles-section {
+    flex-direction: column;
+  }
+}
