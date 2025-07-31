@@ -1,0 +1,88 @@
+/* .help-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: "Segoe UI", sans-serif;
+  color: #333;
+  background-color: #fff;
+  margin-top: 5px;
+}
+
+.help-container h1 {
+  font-size: 2.4rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #222;
+}
+
+.help-section {
+  margin-bottom: 3rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 2rem;
+}
+
+.help-section h2 {
+  font-size: 1.6rem;
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+}
+
+.help-section ul,
+.help-section ol {
+  padding-left: 1.5rem;
+}
+
+.help-section li {
+  margin-bottom: 0.5rem;
+}
+
+.help-section p {
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.contact-info {
+  background-color: #f9f9f9;
+  border-left: 4px solid #1e3a8a;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.contact-info p {
+  margin: 0.3rem 0;
+}
+
+.quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.quick-links a {
+  color: #1e3a8a;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.quick-links a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .help-container {
+    padding: 1rem;
+  }
+
+  .help-container h1 {
+    font-size: 2rem;
+  }
+
+  .help-section h2 {
+    font-size: 1.4rem;
+  }
+
+  .quick-links {
+    flex-direction: column;
+  }
+} */

@@ -1,0 +1,54 @@
+// 1. Frequently Asked Questions (FAQ)
+// Organize into categories:
+
+// Account & Login
+// How do I reset my password?
+// Can I change my email or nickname?
+// Booking Rides
+// How do I request a ride?
+// Can I cancel after booking?
+// Payments
+// Is payment processed through the app?
+// Can I get a refund?
+// 2. Getting Started Guide
+// A visual walkthrough or brief steps:
+
+// How to register and complete your profile
+// How to publish a ride (for drivers)
+// How to search and book a ride (for passengers)
+// You can include icons or small videos/GIFs for better UX.
+
+// 3. Contact Support
+// Simple form: Name, email, subject, message
+// Option to upload screenshots (optional)
+// Email: support@shareride.com
+// Add a note on typical response time (e.g., "We aim to respond within 24 hours.")
+// 4. Live Chat / Chatbot (Optional if time allows)
+// If you want to impress, consider adding:
+
+// A basic AI chatbot (e.g., with Dialogflow or Botpress)
+// Or a manual contact system that sends messages to your admin dashboard
+// 5. Terms and Privacy Quick Links
+// Add links to:
+
+// Terms & Conditions
+// Privacy Policy
+// Community Guidelines (optional but good for trust)
+// 6. Ride Safety Tips
+// Especially for a ride-sharing platform:
+
+// Always verify driver and vehicle info
+// Share your ride with friends/family
+// Meet in public places
+// 7. Report a Problem
+// If something goes wrong, users should have a way to:
+
+// Report a ride or user
+// Flag inappropriate messages or behavior
+// You could just link this to a Google Form or use Supabase to log reports initially.
+// 🧩 Implementation Tips
+
+// You could design this as:
+
+// A full /help route with sections using anchors (#faq, #contact, etc.)
+// Or a modal/popover if it's small and direct
