@@ -12,6 +12,7 @@ import AuthCallback from "./Pages/AuthCallback";
 import CompleteProfile from "./Pages/CompleteProfile";
 import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
+import Help from "./Pages/Help";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
@@ -103,6 +104,9 @@ export default function App() {
           <Route path="/Termsofuse" element={<TermsofUse />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiesPolicy />} />
+          {/* Help */}
+          <Route path="/help" element={<Help />} />
+          {/* Redirects */}
           {/* Payments */}
           <Route
             path="/splitride-confirm/:rideId"
