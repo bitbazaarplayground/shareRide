@@ -1,10 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import "./StylesHelp/HelpAccount.css"; // adjust path as needed
+import Breadcrumb from "../Breadcrumb";
+import "../StylesHelp/HelpAccount.css";
 
 export default function AccountHelp() {
+  const breadcrumbItems = [
+    { label: "Help", to: "/help" },
+    { label: "Account" },
+  ];
   return (
     <div className="help-wrapper">
+      <Breadcrumb items={breadcrumbItems} />
+
       <header className="help-header">
         <h1>Your Profile & Account</h1>
         <p className="subtext">
@@ -28,6 +35,19 @@ export default function AccountHelp() {
             <Link to="/help/account/login-troubleshooting">
               🔗 Troubleshooting login
             </Link>
+          </li>
+          <li>
+            <Link to="/help/account/ratings">
+              🔗 Leaving Ratings & Comments
+            </Link>
+          </li>
+          <li>
+            <Link to="/help/account/managing-your-account">
+              🔗 Managing Your Account
+            </Link>
+          </li>
+          <li>
+            <Link to="/help/account/account-security">🔐 Account Security</Link>
           </li>
         </ul>
       </section>

@@ -12,11 +12,17 @@ import AuthCallback from "./Pages/AuthCallback";
 import CompleteProfile from "./Pages/CompleteProfile";
 import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
-import CreatingAccount from "./Pages/Help/CreatingAccount";
 import Help from "./Pages/Help/Help";
-import AccountHelp from "./Pages/Help/HelpAccount";
-import LoginTroubleshooting from "./Pages/Help/HelpTroubleshooting";
-import ManageProfile from "./Pages/Help/ManageProfile";
+import CreatingAccount from "./Pages/Help/YourProfileAndAccount/CreatingAccount";
+import AccountHelp from "./Pages/Help/YourProfileAndAccount/HelpAccount";
+import RatingsHelp from "./Pages/Help/YourProfileAndAccount/HelpRatings";
+import LoginTroubleshooting from "./Pages/Help/YourProfileAndAccount/HelpTroubleshooting";
+import ManageProfile from "./Pages/Help/YourProfileAndAccount/ManageProfile";
+import AccountSecurityHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Account/AccountSecurity";
+import DeleteProfileHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Account/DeteleProfile";
+import EditProfileHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Account/EditProfile";
+import ManageAccountOverview from "./Pages/Help/YourProfileAndAccount/Managing Your Account/ManagingYourAccount";
+import NotificationsHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Account/Notifications";
 import Homepage from "./Pages/Homepage";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
@@ -112,6 +118,7 @@ export default function App() {
           {/* Help */}
 
           <Route path="/help" element={<Help />} />
+          {/* Help Your Profile And Account */}
           <Route path="/help/account" element={<AccountHelp />} />
           <Route
             path="/help/account/creating-account"
@@ -124,6 +131,27 @@ export default function App() {
           <Route
             path="/help/account/login-troubleshooting"
             element={<LoginTroubleshooting />}
+          />
+          <Route path="/help/account/ratings" element={<RatingsHelp />} />
+          <Route
+            path="/help/account/managing-your-account"
+            element={<ManageAccountOverview />}
+          />
+          <Route
+            path="/help/account/notifications"
+            element={<NotificationsHelp />}
+          />
+          <Route
+            path="/help/account/edit-profile"
+            element={<EditProfileHelp />}
+          />
+          <Route
+            path="/help/account/delete-profile"
+            element={<DeleteProfileHelp />}
+          />
+          <Route
+            path="/help/account/account-security"
+            element={<AccountSecurityHelp />}
           />
 
           {/* Redirects */}

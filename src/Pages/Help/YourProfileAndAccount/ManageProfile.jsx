@@ -1,8 +1,15 @@
 import React from "react";
+import Breadcrumb from "../Breadcrumb";
 
 export default function ManageProfile() {
+  const breadcrumbItems = [
+    { label: "Help", to: "/help" },
+    { label: "Account", to: "/help/account" },
+    { label: "Managing Your Profile" },
+  ];
   return (
     <div className="help-wrapper">
+      <Breadcrumb items={breadcrumbItems} />
       <header className="help-header">
         <h1>Managing Your Profile</h1>
         <p className="subtext">
