@@ -1,9 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Breadcrumb from "../Breadcrumb";
 
 export default function LoginTroubleshooting() {
+  const breadcrumbItems = [
+    { label: "Help", to: "/help" },
+    { label: "Account", to: "/help/account" },
+    { label: "Troubleshooting Login" },
+  ];
   return (
     <div className="help-wrapper">
+      <Breadcrumb items={breadcrumbItems} />
       <header className="help-header">
         <h1>Troubleshooting Login</h1>
         <p className="subtext">Having trouble logging in? Let’s fix that.</p>
