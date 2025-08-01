@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Breadcrumb from "../Breadcrumb";
-import "../StylesHelp/HelpAccount.css";
 
 export default function AccountHelp() {
   const breadcrumbItems = [
