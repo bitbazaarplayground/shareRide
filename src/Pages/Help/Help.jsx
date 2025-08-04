@@ -17,19 +17,22 @@ export default function HelpPage() {
       {/* Help Category Cards */}
       <section className="help-cards">
         <Link to="/help/passenger" className="help-card">
-          <img src="/images/help/passenger.png" alt="Passenger" />
+          <img src="/images/PassengerHelp.png" alt="Passenger" />
           <span>Passenger</span>
         </Link>
         <Link to="/help/driver" className="help-card">
-          <img src="/images/help/driver.png" alt="Driver" />
+          <img src="public/images/taxiHelp.avif" alt="Driver" />
           <span>Driver</span>
         </Link>
         <Link to="/help/account" className="help-card">
-          <img src="/images/help/account.png" alt="Your Profile and Account" />
+          <img
+            src="public/images/YourProfileHelp.jpeg"
+            alt="Your Profile and Account"
+          />
           <span>Your Profile & Account</span>
         </Link>
         <Link to="/help/safety" className="help-card">
-          <img src="/images/help/safety.png" alt="Trust and Safety" />
+          <img src="public/images/TrustSafeHelp.png" alt="Trust and Safety" />
           <span>Trust, Safety & Accessibility</span>
         </Link>
         <Link to="/help/about" className="help-card">
