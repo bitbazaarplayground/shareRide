@@ -13,6 +13,20 @@ import CompleteProfile from "./Pages/CompleteProfile";
 import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
 import Help from "./Pages/Help/Help";
+import PassengerHelp from "./Pages/Help/Passenger/PassengerHelpMain";
+import BookingRequestsAndConfirmation from "./Pages/Help/Passenger/SearchingAndBooking/BookingRequestsAndConfirmation";
+import CommunicatingWithDrivers from "./Pages/Help/Passenger/SearchingAndBooking/CommunicatingWithDrivers";
+import HowToBook from "./Pages/Help/Passenger/SearchingAndBooking/HowToBook";
+import Luggage from "./Pages/Help/Passenger/SearchingAndBooking/Luggage";
+import Requirements from "./Pages/Help/Passenger/SearchingAndBooking/Requirements";
+import SearchTips from "./Pages/Help/Passenger/SearchingAndBooking/SearchTips";
+import Cancellations from "./Pages/Help/Passenger/YourBookings/Cancellations";
+import ChangeBooking from "./Pages/Help/Passenger/YourBookings/ChangeBooking";
+import FindBooking from "./Pages/Help/Passenger/YourBookings/FindBooking";
+import LostItem from "./Pages/Help/Passenger/YourBookings/LostItem";
+import PostRide from "./Pages/Help/Passenger/YourBookings/PostRide";
+import PreparingToTravel from "./Pages/Help/Passenger/YourBookings/PreparingToTravel";
+import Troubleshooting from "./Pages/Help/Passenger/YourBookings/Troubleshooting";
 import AccountSecurityHelp from "./Pages/Help/YourProfileAndAccount/AccountSecurity";
 import CreatingAccount from "./Pages/Help/YourProfileAndAccount/CreatingAccount";
 import AccountHelp from "./Pages/Help/YourProfileAndAccount/HelpAccount";
@@ -118,6 +132,52 @@ export default function App() {
           {/* Help */}
 
           <Route path="/help" element={<Help />} />
+          {/* Passenger */}
+          <Route path="/help/passenger" element={<PassengerHelp />} />
+          {/* SUBLINKS Searching And Booking */}
+          <Route path="/help/passenger/search-tips" element={<SearchTips />} />
+          <Route path="/help/passenger/how-to-book" element={<HowToBook />} />
+          <Route
+            path="/help/passenger/requirements"
+            element={<Requirements />}
+          />
+          <Route
+            path="/help/passenger/booking-confirmation"
+            element={<BookingRequestsAndConfirmation />}
+          />
+          <Route
+            path="/help/passenger/communicating-drivers"
+            element={<CommunicatingWithDrivers />}
+          />
+          <Route path="/help/passenger/luggage" element={<Luggage />} />
+          {/* SUBLINKS Payments, Pricing and Refunds */}
+          {/* SUBLINKS Your Bookings */}
+
+          <Route
+            path="/help/passenger/find-booking"
+            element={<FindBooking />}
+          />
+          <Route
+            path="/help/passenger/cancellations"
+            element={<Cancellations />}
+          />
+          <Route
+            path="/help/passenger/change-booking"
+            element={<ChangeBooking />}
+          />
+          <Route
+            path="/help/passenger/preparing-travel"
+            element={<PreparingToTravel />}
+          />
+          <Route path="/help/passenger/post-ride" element={<PostRide />} />
+          <Route path="/help/passenger/lost-item" element={<LostItem />} />
+          <Route
+            path="/help/passenger/troubleshooting"
+            element={<Troubleshooting />}
+          />
+
+          {/* Driver */}
+          {/*  */}
           {/* Help Your Profile And Account */}
           <Route path="/help/account" element={<AccountHelp />} />
           <Route
