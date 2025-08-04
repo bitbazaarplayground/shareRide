@@ -67,6 +67,8 @@
 /* 3. Ride details */
 .ride-details {
   margin-bottom: 0.75rem;
+  text-align: center;
+  /* Check the above */
 }
 
 .ride-details p {
