@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "../Components/ConfirmModal";
+
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
