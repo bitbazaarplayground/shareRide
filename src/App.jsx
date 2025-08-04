@@ -86,7 +86,7 @@ export default function App() {
   return (
     <AuthProvider>
       <div className="full-width-nav">
-        <Navbar />
+        <Navbar variant="solid" />
       </div>
 
       <div className="app-content">
