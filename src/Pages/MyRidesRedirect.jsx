@@ -6,7 +6,7 @@ import ConfirmModal from "../Components/ConfirmModal";
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
-import "./StylesPages/MyRides.css";
+import "./StylesPages/MyRidesRedirect.css";
 
 export default function MyRidesRedirect() {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ export default function MyRidesRedirect() {
 
   const [publishedRides, setPublishedRides] = useState([]);
   const [savedRides, setSavedRides] = useState([]);
+  const [bookedRides, setBookedRides] = useState([]);
   const [activeTab, setActiveTab] = useState("published");
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -35,14 +36,51 @@ export default function MyRidesRedirect() {
     const fetchSavedRides = async () => {
       const { data, error } = await supabase
         .from("saved_rides")
-        .select("rides(*)")
+        .select("rides(*, profiles(*))")
         .eq("user_id", user.id);
 
       if (!error) setSavedRides(data.map((entry) => entry.rides));
     };
 
+    const fetchBookedRides = async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select(
+          `
+          id,
+          seats_booked,
+          backpacks,
+          small_suitcases,
+          large_suitcases,
+          rides(*, profiles(*))
+        `
+        )
+        .eq("user_id", user.id);
+
+      if (!error) {
+        const formatted = data.map((entry) => ({
+          ride: entry.rides,
+          bookingDetails: {
+            seats: entry.seats_booked,
+            backpacks: entry.backpacks,
+            small: entry.small_suitcases,
+            large: entry.large_suitcases,
+          },
+        }));
+        setBookedRides(formatted);
+      }
+    };
+
+    const formatLuggage = (entry) => {
+      const parts = [];
+      if (entry.backpacks) parts.push(`${entry.backpacks} backpack(s)`);
+      if (entry.suitcases) parts.push(`${entry.suitcases} suitcase(s)`);
+      return parts.join(", ");
+    };
+
     fetchPublishedRides();
     fetchSavedRides();
+    fetchBookedRides();
   }, [user]);
 
   const today = new Date().toISOString().split("T")[0];
@@ -66,12 +104,14 @@ export default function MyRidesRedirect() {
       .from("rides")
       .delete()
       .eq("id", rideToDelete);
+
     if (!error) {
       setPublishedRides((prev) => prev.filter((r) => r.id !== rideToDelete));
       toast.success("Ride deleted successfully.");
     } else {
       toast.error("Failed to delete ride.");
     }
+
     setConfirmOpen(false);
     setRideToDelete(null);
     setLoading(false);
@@ -106,6 +146,12 @@ export default function MyRidesRedirect() {
           className={activeTab === "saved" ? "active" : ""}
         >
           Saved Rides
+        </button>
+        <button
+          onClick={() => setActiveTab("booked")}
+          className={activeTab === "booked" ? "active" : ""}
+        >
+          Booked Rides
         </button>
       </div>
 
@@ -160,12 +206,34 @@ export default function MyRidesRedirect() {
                   user={user}
                   canSave={true}
                   isSaved={true}
+                  showBookNow={true}
+                  onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                   onSaveToggle={handleUnsave}
                 />
               ))}
             </ul>
           ) : (
             <p>No saved rides.</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === "booked" && (
+        <div className="rides-section">
+          {bookedRides.length > 0 ? (
+            <ul className="ride-list">
+              {bookedRides.map(({ ride, bookingDetails }) => (
+                <RideCard
+                  key={ride.id}
+                  ride={ride}
+                  user={user}
+                  bookingDetails={bookingDetails}
+                  onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p>No booked rides.</p>
           )}
         </div>
       )}

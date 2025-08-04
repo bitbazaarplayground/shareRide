@@ -16,6 +16,7 @@ export default function RideCard({
   onSaveToggle,
   onStartChat,
   showBookNow = false,
+  bookingDetails = null, // NEW for booked rides
 }) {
   const navigate = useNavigate();
 
@@ -84,10 +85,26 @@ export default function RideCard({
         <p>
           <strong>Seats:</strong> {ride.seats}
         </p>
-        {ride.notes && (
-          <p className="ride-notes">
-            <em>{ride.notes}</em>
-          </p>
+
+        {bookingDetails && (
+          <>
+            <p>
+              <strong>Seats Booked:</strong> {bookingDetails.seats}
+            </p>
+            <p>
+              <strong>Luggage:</strong>{" "}
+              {[
+                bookingDetails.backpacks &&
+                  `${bookingDetails.backpacks} backpack(s)`,
+                bookingDetails.small &&
+                  `${bookingDetails.small} small suitcase(s)`,
+                bookingDetails.large &&
+                  `${bookingDetails.large} large suitcase(s)`,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          </>
         )}
       </div>
 
