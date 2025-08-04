@@ -7,7 +7,7 @@ import { supabase } from "../supabaseClient";
 
 import "./Styles/Navbar.css";
 
-export default function Navbar() {
+export default function Navbar({ variant = "transparent" }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -34,9 +34,7 @@ export default function Navbar() {
         .eq("recipient_id", user.id)
         .eq("seen", false);
 
-      if (!error) {
-        setUnreadCount(data.length);
-      }
+      if (!error) setUnreadCount(data.length);
     };
 
     const fetchProfile = async () => {
@@ -93,7 +91,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar ${variant}`}>
       <div className="navbar-left">
         <Link to="/" className="brand">
           Tabfair
