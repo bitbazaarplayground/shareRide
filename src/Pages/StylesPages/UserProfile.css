@@ -109,11 +109,6 @@
   transition: background 0.3s ease;
 }
 
-.save-btn:hover,
-.profile-info button:hover {
-  background-color: #cc5000;
-}
-
 @media (max-width: 768px) {
   .profile-section {
     flex-direction: column;
