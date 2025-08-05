@@ -55,34 +55,6 @@
   font-weight: bold;
 }
 
-/* === CTA BUTTON STYLING === */
-/* .cta-button {
-  background-color: white;
-  color: #e66000;
-  padding: 0.75rem 1.5rem;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: 0.3s ease;
-  animation: pulseBtn 2s ease infinite;
-  z-index: 3;
-}
-
-.hero-overlay .cta-button {
-  font-size: 1.25rem;
-  padding: 1rem 2rem;
-}
-
-.cta-button:hover {
-  background-color: #f9f9f9;
-}
-
-.cta-button.secondary {
-  background-color: #e66000;
-  color: white;
-} */
-
 /* === SAVINGS SECTION === */
 .savings-comparison {
   text-align: center;
@@ -226,6 +198,23 @@
   background: #f9f9f9;
   padding: 3rem 2rem;
   text-align: center;
+}
+
+/* === WAVES === */
+.orange-bottom-wave {
+  position: relative;
+  width: 100%;
+  height: 400px; /* 🔼 more height */
+  overflow: hidden;
+  line-height: 0;
+  z-index: 5;
+  margin-top: -145px;
+}
+
+.orange-bottom-wave svg {
+  width: 100%;
+  height: 80%;
+  display: block;
 }
 
 /* === ANIMATIONS === */

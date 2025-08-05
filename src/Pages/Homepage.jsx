@@ -36,6 +36,7 @@ export default function Homepage() {
               className="hero-img"
             />
           </picture>
+
           <div className="hero-overlay">
             {showMainText ? (
               <p className="tagline">
@@ -48,6 +49,23 @@ export default function Homepage() {
             )}
           </div>
         </section>
+        {/* TOP WAVE (OUTSIDE HERO WRAPPER) */}
+        <div className="orange-bottom-wave">
+          <svg
+            viewBox="0 0 1440 320"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill="#e66000"
+              d="
+              M0,120
+              C20,110 1440,260 1640,40
+              C640,180 180,90 0,80
+              Z"
+            />
+          </svg>
+        </div>
 
         {/* SAVINGS SECTION */}
         <section className="savings-comparison">
@@ -92,6 +110,21 @@ export default function Homepage() {
             </div>
           </div>
         </section>
+
+        {/* BOTTOM WAVE */}
+        {/* <div className="wave wave-bottom">
+          <svg
+            viewBox="0 0 1440 320"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill="#e66000"
+              fillOpacity="1"
+              d="M0,96 C480,0 960,192 1440,96 L1440,0 L0,0 Z"
+            />
+          </svg>
+        </div> */}
 
         {/* HOW IT WORKS */}
         <section className="how-it-works">
