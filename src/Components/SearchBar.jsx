@@ -67,6 +67,7 @@ export default function SearchBar({
           dateFormat="dd/MM/yyyy"
           placeholderText="Select a date"
           className="custom-datepicker"
+          calendarClassName="global-datepicker"
         />
       </div>
 

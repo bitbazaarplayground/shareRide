@@ -196,11 +196,12 @@ export default function PublishRide() {
 
         <DatePicker
           selected={date}
-          minDate={new Date()} // 🔒 Prevent past dates
+          minDate={new Date()}
           onChange={(date) => setDate(date)}
           dateFormat="dd/MM/yyyy"
           placeholderText="Select a date"
           className="custom-datepicker"
+          calendarClassName="global-datepicker"
         />
 
         <input
