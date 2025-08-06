@@ -1,95 +1,121 @@
-/* PublishRide.css */
-
+/* === Container === */
 .publish-container {
-  max-width: 600px;
-  margin: 2rem auto;
+  max-width: 720px;
+  margin: 3rem auto;
   padding: 2rem;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
   font-family: "Segoe UI", sans-serif;
-}
-
-.publish-container h2 {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  font-size: 1.75rem;
   color: #333;
 }
 
-form {
+/* === Header === */
+.publish-container h2 {
+  text-align: center;
+  font-size: 2rem;
+  color: #007acc;
+  margin-bottom: 2rem;
+}
+
+/* === Form === */
+.publish-container form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
-input[type="text"],
-input[type="date"],
-input[type="time"],
-input[type="number"],
-select,
-textarea {
-  padding: 0.75rem 1rem;
+/* === Inputs & Selects === */
+.publish-container input[type="text"],
+.publish-container input[type="number"],
+.publish-container input[type="date"],
+.publish-container input[type="time"],
+.publish-container select,
+.publish-container textarea {
+  padding: 12px 16px;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 1rem;
   width: 100%;
-  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+  transition: border 0.2s ease;
 }
 
-/* input:focus,
-select:focus,
-textarea:focus {
+.publish-container input:focus,
+.publish-container select:focus,
+.publish-container textarea:focus {
+  border-color: #007acc;
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-} */
+}
 
-label {
+/* === Labels === */
+.publish-container label {
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin-bottom: 4px;
+  display: block;
   color: #444;
 }
 
-textarea {
+/* === Estimated Price === */
+.publish-container p {
+  font-weight: bold;
+  color: #007acc;
+  margin: 0.5rem 0 0;
+}
+
+/* === Textarea === */
+.publish-container textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
 }
 
-button[type="submit"] {
-  background-color: #007bff;
+/* === Button === */
+.publish-container button[type="submit"] {
+  background-color: #007acc;
   color: white;
-  border: none;
-  padding: 0.9rem 1.2rem;
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 14px 24px;
   font-size: 1rem;
-  font-weight: 600;
-  transition: background-color 0.2s ease;
+  font-weight: bold;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+  margin-top: 1rem;
 }
 
-button[type="submit"]:hover {
-  background-color: #0056b3;
-}
-
-button[disabled] {
+.publish-container button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
 }
 
+.publish-container button:hover:not(:disabled) {
+  background-color: #005fa3;
+}
+
+/* === Success / Error Message === */
+.publish-container > p {
+  margin-top: 1rem;
+  font-weight: 600;
+  text-align: center;
+  color: #007acc;
+}
+
+.publish-container > p:contains("❌") {
+  color: #cc0000;
+}
+
+/* === Responsive === */
 @media (max-width: 600px) {
   .publish-container {
-    padding: 1.25rem;
+    padding: 1.5rem;
+    margin: 2rem 1rem;
   }
 
   .publish-container h2 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
   }
 
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 1rem;
+  .publish-container button[type="submit"] {
+    width: 100%;
   }
 }
