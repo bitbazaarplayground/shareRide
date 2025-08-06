@@ -4,6 +4,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import "../GlobalStyles/globalDatePicker.css";
 import { supabase } from "../supabaseClient";
 import AutocompleteInput from "./AutocompleteInput";
 import PassengerCounter from "./PassengerCounter";
@@ -62,6 +63,7 @@ export default function SearchBar({
         <DatePicker
           selected={new Date(selectedDate)}
           onChange={(date) => setSelectedDate(date.toISOString().split("T")[0])}
+          minDate={new Date()} // 🔒 Prevent past dates
           dateFormat="dd/MM/yyyy"
           placeholderText="Select a date"
           className="custom-datepicker"

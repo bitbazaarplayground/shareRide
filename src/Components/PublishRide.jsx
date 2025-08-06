@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useNavigate } from "react-router-dom";
 import AutocompleteInput from "../Components/AutocompleteInput";
 import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
+import "../GlobalStyles/globalDatePicker.css";
 import { supabase } from "../supabaseClient";
 
 export default function PublishRide() {
@@ -15,7 +18,8 @@ export default function PublishRide() {
   const [fromCoords, setFromCoords] = useState(null);
   const [toCoords, setToCoords] = useState(null);
   const [estimate, setEstimate] = useState(null);
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(new Date());
+
   const [time, setTime] = useState("12:00");
 
   // ✅ New state
@@ -126,7 +130,7 @@ export default function PublishRide() {
         {
           from: fromPlace,
           to: toPlace,
-          date,
+          date: date.toISOString().split("T")[0],
           time,
           seats: seatsReserved,
           notes,
@@ -190,13 +194,15 @@ export default function PublishRide() {
 
         {estimate && <p>Estimated Taxi Cost: £{estimate}</p>}
 
-        <input
-          type="date"
-          value={date}
-          min={today}
-          onChange={(e) => setDate(e.target.value)}
-          required
+        <DatePicker
+          selected={date}
+          minDate={new Date()} // 🔒 Prevent past dates
+          onChange={(date) => setDate(date)}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Select a date"
+          className="custom-datepicker"
         />
+
         <input
           type="time"
           value={time}
