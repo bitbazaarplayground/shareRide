@@ -11,7 +11,7 @@ body {
   justify-content: space-between;
   align-items: center;
   font-family: "Inter", sans-serif;
-  padding: 14px 2rem;
+  padding: 3px 1.3rem;
   width: 100%;
   z-index: 1000;
 }
@@ -181,30 +181,38 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .navbar {
+  /* .navbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center; 
     padding: 12px 1rem;
+    text-align: center;
   }
 
   .navbar-center {
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
     flex-wrap: wrap;
     justify-content: center;
-  }
+    gap: 0.75rem;
+    width: 100%;
+  } */
 
   .navbar-center a,
   .about-btn {
     font-size: 0.95rem;
+    padding: 6px 12px;
+    white-space: nowrap;
   }
 
-  .navbar-right {
-    margin-top: 0.5rem;
+  /* .navbar-right {
+    margin-top: 0.75rem;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 0.75rem;
+    width: 100%;
   }
 
   .brand {
-    font-size: 1.5rem;
-  }
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  } */
 }

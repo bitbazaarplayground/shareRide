@@ -68,7 +68,7 @@ export default function SearchBar({
         />
       </div>
 
-      <div className="searchbar-item passenger-item">
+      <div className="passenger-item">
         <PassengerCounter
           passengerCount={passengerCount}
           setPassengerCount={setPassengerCount}
