@@ -3,7 +3,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   background: white;
   padding: 20px;
   border-radius: 2rem;
@@ -11,6 +11,7 @@
   gap: 1rem;
   margin: 0 auto;
   max-width: 1200px;
+  z-index: 2000;
 }
 
 .searchbar-item {
@@ -21,7 +22,7 @@
   border-radius: 12px;
   gap: 0.5rem;
   flex: 1;
-  min-width: 150px;
+  min-width: 120px;
   transition: background 0.3s ease;
 }
 
@@ -33,6 +34,9 @@
   outline: none;
   width: 100%;
 }
+/* .searchbar-container.glass {
+  background-color: #8a8579;
+} */
 
 .searchbar-item .icon {
   font-size: 1.2rem;
