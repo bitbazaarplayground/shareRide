@@ -39,41 +39,46 @@ export default function CropModal({ file, onCropComplete, onCancel }) {
   };
 
   return (
-    <div className="crop-modal">
-      <div className="crop-container">
-        {imageSrc && (
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            minZoom={1}
-            maxZoom={3}
-            aspect={1}
-            cropShape="round"
-            showGrid={false}
-            restrictPosition={true} // ✅ Prevent over-drag
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropCompleteInternal}
+    <div className="crop-modal-overlay">
+      <div className="crop-modal-content">
+        <div className="cropper-wrapper">
+          {imageSrc && (
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              minZoom={1}
+              maxZoom={3}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              restrictPosition={true}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropCompleteInternal}
+            />
+          )}
+        </div>
+
+        <div className="slider-container">
+          <Slider
+            value={zoom}
+            min={1}
+            max={3}
+            step={0.1}
+            onChange={(e, z) => setZoom(z)}
+            aria-label="Zoom"
           />
-        )}
-      </div>
+        </div>
 
-      <Slider
-        value={zoom}
-        min={1}
-        max={3}
-        step={0.1}
-        onChange={(e, z) => setZoom(z)}
-      />
-
-      <div className="crop-actions">
-        <Button variant="outlined" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={handleDone}>
-          Crop & Upload
-        </Button>
+        <div className="crop-actions">
+          <Button variant="outlined" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleDone}>
+            Crop & Upload
+          </Button>
+        </div>
       </div>
     </div>
   );
