@@ -1,33 +1,62 @@
 /* Styles/CropModal.css */
 
-.crop-modal {
+/* === Overlay Style === */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0; /* shorthand for top:0, right:0, bottom:0, left:0 */
+  background-color: rgba(128, 128, 128, 0.5);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  background: #fff;
-  padding: 1rem;
-  border-radius: 10px;
-  max-width: 500px;
-  margin: auto;
+  justify-content: center;
+  z-index: 2000;
 }
 
+/* === Modal Content Container === */
+.crop-modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  width: min(90%, 500px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* === Cropper Wrapper (Circular Cropping Area) === */
 .cropper-wrapper {
   position: relative;
   width: 100%;
-  height: 300px;
-  background-color: #333;
-  border-radius: 50%;
+  padding-top: 100%; /* makes it 1:1 aspect ratio */
   overflow: hidden;
+  background-color: #f2f2f2;
+  margin-bottom: 1.5rem;
 }
 
+/* === Zoom Slider Container === */
 .slider-container {
-  width: 80%;
-  margin: 1rem auto;
+  width: 100%;
+  margin-bottom: 1.5rem;
 }
 
+/* === Action Buttons (Bottom Row) === */
 .crop-actions {
   display: flex;
+  gap: 1rem;
   justify-content: space-between;
-  width: 100%;
-  margin-top: 1rem;
+}
+
+.crop-actions .MuiButton-root {
+  flex: 1;
+  font-weight: bold;
+}
+
+.crop-actions .MuiButton-root:first-child {
+  border-color: #999;
+  color: #333;
+}
+
+.crop-actions .MuiButton-root:last-child {
+  background-color: #e66000;
+}
+
+.crop-actions .MuiButton-root:last-child:hover {
+  background-color: #cc5000;
 }

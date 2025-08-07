@@ -150,12 +150,53 @@ export default function CompleteProfile() {
         />
 
         <label>Photo:</label>
-        {preview ? (
-          <img src={preview} alt="Avatar" className="avatar-preview" />
-        ) : (
-          <div className="avatar-placeholder">No image selected</div>
+        <div className="avatar-input-group">
+          {preview ? (
+            <img src={preview} alt="Avatar" className="avatar-preview" />
+          ) : (
+            <div className="avatar-placeholder">No image selected</div>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className="file-upload"
+          />
+        </div>
+
+        {showCropModal && cropFile && (
+          <div className="crop-modal-overlay">
+            <div className="crop-modal-content">
+              <button
+                className="close-btn"
+                onClick={() => setShowCropModal(false)}
+                aria-label="Close crop modal"
+              >
+                &times;
+              </button>
+
+              <div className="crop-container">
+                <CropModal
+                  file={cropFile}
+                  onCropComplete={handleCroppedUpload}
+                  onCancel={() => setShowCropModal(false)}
+                />
+              </div>
+
+              <div className="crop-modal-actions">
+                <button
+                  className="btn-cancel"
+                  onClick={() => setShowCropModal(false)}
+                >
+                  Cancel
+                </button>
+                <button className="btn-save" onClick={handleCroppedUpload}>
+                  Save & Upload
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-        <input type="file" accept="image/*" onChange={handlePhotoChange} />
 
         <label>Age:</label>
         <input
