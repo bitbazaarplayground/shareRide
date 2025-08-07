@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import SavingsCarousel from "../Components/SavingsCarousel";
 import Footer from "../Footer/Footer";
 import "./StylesPages/Homepage.css";
 
@@ -39,12 +40,10 @@ export default function Homepage() {
 
           <div className="hero-overlay">
             {showMainText ? (
-              <p className="tagline">
-                Find and share rides easily with trusted users
-              </p>
+              <p className="tagline">Ride together, save together.</p>
             ) : (
               <h1 className="tagline initial-message">
-                Share the ride. Split the cost.
+                Going the same way? Let’s split the ride.
               </h1>
             )}
           </div>
@@ -68,28 +67,41 @@ export default function Homepage() {
         </div>
 
         {/* SAVINGS SECTION */}
-        <section className="savings-comparison">
-          <h2>See the Savings</h2>
-          <div className="savings-grid">
-            <div className="savings-card">
-              <h3>🚖 Taxi</h3>
-              <p>£66</p>
-              <span className="note">Heathrow → Central London</span>
+
+        <SavingsCarousel />
+
+        {/* BENEFITS SECTION*/}
+
+        <section className="benefits">
+          <h2>Why Share a Taxi?</h2>
+          <div className="benefits-grid">
+            <div className="benefit-card">
+              <h3>💸 Cost‑Effective</h3>
+              <p>
+                Split the fare and save—often cheaper than solo taxi or public
+                transit.
+              </p>
             </div>
-            <div className="savings-card">
-              <h3>🚆 Train</h3>
-              <p>£22</p>
-              <span className="note">Heathrow Express</span>
+            <div className="benefit-card">
+              <h3>🚪 Door‑to‑Door</h3>
+              <p>
+                No transfers or extra walking—perfect for luggage or late
+                departures.
+              </p>
             </div>
-            <div className="savings-card highlight">
-              <h3>🤝 Tabfair</h3>
-              <p>£16.50</p>
-              <span className="note">Split Taxi (4 People)</span>
+            <div className="benefit-card">
+              <h3>⏱ Faster Travel</h3>
+              <p>Head straight to your destination without stops or waiting.</p>
+            </div>
+            <div className="benefit-card">
+              <h3>😌 Comfortable & Private</h3>
+              <p>Enjoy more space, control the ride, and keep it cozy.</p>
+            </div>
+            <div className="benefit-card">
+              <h3>🕓 Flexibly Timed</h3>
+              <p>Anytime availability—that works around your schedule.</p>
             </div>
           </div>
-          <p className="savings-footnote">
-            * Based on average rates and shared rides between 4 passengers.
-          </p>
         </section>
 
         {/* FEATURES */}
