@@ -7,8 +7,14 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="footer-top">
         <div className="footer-brand">
-          <h2>GoDutch</h2>
+          <h2>TabFair</h2>
           <p>Smart, social and affordable airport rides in the UK.</p>
+          <button
+            className="back-to-top"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            ↑ Back to Top
+          </button>
         </div>
 
         <div className="footer-links">
@@ -18,7 +24,7 @@ export default function Footer() {
               <Link to="/all-rides">Find a Ride</Link>
             </li>
             <li>
-              <Link to="/post-ride">Post a Ride</Link>
+              <Link to="/publishride">Post a Ride</Link>
             </li>
             <li>
               <Link to="/signup">Sign Up</Link>
@@ -36,7 +42,7 @@ export default function Footer() {
               <Link to="/privacy">Privacy Policy</Link>
             </li>
             <li>
-              <Link to="/terms">Terms of Use</Link>
+              <Link to="/Termsofuse">Terms of Use</Link>
             </li>
           </ul>
         </div>
@@ -44,14 +50,13 @@ export default function Footer() {
         <div className="footer-contact">
           <h4>Contact</h4>
           <ul>
-            <li>Email: support@godutch.com</li>
-            <li>Phone: +44 1234 567890</li>
+            <li>Email: Hello@TabFair.com</li>
           </ul>
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>© {new Date().getFullYear()} GoDutch. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} TabFair. All rights reserved.</p>
       </div>
     </footer>
   );

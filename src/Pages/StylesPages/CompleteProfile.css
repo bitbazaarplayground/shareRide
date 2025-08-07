@@ -36,12 +36,6 @@ input {
   box-sizing: border-box;
 }
 
-/* input:focus {
-  border-color: #e66000;
-  outline: none;
-  box-shadow: 0 0 4px rgba(230, 96, 0, 0.3);
-} */
-
 button {
   padding: 0.9rem 1.5rem;
   background-color: #e66000;
