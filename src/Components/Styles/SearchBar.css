@@ -63,6 +63,64 @@
 .searchbar-button:hover {
   background-color: #007acc;
 }
+/* Autocomplete dropdown container */
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 0.25rem 0;
+  width: 365px;
+  min-width: 100%;
+  max-width: 600px;
+}
+
+/* Reset list styles */
+.autocomplete-list li {
+  list-style: none;
+}
+
+/* Dropdown item styling */
+.autocomplete-item {
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover and active state */
+.autocomplete-item:hover,
+.autocomplete-item:focus,
+.autocomplete-item:active {
+  background-color: #f4f4f4;
+}
+
+/* Optionally wrap long text on smaller screens */
+.autocomplete-item {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Optional: highlight typed part vs suggested */
+.autocomplete-item strong {
+  font-weight: bold;
+}
+
+/* For mobile screens */
+@media (max-width: 480px) {
+  .autocomplete-item {
+    padding: 0.8rem 1rem;
+    font-size: 1.05rem;
+  }
+}
 
 /* === Responsive for Tablets === */
 @media (max-width: 768px) {
