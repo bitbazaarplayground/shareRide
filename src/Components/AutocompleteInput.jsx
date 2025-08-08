@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
@@ -8,9 +8,8 @@ export default function AutocompleteInput({
   placeholder = "Search...",
   onPlaceSelected,
 }) {
-  if (!window.google || !window.google.maps || !window.google.maps.places) {
-    return <p>Loading map search...</p>; // ✅ avoid loading before script is ready
-  }
+  const containerRef = useRef(null);
+  const [dropdownWidth, setDropdownWidth] = useState(0);
 
   const {
     ready,
@@ -19,6 +18,19 @@ export default function AutocompleteInput({
     setValue,
     clearSuggestions,
   } = usePlacesAutocomplete({ debounce: 300 });
+
+  // 📏 Set width before paint to prevent layout shift
+  useLayoutEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setDropdownWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   const handleInput = (e) => {
     setValue(e.target.value);
@@ -46,21 +58,43 @@ export default function AutocompleteInput({
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
       <input
         value={value}
         onChange={handleInput}
         disabled={!ready}
         placeholder={placeholder}
-        className="autocomplete-input"
+        style={{ width: "100%" }}
       />
+
       {status === "OK" && (
-        <ul className="autocomplete-list">
+        <ul
+          className="autocomplete-list"
+          style={{
+            width: dropdownWidth,
+            listStyle: "none",
+            padding: "0",
+            margin: "0",
+            background: "#fff",
+            border: "1px solid #ccc",
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            zIndex: 1000,
+          }}
+        >
           {data.map(({ place_id, description }) => (
             <li
               key={place_id}
               className="autocomplete-item"
               onClick={() => handleSelect(description)}
+              style={{
+                padding: "0.6rem 1rem",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                cursor: "pointer",
+              }}
             >
               {description}
             </li>
@@ -68,33 +102,5 @@ export default function AutocompleteInput({
         </ul>
       )}
     </div>
-    // <div style={{ position: "relative" }}>
-    //   <input
-    //     value={value}
-    //     onChange={handleInput}
-    //     disabled={!ready}
-    //     placeholder={placeholder}
-    //   />
-    //   {status === "OK" && (
-    //     <ul
-    //       style={{
-    //         listStyle: "none",
-    //         padding: "0",
-    //         margin: "0",
-    //         background: "#fff",
-    //         border: "1px solid #ccc",
-    //         position: "absolute",
-    //         width: "100%",
-    //         zIndex: 1000,
-    //       }}
-    //     >
-    //       {data.map(({ place_id, description }) => (
-    //         <li key={place_id} onClick={() => handleSelect(description)}>
-    //           {description}
-    //         </li>
-    //       ))}
-    //     </ul>
-    //   )}
-    // </div>
   );
 }
