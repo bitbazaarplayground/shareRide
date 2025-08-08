@@ -23,6 +23,8 @@ export default function SearchBar({
   const { t } = useTranslation();
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
+  const [fromSelected, setFromSelected] = useState(false);
+  const [toSelected, setToSelected] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -43,18 +45,24 @@ export default function SearchBar({
   return (
     <div className="searchbar-container glass">
       <div className="searchbar-item">
-        <FaMapMarkerAlt className="icon" />
+        {!fromSelected && <FaMapMarkerAlt className="icon" />}
         <AutocompleteInput
           placeholder={t("From")}
-          onPlaceSelected={(place) => setFromPlace(place.formatted_address)}
+          onPlaceSelected={(place) => {
+            setFromSelected(true);
+            setFromPlace(place.formatted_address);
+          }}
         />
       </div>
 
       <div className="searchbar-item">
-        <FaArrowRight className="icon" />
+        {!toSelected && <FaArrowRight className="icon" />}
         <AutocompleteInput
           placeholder={t("To")}
-          onPlaceSelected={(place) => setToPlace(place.formatted_address)}
+          onPlaceSelected={(place) => {
+            setToSelected(true);
+            setToPlace(place.formatted_address);
+          }}
         />
       </div>
 

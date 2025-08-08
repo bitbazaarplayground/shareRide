@@ -1,7 +1,7 @@
 // Updated PassengerCounter.jsx (dropdown inline with icon and sliders)
 
 import { useState } from "react";
-import { FaSuitcase, FaSuitcaseRolling, FaUser } from "react-icons/fa";
+import { FaUser } from "react-icons/fa";
 import "./Styles/PassengerCounter.css";
 
 export default function PassengerCounter({
@@ -44,7 +44,7 @@ export default function PassengerCounter({
 
           <div className="dropdown-row">
             <label>
-              <FaSuitcaseRolling className="icon" /> Backpacks:
+              {/* <FaSuitcaseRolling className="icon" />*/} Backpacks:
             </label>
             <input
               type="range"
@@ -58,7 +58,7 @@ export default function PassengerCounter({
 
           <div className="dropdown-row">
             <label>
-              <FaSuitcase className="icon" /> Small suitcases:
+              {/* <FaSuitcase className="icon" />  */}Small suitcases:
             </label>
             <input
               type="range"
@@ -72,7 +72,7 @@ export default function PassengerCounter({
 
           <div className="dropdown-row">
             <label>
-              <FaSuitcase className="icon" /> Large suitcases:
+              {/* <FaSuitcase className="icon" /> */}Large suitcases:
             </label>
             <input
               type="range"
