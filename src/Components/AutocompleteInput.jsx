@@ -52,27 +52,49 @@ export default function AutocompleteInput({
         onChange={handleInput}
         disabled={!ready}
         placeholder={placeholder}
+        className="autocomplete-input"
       />
       {status === "OK" && (
-        <ul
-          style={{
-            listStyle: "none",
-            padding: "0",
-            margin: "0",
-            background: "#fff",
-            border: "1px solid #ccc",
-            position: "absolute",
-            width: "100%",
-            zIndex: 1000,
-          }}
-        >
+        <ul className="autocomplete-list">
           {data.map(({ place_id, description }) => (
-            <li key={place_id} onClick={() => handleSelect(description)}>
+            <li
+              key={place_id}
+              className="autocomplete-item"
+              onClick={() => handleSelect(description)}
+            >
               {description}
             </li>
           ))}
         </ul>
       )}
     </div>
+    // <div style={{ position: "relative" }}>
+    //   <input
+    //     value={value}
+    //     onChange={handleInput}
+    //     disabled={!ready}
+    //     placeholder={placeholder}
+    //   />
+    //   {status === "OK" && (
+    //     <ul
+    //       style={{
+    //         listStyle: "none",
+    //         padding: "0",
+    //         margin: "0",
+    //         background: "#fff",
+    //         border: "1px solid #ccc",
+    //         position: "absolute",
+    //         width: "100%",
+    //         zIndex: 1000,
+    //       }}
+    //     >
+    //       {data.map(({ place_id, description }) => (
+    //         <li key={place_id} onClick={() => handleSelect(description)}>
+    //           {description}
+    //         </li>
+    //       ))}
+    //     </ul>
+    //   )}
+    // </div>
   );
 }
