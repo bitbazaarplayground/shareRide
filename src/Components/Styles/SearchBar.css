@@ -94,6 +94,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-bottom: 1px solid #eee;
 }
 
 /* Hover and active state */
@@ -105,13 +106,21 @@
 
 /* Optionally wrap long text on smaller screens */
 .autocomplete-item {
-  white-space: pre-wrap;
-  word-break: break-word;
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Optional: highlight typed part vs suggested */
 .autocomplete-item strong {
   font-weight: bold;
+}
+.autocomplete-item.highlighted {
+  background-color: #e6f3ff;
 }
 
 /* For mobile screens */

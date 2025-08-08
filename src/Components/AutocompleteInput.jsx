@@ -10,6 +10,7 @@ export default function AutocompleteInput({
 }) {
   const containerRef = useRef(null);
   const [dropdownWidth, setDropdownWidth] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   const {
     ready,
@@ -19,14 +20,13 @@ export default function AutocompleteInput({
     clearSuggestions,
   } = usePlacesAutocomplete({ debounce: 300 });
 
-  // 📏 Set width before paint to prevent layout shift
+  // Measure input width before render to sync dropdown size
   useLayoutEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
         setDropdownWidth(containerRef.current.offsetWidth);
       }
     };
-
     updateWidth();
     window.addEventListener("resize", updateWidth);
     return () => window.removeEventListener("resize", updateWidth);
@@ -34,27 +34,39 @@ export default function AutocompleteInput({
 
   const handleInput = (e) => {
     setValue(e.target.value);
+    setHighlightedIndex(-1);
   };
 
   const handleSelect = async (description) => {
     setValue(description, false);
     clearSuggestions();
+    setHighlightedIndex(-1);
 
     const results = await getGeocode({ address: description });
     const { lat, lng } = await getLatLng(results[0]);
-
     onPlaceSelected({
       formatted_address: description,
       lat,
       lng,
       place_id: results[0].place_id,
-      geometry: {
-        location: {
-          lat: () => lat,
-          lng: () => lng,
-        },
-      },
+      geometry: { location: { lat: () => lat, lng: () => lng } },
     });
+  };
+
+  const onKeyDown = (e) => {
+    if (status !== "OK") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.min(i + 1, data.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && highlightedIndex >= 0) {
+      e.preventDefault();
+      handleSelect(data[highlightedIndex].description);
+    } else if (e.key === "Escape") {
+      clearSuggestions();
+    }
   };
 
   return (
@@ -62,39 +74,18 @@ export default function AutocompleteInput({
       <input
         value={value}
         onChange={handleInput}
+        onKeyDown={onKeyDown}
         disabled={!ready}
         placeholder={placeholder}
         style={{ width: "100%" }}
       />
-
       {status === "OK" && (
-        <ul
-          className="autocomplete-list"
-          style={{
-            width: dropdownWidth,
-            listStyle: "none",
-            padding: "0",
-            margin: "0",
-            background: "#fff",
-            border: "1px solid #ccc",
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            zIndex: 1000,
-          }}
-        >
-          {data.map(({ place_id, description }) => (
+        <ul className="autocomplete-list" style={{ width: dropdownWidth }}>
+          {data.map(({ place_id, description }, index) => (
             <li
               key={place_id}
-              className="autocomplete-item"
+              className={`autocomplete-item${highlightedIndex === index ? " highlighted" : ""}`}
               onClick={() => handleSelect(description)}
-              style={{
-                padding: "0.6rem 1rem",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                cursor: "pointer",
-              }}
             >
               {description}
             </li>
@@ -104,3 +95,110 @@ export default function AutocompleteInput({
     </div>
   );
 }
+
+// import React, { useLayoutEffect, useRef, useState } from "react";
+// import usePlacesAutocomplete, {
+//   getGeocode,
+//   getLatLng,
+// } from "use-places-autocomplete";
+
+// export default function AutocompleteInput({
+//   placeholder = "Search...",
+//   onPlaceSelected,
+// }) {
+//   const containerRef = useRef(null);
+//   const [dropdownWidth, setDropdownWidth] = useState(0);
+
+//   const {
+//     ready,
+//     value,
+//     suggestions: { status, data },
+//     setValue,
+//     clearSuggestions,
+//   } = usePlacesAutocomplete({ debounce: 300 });
+
+//   // 📏 Set width before paint to prevent layout shift
+//   useLayoutEffect(() => {
+//     const updateWidth = () => {
+//       if (containerRef.current) {
+//         setDropdownWidth(containerRef.current.offsetWidth);
+//       }
+//     };
+
+//     updateWidth();
+//     window.addEventListener("resize", updateWidth);
+//     return () => window.removeEventListener("resize", updateWidth);
+//   }, []);
+
+//   const handleInput = (e) => {
+//     setValue(e.target.value);
+//   };
+
+//   const handleSelect = async (description) => {
+//     setValue(description, false);
+//     clearSuggestions();
+
+//     const results = await getGeocode({ address: description });
+//     const { lat, lng } = await getLatLng(results[0]);
+
+//     onPlaceSelected({
+//       formatted_address: description,
+//       lat,
+//       lng,
+//       place_id: results[0].place_id,
+//       geometry: {
+//         location: {
+//           lat: () => lat,
+//           lng: () => lng,
+//         },
+//       },
+//     });
+//   };
+
+//   return (
+//     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+//       <input
+//         value={value}
+//         onChange={handleInput}
+//         disabled={!ready}
+//         placeholder={placeholder}
+//         style={{ width: "100%" }}
+//       />
+
+//       {status === "OK" && (
+//         <ul
+//           className="autocomplete-list"
+//           style={{
+//             width: dropdownWidth,
+//             listStyle: "none",
+//             padding: "0",
+//             margin: "0",
+//             background: "#fff",
+//             border: "1px solid #ccc",
+//             position: "absolute",
+//             top: "100%",
+//             left: 0,
+//             zIndex: 1000,
+//           }}
+//         >
+//           {data.map(({ place_id, description }) => (
+//             <li
+//               key={place_id}
+//               className="autocomplete-item"
+//               onClick={() => handleSelect(description)}
+//               style={{
+//                 padding: "0.6rem 1rem",
+//                 whiteSpace: "nowrap",
+//                 overflow: "hidden",
+//                 textOverflow: "ellipsis",
+//                 cursor: "pointer",
+//               }}
+//             >
+//               {description}
+//             </li>
+//           ))}
+//         </ul>
+//       )}
+//     </div>
+//   );
+// }
