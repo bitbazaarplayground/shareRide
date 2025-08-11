@@ -1,8 +1,8 @@
 import Button from "@mui/material/Button";
 import Slider from "@mui/material/Slider";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Cropper from "react-easy-crop";
-import getCroppedImg from "../Utils/cropImage";
+import getCroppedImg from "../utils/cropImage";
 import "./Styles/CropModal.css";
 
 export default function CropModal({ file, onCropComplete, onCancel }) {
