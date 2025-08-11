@@ -1,6 +1,5 @@
 /* === HOMEPAGE BASE STYLES === */
 .homepage {
-  font-family: "Helvetica Neue", sans-serif;
   color: #333;
 }
 
@@ -8,70 +7,97 @@
 .hero-wrapper {
   position: relative;
   width: 100%;
-  height: 500px;
+  aspect-ratio: 16 / 9; /* reserve space => no CLS */
+  max-height: clamp(320px, 33vw, 640px);
   overflow: hidden;
-  max-height: 33vw; /* Optional: Keeps it responsive on very wide screens */
+}
+
+/* subtle gradient for text contrast */
+.hero-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.2) 40%,
+    rgba(0, 0, 0, 0) 75%
+  );
+  pointer-events: none;
 }
 
 .hero-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top; /* 👈 this starts the image from the very top */
-  transform: translateY(-28px); /* 👈 shift image UP */
+  object-position: center top; /* keeps your “crop from top” feel */
   display: block;
+  /* Removed transform: translateY(-28px); to avoid shifts */
 }
 
 /* === TEXT OVERLAY ON IMAGE === */
 .hero-overlay {
   position: absolute;
-  bottom: 25%;
+  bottom: 18%;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
   z-index: 2;
-  width: 75%;
-  max-width: 100%;
+  width: min(75%, 1000px);
   padding: 0 1rem;
-  color: white;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-.hero-overlay .brand-title {
-  font-size: calc(1.5rem + 2vw);
+.brand-title {
+  font-size: clamp(1.75rem, 2.5vw + 1rem, 3rem);
   font-weight: 800;
-  color: white;
-  margin-bottom: 1rem;
+  margin: 0 0 0.6rem;
+  line-height: 1.15;
   animation: slideInLeft 0.8s ease forwards;
 }
 
-.hero-overlay .tagline,
-.initial-message {
-  font-size: calc(1rem + 1vw);
+.tagline {
+  font-size: clamp(1rem, 1vw + 0.75rem, 1.5rem);
   font-weight: 500;
-  color: white;
-  animation: fadeInDown 3s ease-in-out;
+  margin: 0;
+  animation: fadeInDown 1.2s ease-in-out;
 }
 
-.initial-message {
-  font-weight: bold;
+@media (prefers-reduced-motion: reduce) {
+  .brand-title,
+  .tagline {
+    animation: none !important;
+  }
 }
 
-/* === WAVES === */
-.orange-bottom-wave {
-  position: relative;
+/* === WAVE INSIDE HERO (white edge) === */
+.hero-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
   width: 100%;
-  height: 400px; /* 🔼 more height */
-  overflow: hidden;
-  line-height: 0;
-  z-index: 5;
-  margin-top: -130px;
-  margin-bottom: -270px;
-}
-
-.orange-bottom-wave svg {
-  width: 100%;
-  height: 69%;
+  height: 72px;
   display: block;
+  pointer-events: none;
+}
+
+/* === ORIGINAL ORANGE WAVE SEPARATOR === */
+.orange-wave-separator {
+  line-height: 0;
+  width: 100%;
+  background: #fff; /* ensures clean edge against white */
+}
+.orange-wave-separator svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* (Optional) remove old class if it exists */
+.orange-bottom-wave {
+  display: none;
 }
 
 /* === BENEFITS SECTION === */

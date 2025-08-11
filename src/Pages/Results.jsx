@@ -1,20 +1,65 @@
-import React, { useEffect, useState } from "react";
+// src/Pages/Results.jsx
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
 
+// Simple haversine formula for distance in km
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // km
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
 export default function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Initial rides from search
   const rides = location.state?.rides || [];
-  const successMessage = location.state?.message;
+  const successMessage = location.state?.message || "";
+
+  // Optional coords + radius from SearchBar
+  const fromCoords = location.state?.fromCoords || null;
+  const toCoords = location.state?.toCoords || null;
+  const radiusKm = location.state?.radiusKm || null;
 
   const [savedRideIds, setSavedRideIds] = useState([]);
 
+  // Filter by radius client-side (if coords provided)
+  const filteredRides = useMemo(() => {
+    if (!radiusKm || !fromCoords || !toCoords) return rides;
+
+    return rides.filter((ride) => {
+      const withinFrom =
+        ride.from_lat &&
+        ride.from_lng &&
+        haversineKm(
+          fromCoords.lat,
+          fromCoords.lng,
+          ride.from_lat,
+          ride.from_lng
+        ) <= radiusKm;
+
+      const withinTo =
+        ride.to_lat &&
+        ride.to_lng &&
+        haversineKm(toCoords.lat, toCoords.lng, ride.to_lat, ride.to_lng) <=
+          radiusKm;
+
+      return withinFrom && withinTo;
+    });
+  }, [rides, radiusKm, fromCoords, toCoords]);
+
+  // Fetch saved rides
   useEffect(() => {
     if (!user) return;
     const fetchSaved = async () => {
@@ -22,8 +67,7 @@ export default function Results() {
         .from("saved_rides")
         .select("ride_id")
         .eq("user_id", user.id);
-
-      if (!error) {
+      if (!error && data) {
         setSavedRideIds(data.map((entry) => entry.ride_id));
       }
     };
@@ -50,7 +94,6 @@ export default function Results() {
 
   const handleDelete = async (rideId) => {
     if (!window.confirm("Are you sure you want to delete this ride?")) return;
-
     await supabase.from("rides").delete().eq("id", rideId);
     alert("Ride deleted. Refresh to see changes.");
   };
@@ -82,11 +125,11 @@ export default function Results() {
     <div className="all-rides-container">
       {successMessage && <p className="success">{successMessage}</p>}
       <h2>Matching Rides</h2>
-      {rides.length === 0 ? (
+      {filteredRides.length === 0 ? (
         <p>No rides found.</p>
       ) : (
         <ul className="ride-list">
-          {rides.map((ride) => (
+          {filteredRides.map((ride) => (
             <RideCard
               key={ride.id}
               ride={ride}

@@ -1,8 +1,12 @@
+// @ts-check
 import react from "@vitejs/plugin-react";
 import fs from "fs";
 import { defineConfig } from "vite";
 
-// Plugin to copy _redirects from public/ to dist/
+/**
+ * Plugin to copy _redirects from public/ to dist/
+ * @returns {import('vite').Plugin}
+ */
 function copyRedirects() {
   return {
     name: "copy-redirects",
@@ -12,12 +16,13 @@ function copyRedirects() {
   };
 }
 
+// https://vitejs.dev/config/
 export default defineConfig({
   base: "/",
   plugins: [react(), copyRedirects()],
   server: {
     host: true,
-    port: process.env.PORT || 5173,
+    port: Number(process.env.PORT) || 5173, // ✅ ensure number type
   },
 });
 

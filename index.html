@@ -1,25 +1,228 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TabFair</title>
-    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Mobile + theming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#e66000" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- SEO -->
+    <title>TabFair — Share the ride. Split the cost.</title>
+    <meta
+      name="description"
+      content="Share taxis, split the fare, and get door‑to‑door rides across the UK with trusted users."
+    />
+    <!-- If you don't want this preview indexed yet, uncomment the next line -->
+    <!-- <meta name="robots" content="noindex, nofollow" /> -->
+    <link rel="canonical" href="https://jade-rolypoly-5d4274.netlify.app/" />
+
+    <!-- Social cards (Open Graph & Twitter) -->
+    <meta
+      property="og:title"
+      content="TabFair — Share the ride. Split the cost."
+    />
+    <meta
+      property="og:description"
+      content="Find and share rides from airports and cities in the UK. Save money with trusted users."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://jade-rolypoly-5d4274.netlify.app/"
+    />
+    <meta
+      property="og:image"
+      content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+    />
+
+    <!-- Twitter tags are harmless even if you don't use Twitter; keep for nice previews -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="TabFair — Share the ride. Split the cost."
+    />
+    <meta
+      name="twitter:description"
+      content="Find and share rides from airports and cities in the UK. Save money with trusted users."
+    />
+    <meta
+      name="twitter:image"
+      content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+    />
+
+    <!-- Icons -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <base href="/" />
 
-    <!-- Google Maps API (includes Places library) -->
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAdzNBnVmJWh9b6e1ZUvmuT4E9Ks_2mLZw&libraries=places"
-      async
-      defer
-    ></script>
+    <!-- Fonts: Inter (UI) + Manrope (headings) -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&display=swap"
+      />
+    </noscript>
+
+    <!-- Preload LCP hero: AVIF (preferred by modern browsers) -->
+    <link
+      rel="preload"
+      as="image"
+      href="/images/carpoolImage-1600.avif"
+      imagesrcset="/images/carpoolImage-480.avif 480w, /images/carpoolImage-1024.avif 1024w, /images/carpoolImage-1600.avif 1600w"
+      imagesizes="100vw"
+      type="image/avif"
+    />
+
+    <!-- Preload fallback: WebP (for browsers without AVIF) -->
+    <link
+      rel="preload"
+      as="image"
+      href="/images/carpoolImage-1600.webp"
+      imagesrcset="/images/carpoolImage-480.webp 480w, /images/carpoolImage-1024.webp 1024w, /images/carpoolImage-1600.webp 1600w"
+      imagesizes="100vw"
+      type="image/webp"
+    />
+
+    <!-- Critical base styles -->
+    <style>
+      :root {
+        --text: #1f2937; /* Grey 800 for body text */
+        --link: #0b69c7; /* Accessible blue for links on white */
+        --brand: #e66000; /* Brand orange */
+        color-scheme: light dark;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          "Apple Color Emoji",
+          "Segoe UI Emoji",
+          "Segoe UI Symbol",
+          sans-serif;
+        color: var(--text);
+        background: #fff;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #000;
+          color: #fff;
+        }
+        a {
+          color: #62a8ff;
+        }
+      }
+      h1,
+      h2,
+      h3 {
+        font-family:
+          Manrope,
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      a {
+        color: var(--link);
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.15em;
+      }
+      button.primary {
+        background: var(--brand);
+        color: #fff;
+      }
+      /* Skip link for keyboard users */
+      .skip-link {
+        position: absolute;
+        left: -999px;
+        top: auto;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .skip-link:focus {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 0.5rem 0.75rem;
+        background: #000;
+        color: #fff;
+      }
+      /* Reserve space for app container (helps CLS) */
+      #root {
+        min-height: 100vh;
+        display: contents;
+      }
+      /* Noscript fallback */
+      .noscript {
+        margin: 0;
+        padding: 0.75rem 1rem;
+        background: #fff3cd;
+        color: #5f4b00;
+        font:
+          14px/1.4 Inter,
+          system-ui,
+          sans-serif;
+        border-bottom: 1px solid #f3d98c;
+      }
+    </style>
+
+    <!-- Google Maps is lazy-loaded in components; no global script here. -->
   </head>
 
   <body>
-    <div id="root"></div>
+    <noscript>
+      <p class="noscript">
+        JavaScript is required for TabFair to work properly. Please enable it in
+        your browser.
+      </p>
+    </noscript>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div id="root" role="application"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
 
 <!-- https://ashcabsdunfermline.co.uk/our-news/ -->
+<!-- Google Maps API (includes Places library) -->
+<!-- <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAdzNBnVmJWh9b6e1ZUvmuT4E9Ks_2mLZw&libraries=places"
+      async
+      defer
+    ></script>
+  </head> -->

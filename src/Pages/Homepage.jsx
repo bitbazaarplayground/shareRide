@@ -19,49 +19,82 @@ export default function Homepage() {
 
   return (
     <>
-      <main className="homepage">
+      <main id="main" className="homepage">
         {/* HERO SECTION */}
         <section className="hero-wrapper">
           <picture>
+            {/* Prefer AVIF, then WebP, then JPEG */}
             <source
-              srcSet="/images/carpoolImage-small.jpg"
-              media="(max-width: 480px)"
+              type="image/avif"
+              srcSet="
+          /images/carpoolImage-480.avif   480w,
+          /images/carpoolImage-1024.avif 1024w,
+          /images/carpoolImage-1600.avif 1600w
+        "
+              sizes="100vw"
             />
             <source
-              srcSet="/images/carpoolImage-medium.jpg"
-              media="(max-width: 1024px)"
+              type="image/webp"
+              srcSet="
+          /images/carpoolImage-480.webp   480w,
+          /images/carpoolImage-1024.webp 1024w,
+          /images/carpoolImage-1600.webp 1600w
+        "
+              sizes="100vw"
             />
             <img
-              src="/images/carpoolImage.png"
+              src="/images/carpoolImage-1600.jpg" // fallback
+              srcSet="
+          /images/carpoolImage-480.jpg   480w,
+          /images/carpoolImage-1024.jpg 1024w,
+          /images/carpoolImage-1600.jpg 1600w
+        "
+              sizes="100vw"
               alt="Happy people in a car sharing a ride"
+              width="1600" // intrinsic size to prevent CLS
+              height="900"
+              decoding="async"
+              fetchPriority="high"
               className="hero-img"
             />
           </picture>
 
+          {/* TEXT OVERLAY */}
           <div className="hero-overlay">
-            {showMainText ? (
-              <p className="tagline">Ride together, save together.</p>
-            ) : (
-              <h1 className="tagline initial-message">
-                Going the same way? Let’s split the ride.
-              </h1>
-            )}
+            <h1 className="brand-title">
+              {showMainText
+                ? "Ride together, save together."
+                : "Going the same way? Let’s split the ride."}
+            </h1>
+            <p className="tagline">
+              Door‑to‑door rides across the UK with trusted users.
+            </p>
           </div>
-        </section>
-        {/* TOP WAVE (OUTSIDE HERO WRAPPER) */}
-        <div className="orange-bottom-wave">
+
+          {/* OPTIONAL WHITE WAVE INSIDE THE HERO (as a clean edge) */}
           <svg
-            viewBox="0 0 1440 320"
+            className="hero-wave"
+            viewBox="0 0 1440 120"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M0,40 C240,110 480,110 720,40 C960,-30 1200,-30 1440,40 L1440,120 L0,120 Z"
+              fill="#fff"
+            />
+          </svg>
+        </section>
+
+        {/* ORANGE SEPARATOR WAVE (separate section, no negative margins) */}
+        <div className="orange-wave-separator" aria-hidden="true">
+          <svg
+            viewBox="0 0 1440 160"
             preserveAspectRatio="none"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
               fill="#e66000"
-              d="
-              M0,120
-              C20,110 1440,260 1640,40
-              C640,180 180,90 0,80
-              Z"
+              d="M0,96 C180,140 360,140 540,96 C720,52 900,52 1080,96 C1260,140 1440,140 1620,96 L1620,160 L0,160 Z"
             />
           </svg>
         </div>

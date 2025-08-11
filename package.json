@@ -6,10 +6,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "vite",
     "build": "vite build",
     "deploy": "gh-pages -d dist",
     "lint": "eslint .",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host --port 4173 --strictPort",
+    "type-check": "tsc --noEmit",
+    "type-check:node": "tsc --noEmit -p tsconfig.node.json",
+    "backfill:coords": "node scripts/backfill-ride-coords.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -39,6 +43,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@lhci/cli": "^0.15.1",
+    "@types/google.maps": "^3.58.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
@@ -50,6 +56,7 @@
     "globals": "^16.0.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7",
+    "typescript": "^5.9.2",
     "vite": "^6.3.5"
   }
 }
