@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+// src/Pages/Homepage.jsx
+import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import SavingsCarousel from "../Components/SavingsCarousel";
@@ -6,52 +8,127 @@ import Footer from "../Footer/Footer";
 import "./StylesPages/Homepage.css";
 
 export default function Homepage() {
-  const { t } = useTranslation();
+  const { i18n } = useTranslation();
   const [showMainText, setShowMainText] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowMainText(true);
-    }, 5000);
-
+    const timer = setTimeout(() => setShowMainText(true), 5000);
     return () => clearTimeout(timer);
   }, []);
 
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "TabFair",
+    url: "https://jade-rolypoly-5d4274.netlify.app/",
+    potentialAction: {
+      "@type": "SearchAction",
+      target:
+        "https://jade-rolypoly-5d4274.netlify.app/all-rides?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "TabFair",
+    url: "https://jade-rolypoly-5d4274.netlify.app/",
+    logo: "https://jade-rolypoly-5d4274.netlify.app/icon-512.png",
+    sameAs: [],
+  };
+
   return (
     <>
+      <Helmet htmlAttributes={{ lang: i18n.language || "en-GB" }}>
+        <title>TabFair — Share the ride. Split the cost.</title>
+        <meta
+          name="description"
+          content="Share taxis, split the fare, and get door-to-door rides across the UK with trusted users."
+        />
+        <link
+          rel="canonical"
+          href="https://jade-rolypoly-5d4274.netlify.app/"
+        />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="TabFair" />
+        <meta
+          property="og:title"
+          content="TabFair — Share the ride. Split the cost."
+        />
+        <meta
+          property="og:description"
+          content="Find and share rides from airports and cities in the UK. Save money with trusted users."
+        />
+        <meta
+          property="og:url"
+          content="https://jade-rolypoly-5d4274.netlify.app/"
+        />
+        <meta
+          property="og:image"
+          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+        />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="TabFair — Share the ride. Split the cost."
+        />
+        <meta
+          name="twitter:description"
+          content="Find and share rides from airports and cities in the UK. Save money with trusted users."
+        />
+        <meta
+          name="twitter:image"
+          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+        />
+
+        {/* JSON-LD */}
+        <script type="application/ld+json">
+          {JSON.stringify(websiteJsonLd)}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify(organizationJsonLd)}
+        </script>
+      </Helmet>
+
       <main id="main" className="homepage">
         {/* HERO SECTION */}
         <section className="hero-wrapper">
           <picture>
-            {/* Prefer AVIF, then WebP, then JPEG */}
             <source
               type="image/avif"
               srcSet="
-          /images/carpoolImage-480.avif   480w,
-          /images/carpoolImage-1024.avif 1024w,
-          /images/carpoolImage-1600.avif 1600w
-        "
+                /images/carpoolImage-480.avif   480w,
+                /images/carpoolImage-1024.avif 1024w,
+                /images/carpoolImage-1600.avif 1600w
+              "
               sizes="100vw"
             />
             <source
               type="image/webp"
               srcSet="
-          /images/carpoolImage-480.webp   480w,
-          /images/carpoolImage-1024.webp 1024w,
-          /images/carpoolImage-1600.webp 1600w
-        "
+                /images/carpoolImage-480.webp   480w,
+                /images/carpoolImage-1024.webp 1024w,
+                /images/carpoolImage-1600.webp 1600w
+              "
               sizes="100vw"
             />
             <img
-              src="/images/carpoolImage-1600.jpg" // fallback
+              src="/images/carpoolImage-1600.jpg"
               srcSet="
-          /images/carpoolImage-480.jpg   480w,
-          /images/carpoolImage-1024.jpg 1024w,
-          /images/carpoolImage-1600.jpg 1600w
-        "
+                /images/carpoolImage-480.jpg   480w,
+                /images/carpoolImage-1024.jpg 1024w,
+                /images/carpoolImage-1600.jpg 1600w
+              "
               sizes="100vw"
               alt="Happy people in a car sharing a ride"
-              width="1600" // intrinsic size to prevent CLS
+              width="1600"
               height="900"
               decoding="async"
               fetchPriority="high"
@@ -59,7 +136,6 @@ export default function Homepage() {
             />
           </picture>
 
-          {/* TEXT OVERLAY */}
           <div className="hero-overlay">
             <h1 className="brand-title">
               {showMainText
@@ -67,11 +143,10 @@ export default function Homepage() {
                 : "Going the same way? Let’s split the ride."}
             </h1>
             <p className="tagline">
-              Door‑to‑door rides across the UK with trusted users.
+              Door-to-door rides across the UK with trusted users.
             </p>
           </div>
 
-          {/* OPTIONAL WHITE WAVE INSIDE THE HERO (as a clean edge) */}
           <svg
             className="hero-wave"
             viewBox="0 0 1440 120"
@@ -85,7 +160,6 @@ export default function Homepage() {
           </svg>
         </section>
 
-        {/* ORANGE SEPARATOR WAVE (separate section, no negative margins) */}
         <div className="orange-wave-separator" aria-hidden="true">
           <svg
             viewBox="0 0 1440 160"
@@ -99,24 +173,21 @@ export default function Homepage() {
           </svg>
         </div>
 
-        {/* SAVINGS SECTION */}
-
         <SavingsCarousel />
 
-        {/* BENEFITS SECTION*/}
-
+        {/* BENEFITS SECTION */}
         <section className="benefits">
           <h2>Why Share a Taxi?</h2>
           <div className="benefits-grid">
             <div className="benefit-card">
-              <h3>💸 Cost‑Effective</h3>
+              <h3>💸 Cost-Effective</h3>
               <p>
                 Split the fare and save—often cheaper than solo taxi or public
                 transit.
               </p>
             </div>
             <div className="benefit-card">
-              <h3>🚪 Door‑to‑Door</h3>
+              <h3>🚪 Door-to-Door</h3>
               <p>
                 No transfers or extra walking—perfect for luggage or late
                 departures.
@@ -156,21 +227,6 @@ export default function Homepage() {
           </div>
         </section>
 
-        {/* BOTTOM WAVE */}
-        {/* <div className="wave wave-bottom">
-          <svg
-            viewBox="0 0 1440 320"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill="#e66000"
-              fillOpacity="1"
-              d="M0,96 C480,0 960,192 1440,96 L1440,0 L0,0 Z"
-            />
-          </svg>
-        </div> */}
-
         {/* HOW IT WORKS */}
         <section className="how-it-works">
           <h2>How It Works</h2>
@@ -208,7 +264,6 @@ export default function Homepage() {
                 <footer>— James & Ana, Returning from Holiday</footer>
               </blockquote>
             </div>
-
             <div className="testimonial-card">
               <img
                 src="/images/testimonial2.png"
@@ -222,7 +277,6 @@ export default function Homepage() {
                 <footer>— Liam, Football Fan</footer>
               </blockquote>
             </div>
-
             <div className="testimonial-card">
               <img
                 src="/images/testimonial1.png"
@@ -246,19 +300,20 @@ export default function Homepage() {
             <li>✔ Verified profiles</li>
             <li>✔ Chat before your ride</li>
             <li>✔ Transparent reviews and ratings</li>
-            <li>Suppor local taxi drivers</li>
+            <li>Support local taxi drivers</li>
           </ul>
         </section>
 
-        {/* CTA Join Now */}
+        {/* CTA */}
         <section className="join-now">
-          <h2>Ready to Go Dutch?</h2>
+          <h2>Ready to TabFair?</h2>
           <p>Create your profile and start your journey.</p>
           <Link to="/signup" className="cta-button secondary">
             Join Now
           </Link>
         </section>
       </main>
+
       <Footer />
     </>
   );

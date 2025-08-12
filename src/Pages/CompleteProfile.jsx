@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+// src/Pages/CompleteProfile.jsx
+import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import CropModal from "../Components/CropModal";
 import { useAuth } from "../Contexts/AuthContext";
@@ -23,11 +25,9 @@ export default function CompleteProfile() {
   const [cropFile, setCropFile] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
 
-  // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
-
       const { data, error } = await supabase
         .from("profiles")
         .select("name, nickname, avatar_url, age, bio")
@@ -48,7 +48,6 @@ export default function CompleteProfile() {
       }
       setInitialLoading(false);
     };
-
     fetchProfile();
   }, [user]);
 
@@ -58,7 +57,7 @@ export default function CompleteProfile() {
   };
 
   const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       setCropFile(file);
       setShowCropModal(true);
@@ -69,7 +68,6 @@ export default function CompleteProfile() {
     if (!user || !croppedBlob) return;
 
     const fileName = `${user.id}.jpg`;
-
     const { error: uploadError } = await supabase.storage
       .from("profilephotos")
       .upload(fileName, croppedBlob, {
@@ -102,7 +100,6 @@ export default function CompleteProfile() {
     if (!user) return;
 
     setLoading(true);
-
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -119,7 +116,6 @@ export default function CompleteProfile() {
       alert("Profile updated successfully!");
       navigate("/profile");
     }
-
     setLoading(false);
   };
 
@@ -129,34 +125,72 @@ export default function CompleteProfile() {
 
   return (
     <div className="complete-profile-container">
+      <Helmet>
+        <meta name="robots" content="noindex,follow" />
+        <title>Complete your profile — TabFair</title>
+        <meta
+          name="description"
+          content="Add your name, photo, and details to start posting or booking rides on TabFair."
+        />
+        <link
+          rel="canonical"
+          href="https://jade-rolypoly-5d4274.netlify.app/complete-profile"
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Complete your profile — TabFair" />
+        <meta
+          property="og:description"
+          content="Set up your TabFair profile with a name, avatar, and travel info."
+        />
+        <meta
+          property="og:image"
+          content={
+            preview || "https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+          }
+        />
+        <meta
+          property="og:url"
+          content="https://jade-rolypoly-5d4274.netlify.app/complete-profile"
+        />
+      </Helmet>
+
       <h2>Edit Your Profile</h2>
       <form onSubmit={handleSubmit}>
-        <label>Full Name:</label>
+        <label htmlFor="name">Full Name:</label>
         <input
+          id="name"
           type="text"
           name="name"
           value={profile.name}
+          autoComplete="name"
           required
           onChange={handleInputChange}
         />
 
-        <label>Username:</label>
+        <label htmlFor="nickname">Username:</label>
         <input
+          id="nickname"
           type="text"
           name="nickname"
           value={profile.nickname}
+          autoComplete="nickname"
           required
           onChange={handleInputChange}
         />
 
-        <label>Photo:</label>
+        <label htmlFor="avatar">Photo:</label>
         <div className="avatar-input-group">
           {preview ? (
-            <img src={preview} alt="Avatar" className="avatar-preview" />
+            <img
+              src={preview}
+              alt="Profile avatar"
+              className="avatar-preview"
+            />
           ) : (
             <div className="avatar-placeholder">No image selected</div>
           )}
           <input
+            id="avatar"
             type="file"
             accept="image/*"
             onChange={handlePhotoChange}
@@ -165,16 +199,16 @@ export default function CompleteProfile() {
         </div>
 
         {showCropModal && cropFile && (
-          <div className="crop-modal-overlay">
+          <div className="crop-modal-overlay" role="dialog" aria-modal="true">
             <div className="crop-modal-content">
               <button
+                type="button"
                 className="close-btn"
                 onClick={() => setShowCropModal(false)}
                 aria-label="Close crop modal"
               >
                 &times;
               </button>
-
               <div className="crop-container">
                 <CropModal
                   file={cropFile}
@@ -182,15 +216,19 @@ export default function CompleteProfile() {
                   onCancel={() => setShowCropModal(false)}
                 />
               </div>
-
               <div className="crop-modal-actions">
                 <button
+                  type="button"
                   className="btn-cancel"
                   onClick={() => setShowCropModal(false)}
                 >
                   Cancel
                 </button>
-                <button className="btn-save" onClick={handleCroppedUpload}>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={handleCroppedUpload}
+                >
                   Save & Upload
                 </button>
               </div>
@@ -198,18 +236,20 @@ export default function CompleteProfile() {
           </div>
         )}
 
-        <label>Age:</label>
+        <label htmlFor="age">Age:</label>
         <input
+          id="age"
           type="number"
           name="age"
           value={profile.age}
-          required
           min="18"
+          required
           onChange={handleInputChange}
         />
 
-        <label>About You:</label>
+        <label htmlFor="bio">About You:</label>
         <input
+          id="bio"
           type="text"
           name="bio"
           value={profile.bio}
@@ -221,14 +261,6 @@ export default function CompleteProfile() {
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </form>
-
-      {showCropModal && cropFile && (
-        <CropModal
-          file={cropFile}
-          onCropComplete={handleCroppedUpload}
-          onCancel={() => setShowCropModal(false)}
-        />
-      )}
     </div>
   );
 }

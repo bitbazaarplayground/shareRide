@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+// src/Pages/AllPostedRides.jsx
+import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -10,6 +13,7 @@ import { supabase } from "../supabaseClient";
 import "./StylesPages/AllPostedRides.css";
 
 export default function AllPostedRides() {
+  const { i18n } = useTranslation();
   const [rides, setRides] = useState([]);
   const [savedRideIds, setSavedRideIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +54,6 @@ export default function AllPostedRides() {
 
       const matchingRides = filteredRides.filter((ride) => {
         const remainingSeats = ride.seats;
-
         const hasDetailedLuggageFields =
           ride.backpack_count !== null ||
           ride.small_suitcase_count !== null ||
@@ -182,10 +185,21 @@ export default function AllPostedRides() {
 
   return (
     <>
+      <Helmet htmlAttributes={{ lang: i18n.language || "en-GB" }}>
+        <title>All Rides — TabFair</title>
+        <meta
+          name="description"
+          content="Browse all posted rides. Filter by origin, destination, date, and luggage."
+        />
+        <link
+          rel="canonical"
+          href="https://jade-rolypoly-5d4274.netlify.app/all-rides"
+        />
+      </Helmet>
+
       <div className="hero-header">
         <div className="overlay-content">
           <SearchBar
-            variant="horizontal"
             passengerCount={passengerCount}
             setPassengerCount={setPassengerCount}
             backpacks={backpacks}
