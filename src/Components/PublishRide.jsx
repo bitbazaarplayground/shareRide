@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { getGeocode, getLatLng } from "use-places-autocomplete";
 import AutocompleteInput from "../Components/AutocompleteInput";
@@ -40,7 +41,6 @@ export default function PublishRide() {
   const [loading, setLoading] = useState(false);
   const [showLuggage, setShowLuggage] = useState(false);
 
-  // max limits by vehicle
   function getMaxByVehicle(type) {
     switch (type) {
       case "van":
@@ -73,7 +73,7 @@ export default function PublishRide() {
     })();
   }, [navigate]);
 
-  // simple haversine estimate (for UX only)
+  // simple haversine estimate (UX only)
   useEffect(() => {
     if (!fromCoords || !toCoords) {
       setEstimate(null);
@@ -93,7 +93,7 @@ export default function PublishRide() {
     setEstimate(price);
   }, [fromCoords, toCoords]);
 
-  // normalize date (avoid timezone off-by-one)
+  // normalize date (avoid timezone off‑by‑one)
   const toISODate = (d) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate())
       .toISOString()
@@ -116,7 +116,6 @@ export default function PublishRide() {
     e.preventDefault();
     setMessage("");
 
-    // basic validation
     if (!fromPlace || !toPlace) {
       setMessage("Please select both From and To addresses.");
       return;
@@ -142,7 +141,6 @@ export default function PublishRide() {
 
     setLoading(true);
 
-    // ensure we have coords (use fallback geocode if missing)
     const origin =
       fromCoords ?? (fromPlace ? await geocodeAddress(fromPlace) : null);
     const dest = toCoords ?? (toPlace ? await geocodeAddress(toPlace) : null);
@@ -162,7 +160,7 @@ export default function PublishRide() {
       large_suitcase_count: largeSuitcases,
       user_id: user.id,
       status: "active",
-      // NEW: store coordinates (nullable if geocoding failed)
+      // coordinates
       from_lat: origin?.lat ?? null,
       from_lng: origin?.lng ?? null,
       to_lat: dest?.lat ?? null,
@@ -175,16 +173,14 @@ export default function PublishRide() {
         .insert([payload])
         .select();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setMessage("✅ Ride published successfully!");
       setTimeout(() => {
         navigate("/all-rides", {
           state: { rides: data, message: "✅ Ride published successfully!" },
         });
-      }, 1200);
+      }, 1000);
     } catch (err) {
       console.error("Supabase insert error:", err);
       setMessage("❌ Error publishing ride.");
@@ -195,8 +191,66 @@ export default function PublishRide() {
 
   const limits = getMaxByVehicle(vehicleType);
 
+  // Page JSON-LD (optional but nice)
+  const webPageJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Publish a Ride — TabFair",
+    description:
+      "Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers.",
+    url: "https://jade-rolypoly-5d4274.netlify.app/publishride",
+  };
+
   return (
     <div className="publish-container">
+      <Helmet>
+        <title>Publish a Ride — TabFair</title>
+        <meta
+          name="description"
+          content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
+        />
+        <link
+          rel="canonical"
+          href="https://jade-rolypoly-5d4274.netlify.app/publishride"
+        />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="TabFair" />
+        <meta property="og:title" content="Publish a Ride — TabFair" />
+        <meta
+          property="og:description"
+          content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
+        />
+        <meta
+          property="og:url"
+          content="https://jade-rolypoly-5d4274.netlify.app/publishride"
+        />
+        <meta
+          property="og:image"
+          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+        />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Publish a Ride — TabFair" />
+        <meta
+          name="twitter:description"
+          content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
+        />
+        <meta
+          name="twitter:image"
+          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+        />
+
+        {/* JSON-LD */}
+        <script type="application/ld+json">
+          {JSON.stringify(webPageJsonLd)}
+        </script>
+      </Helmet>
+
       <h2>Publish Your Ride</h2>
 
       <form onSubmit={handleSubmit}>
@@ -312,10 +366,7 @@ export default function PublishRide() {
         <select
           id="vehicleType"
           value={vehicleType}
-          onChange={(e) => {
-            const next = e.target.value;
-            setVehicleType(next);
-          }}
+          onChange={(e) => setVehicleType(e.target.value)}
         >
           <option value="regular">Regular Taxi (4 seats, 2 large bags)</option>
           <option value="van">Van (6 seats, 4 large bags)</option>

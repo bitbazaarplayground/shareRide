@@ -1,5 +1,6 @@
 // src/Pages/Results.jsx
 import { useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useLocation, useNavigate } from "react-router-dom";
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
@@ -123,6 +124,15 @@ export default function Results() {
 
   return (
     <div className="all-rides-container">
+      <Helmet>
+        <title>Search Results — TabFair</title>
+        <meta
+          name="description"
+          content="View rides that match your search criteria. Book or save rides directly from the results."
+        />
+        <meta name="robots" content="noindex,follow" />
+      </Helmet>
+
       {successMessage && <p className="success">{successMessage}</p>}
       <h2>Matching Rides</h2>
       {filteredRides.length === 0 ? (

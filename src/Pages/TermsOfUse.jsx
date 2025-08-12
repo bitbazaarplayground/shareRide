@@ -1,12 +1,35 @@
-import React from "react";
+// src/Pages/TermsOfUse.jsx
+import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import "./StylesPages/TermsOfUse.css";
 
-const TermsOfUse = () => {
+export default function TermsOfUse() {
   return (
     <div className="terms-container">
+      <Helmet>
+        <title>Terms and Conditions — TabFair</title>
+        <meta
+          name="description"
+          content="The rules and policies for using TabFair, including eligibility, payments, acceptable use, and dispute resolution."
+        />
+        <link
+          rel="canonical"
+          href="https://jade-rolypoly-5d4274.netlify.app/terms"
+        />
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content="Terms and Conditions — TabFair" />
+        <meta
+          property="og:description"
+          content="Understand your rights and responsibilities when using TabFair."
+        />
+        <meta
+          property="og:image"
+          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
+        />
+      </Helmet>
+
       <h1>Terms and Conditions</h1>
-      <p className="effective-date">Effective Date: 3rd of June 2025</p>
+      <p className="effective-date">Effective Date: 3 June 2025</p>
       <p className="platform-info">
         Platform Name: <strong>Tabfair</strong>
         <br />
@@ -42,8 +65,8 @@ const TermsOfUse = () => {
         <p>
           By accessing or using our platform, you agree to be bound by these
           Terms of Use, our <Link to="/privacy">Privacy Policy</Link>, and our{" "}
-          <Link to="/cookies">Cookies Policy</Link> Policy. If you do not agree,
-          do not use the Service.
+          <Link to="/cookies">Cookies Policy</Link>. If you do not agree, do not
+          use the Service.
         </p>
       </section>
 
@@ -99,10 +122,12 @@ const TermsOfUse = () => {
       <section>
         <h2>7. Acceptable Use Policy</h2>
         <ul>
-          <li>Use bots, scripts, or data scrapers</li>
-          <li>Reverse-engineer or tamper with the platform</li>
-          <li>Harass, threaten, or impersonate others</li>
-          <li>Upload or share unlawful, harmful, or misleading content</li>
+          <li>Do not use bots, scripts, or data scrapers</li>
+          <li>Do not reverse‑engineer or tamper with the platform</li>
+          <li>Do not harass, threaten, or impersonate others</li>
+          <li>
+            Do not upload or share unlawful, harmful, or misleading content
+          </li>
         </ul>
       </section>
 
@@ -113,39 +138,31 @@ const TermsOfUse = () => {
           Users agree to prepay their share of the fare. Funds may be held in
           escrow until ride completion.
         </p>
-
         <h3>8.2 Platform Fee</h3>
         <p>
-          A flat, non-refundable service fee is applied per booking, unless due
+          A flat, non‑refundable service fee is applied per booking, unless due
           to a system error.
         </p>
-
-        <h3>8.3 No-show and Refund Policy</h3>
+        <h3>8.3 No‑show and Refund Policy</h3>
         <ul>
           <li>If both users check in, the payment is processed normally.</li>
           <li>
             If one user is absent, the present user may receive a partial
             refund.
           </li>
-          <li>
-            Tabfair reserves the right to evaluate disputes and enforce
-            penalties.
-          </li>
+          <li>Tabfair may evaluate disputes and enforce penalties.</li>
         </ul>
       </section>
 
       <section>
-        <h2>9. Verification and Check-in</h2>
+        <h2>9. Verification and Check‑in</h2>
         <p>Verification methods may include:</p>
         <ul>
-          <li>GPS check-in</li>
+          <li>GPS check‑in</li>
           <li>QR code scanning</li>
           <li>Match PINs</li>
           <li>User confirmations</li>
         </ul>
-        <p>
-          Users must cooperate with verification and not falsify attendance.
-        </p>
       </section>
 
       <section>
@@ -167,11 +184,11 @@ const TermsOfUse = () => {
       </section>
 
       <section>
-        <h2>12. Third-Party Services</h2>
+        <h2>12. Third‑Party Services</h2>
         <p>
-          Tabfair may rely on third-party services (e.g., Stripe, Google Maps).
+          Tabfair may rely on third‑party services (e.g., Stripe, Google Maps).
           We are not responsible for availability, failures, or actions by
-          third-party providers.
+          third‑party providers.
         </p>
       </section>
 
@@ -179,8 +196,8 @@ const TermsOfUse = () => {
         <h2>13. Dispute Resolution</h2>
         <p>
           We encourage users to resolve disputes between themselves when
-          possible. Tabfair may intervene at our discretion. Unresolved disputes
-          may be referred to small claims court in London, UK.
+          possible. Unresolved disputes may be referred to small claims court in
+          London, UK.
         </p>
       </section>
 
@@ -198,7 +215,7 @@ const TermsOfUse = () => {
         <ul>
           <li>Missed rides, lost earnings, or delays</li>
           <li>Injuries, disputes, or misconduct by users</li>
-          <li>System downtime or third-party failures</li>
+          <li>System downtime or third‑party failures</li>
         </ul>
       </section>
 
@@ -215,8 +232,8 @@ const TermsOfUse = () => {
         <h2>17. Privacy Policy</h2>
         <p>
           Your use of Tabfair is subject to our{" "}
-          <Link to="#privacy-policy">Privacy Policy</Link>, which describes how
-          we collect, use, and protect your personal data.
+          <Link to="/privacy">Privacy Policy</Link>, which describes how we
+          collect, use, and protect your personal data.
         </p>
       </section>
 
@@ -225,7 +242,7 @@ const TermsOfUse = () => {
         <p>
           Tabfair uses cookies to personalize your experience. You can manage
           your preferences in your browser or read our{" "}
-          <Link to="#cookies-policy">Cookies Policy</Link> for details.
+          <Link to="/cookies">Cookies Policy</Link> for details.
         </p>
       </section>
 
@@ -255,6 +272,4 @@ const TermsOfUse = () => {
       </section>
     </div>
   );
-};
-
-export default TermsOfUse;
+}
