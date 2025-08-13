@@ -1,0 +1,73 @@
+[
+  {
+    "title": "Rating your carpool driver",
+    "path": "/help/rating-driver",
+    "category": "driver",
+    "tags": ["rating", "review", "driver", "feedback"],
+    "popular": true
+  },
+  {
+    "title": "Passenger cancellation rate",
+    "path": "/help/passenger-cancellation",
+    "category": "passenger",
+    "tags": ["cancellation", "penalties", "no show", "policy"],
+    "popular": true
+  },
+
+  {
+    "title": "Search Tips",
+    "path": "/help/passenger/search-tips",
+    "category": "passenger",
+    "tags": ["search", "filters", "find", "results"]
+  },
+  {
+    "title": "Using search filters",
+    "path": "/help/passenger/search-filters",
+    "category": "passenger",
+    "tags": ["search", "filter", "time", "distance"]
+  },
+
+  {
+    "title": "Bus Luggage Policy",
+    "path": "/help/luggage-policy",
+    "category": "passenger",
+    "tags": ["luggage", "baggage", "size"]
+  },
+  {
+    "title": "Booking a bus online",
+    "path": "/help/booking",
+    "category": "passenger",
+    "tags": ["booking", "ticket", "reservation"]
+  },
+  {
+    "title": "Bus Cancellation Policy",
+    "path": "/help/bus-cancellation",
+    "category": "passenger",
+    "tags": ["cancellation", "refunds"]
+  },
+  {
+    "title": "Cancelling your bus booking",
+    "path": "/help/cancel-booking",
+    "category": "passenger",
+    "tags": ["cancel", "booking", "refund"]
+  },
+
+  {
+    "title": "Offering a ride",
+    "path": "/help/offering-ride",
+    "category": "driver",
+    "tags": ["offer", "ride", "publish"]
+  },
+  {
+    "title": "Payments & refunds",
+    "path": "/help/payments-refunds",
+    "category": "account",
+    "tags": ["payments", "refunds", "billing"]
+  },
+  {
+    "title": "Accessibility features",
+    "path": "/help/accessibility",
+    "category": "safety",
+    "tags": ["a11y", "screen reader", "vision"]
+  }
+]
