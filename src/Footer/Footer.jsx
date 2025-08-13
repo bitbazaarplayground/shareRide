@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import "./Footer.css";
 
@@ -43,6 +42,9 @@ export default function Footer() {
             </li>
             <li>
               <Link to="/Termsofuse">Terms of Use</Link>
+            </li>
+            <li>
+              <Link to="/cookies">Cookies</Link>
             </li>
           </ul>
         </div>

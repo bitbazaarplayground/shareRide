@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VscChevronDown } from "react-icons/vsc";
 import { Link, useNavigate } from "react-router-dom";
@@ -114,7 +114,7 @@ export default function Navbar({ variant = "transparent" }) {
               <Link to="/ourmission">Our Mission</Link>
               <Link to="/about-us">About Us</Link>
               <Link to="/careers">Careers</Link>
-              <Link to="/Termsofuse">Terms and Conditions</Link>
+              <Link to="/">How it Works</Link>
             </div>
           )}
         </div>
