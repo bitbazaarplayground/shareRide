@@ -5,19 +5,16 @@ type LoaderOptions = {
   apiKey: string;
   libraries?: string[]; // e.g. ["places", "geometry"]
   v?: string; // e.g. "weekly" | "beta" | "3.58"
-  language?: string; // e.g. "en"
-  region?: string; // e.g. "US"
-  nonce?: string; // CSP
-  timeoutMs?: number; // e.g. 15000
-  id?: string; // custom <script id>
+  language?: string;
+  region?: string;
+  nonce?: string;
+  timeoutMs?: number;
+  id?: string;
 };
 
 const promiseCache = new Map<string, Promise<GoogleGlobal>>();
 const DEFAULT_ID = "gmaps-js-sdk";
 
-/**
- * Build the URL (without callback) so we can key the cache by exact params.
- */
 function buildUrl({
   apiKey,
   libraries = ["places"],
@@ -27,19 +24,27 @@ function buildUrl({
 }: LoaderOptions): string {
   const params = new URLSearchParams({
     key: apiKey,
-    libraries: libraries.join(","),
-    v, // version pinning is recommended by Google
+    v,
   });
+  // Note: for modern Maps, libraries can be loaded via importLibrary.
+  // We still include &libraries=... for backward compatibility.
+  if (libraries.length) params.set("libraries", libraries.join(","));
   if (language) params.set("language", language);
   if (region) params.set("region", region);
   return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
 }
 
-/**
- * Load Google Maps JS API once per unique URL (keyed by options).
- */
+// Ensure Places is actually available (works with both legacy & modern API)
+async function ensurePlaces(g: any): Promise<GoogleGlobal> {
+  if (g?.maps?.places) return g as GoogleGlobal;
+  if (g?.maps?.importLibrary) {
+    await g.maps.importLibrary("places");
+    return g as GoogleGlobal;
+  }
+  throw new Error("Google Maps loaded without Places library.");
+}
+
 export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
-  // SSR guard
   if (typeof window === "undefined" || typeof document === "undefined") {
     return Promise.reject(
       new Error(
@@ -48,20 +53,19 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
     );
   }
 
-  // Already present
-  if ((window as any).google?.maps) {
-    return Promise.resolve((window as any).google as GoogleGlobal);
+  const g = (window as any).google;
+  if (g?.maps) {
+    // Already loaded — make sure Places exists too
+    return ensurePlaces(g);
   }
 
   const url = buildUrl(opts);
   const id = opts.id ?? DEFAULT_ID;
   const cacheKey = `${id}::${url}`;
 
-  // In-flight / cached
   const cached = promiseCache.get(cacheKey);
   if (cached) return cached;
 
-  // If a script with same id or src already exists, reuse it
   const existing =
     document.getElementById(id) ||
     Array.from(document.scripts).find((s) => s.src === url);
@@ -72,34 +76,27 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
     (resolve, reject) => {
       let timeoutHandle: number | undefined;
 
-      const onSuccess = () => {
-        if ((window as any).google?.maps) {
-          resolve((window as any).google as GoogleGlobal);
-        } else {
-          reject(
-            new Error(
-              "Google Maps loaded, but window.google.maps is unavailable."
-            )
-          );
+      const onSuccess = async () => {
+        try {
+          const gNow = (window as any).google;
+          const ok = await ensurePlaces(gNow);
+          resolve(ok);
+        } catch (e) {
+          reject(e instanceof Error ? e : new Error(String(e)));
         }
       };
-
       const onError = () =>
         reject(new Error("Failed to load the Google Maps JavaScript API."));
 
       if (existing) {
-        // If script tag exists, wait for it to finish by probing on next tick
-        // (onload may not be wired if someone else injected it)
-        // Keep polling briefly until google.maps appears or we timeout.
         const start = Date.now();
         const poll = () => {
           if ((window as any).google?.maps) return onSuccess();
           if (Date.now() - start > timeoutMs) return onError();
           requestAnimationFrame(poll);
         };
-        if (timeoutMs > 0) {
+        if (timeoutMs > 0)
           timeoutHandle = window.setTimeout(onError, timeoutMs);
-        }
         poll();
         return;
       }
