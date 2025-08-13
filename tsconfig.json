@@ -11,13 +11,13 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler", // <- Vite-friendly
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "google.maps"] // <-- makes import.meta.env stable
+    "types": ["vite/client", "google.maps"] // keep if you use Maps
   },
-  "include": ["src", "vite-env.d.ts"],
+  "include": ["src", "vite-env.d.ts", "vite.config.js"],
   "exclude": ["node_modules"]
 }
