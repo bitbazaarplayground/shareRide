@@ -1,0 +1,56 @@
+/* --- OnThisPageSelect --- */
+.otp-select {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem auto 1rem;
+  max-width: 72ch;
+}
+
+.otp-sticky {
+  position: sticky;
+  top: var(--fixed-header, 0px);
+  z-index: 5;
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0; /* slate-200 */
+  border-radius: 0.5rem;
+}
+
+.otp-label {
+  font-size: 0.925rem;
+  color: #475569; /* slate-600 */
+}
+
+.otp-control {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1; /* slate-300 */
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.95rem;
+}
+
+/* Mobile: full-width control, hide label for compactness (kept for SRs) */
+@media (max-width: 640px) {
+  .otp-select {
+    grid-template-columns: 1fr;
+  }
+  .otp-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .otp-sticky {
+    padding: 0.5rem;
+  }
+  .otp-control {
+    width: 100%;
+  }
+}

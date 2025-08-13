@@ -1,0 +1,88 @@
+/* // src/Pages/StylesPages/Policies.css */
+.policy-page {
+  --maxw: 72ch;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  color: #0f172a; /* slate-900 */
+  line-height: 1.65;
+  font-size: 1rem;
+}
+.policy-header h1 {
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.policy-header .effective-date {
+  color: #475569; /* slate-600 */
+  margin: 0 0 1rem;
+}
+
+.policy-header,
+.policy-page section,
+.policy-toc,
+.policy-page .breadcrumbs {
+  max-width: var(--maxw);
+  margin-inline: auto;
+}
+
+.policy-toc {
+  border: 1px solid #e2e8f0; /* slate-200 /
+background: #f8fafc; / slate-50 */
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem auto 2rem;
+}
+
+.policy-toc a {
+  color: #0ea5e9; /* sky-500 */
+  text-decoration: none;
+}
+.policy-toc a:focus,
+.policy-toc a:hover {
+  text-decoration: underline;
+}
+
+.policy-page h2 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  margin: 2rem 0 0.5rem;
+}
+
+.policy-page h3 {
+  font-size: 1.05rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.policy-page ul {
+  padding-left: 1.2rem;
+}
+.policy-page li {
+  margin: 0.25rem 0;
+}
+
+.breadcrumbs {
+  font-size: 0.925rem;
+  color: #475569;
+  margin: 0 0 0.5rem;
+}
+
+.contact-block a {
+  color: #0ea5e9;
+  text-decoration: none;
+}
+.contact-block a:hover,
+.contact-block a:focus {
+  text-decoration: underline;
+}
+
+/* Visually hidden utility for a11y */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

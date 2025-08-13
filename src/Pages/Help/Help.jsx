@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 
 import "./StylesHelp/Help.css";
@@ -34,11 +33,11 @@ export default function HelpPage() {
         </Link>
         <Link to="/help/safety" className="help-card">
           <img src="public/images/TrustSafeHelp.png" alt="Trust and Safety" />
-          <span>Trust, Safety & Accessibility</span>
+          <span>Safety & Accessibility</span>
         </Link>
         <Link to="/help/about" className="help-card">
           <img src="/images/help/about.png" alt="About App" />
-          <span>About ShareRide</span>
+          <span>How ShareRide works</span>
         </Link>
       </section>
 
