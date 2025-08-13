@@ -258,17 +258,15 @@ export default function PublishRide() {
           From
         </label>
         <AutocompleteInput
+          id="from" // ← connects label ↔ input (a11y)
+          name="from"
           placeholder="From"
-          onPlaceSelected={(place) => {
-            setFromPlace(place.formatted_address);
-            if (place.lat && place.lng) {
-              setFromCoords({ lat: place.lat, lng: place.lng });
-            } else if (place.geometry?.location) {
-              setFromCoords({
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng(),
-              });
-            }
+          // Optional: choose ONE—restrict to UK *or* bias toward UK
+          // countries={["gb"]}                             // UK-only
+          // bias={{ lat: 54.5, lng: -3.5, radiusMeters: 800_000 }} // UK-biased
+          onPlaceSelected={({ formatted_address, lat, lng }) => {
+            setFromPlace(formatted_address);
+            setFromCoords({ lat, lng });
           }}
         />
 
@@ -276,17 +274,14 @@ export default function PublishRide() {
           To
         </label>
         <AutocompleteInput
+          id="to"
+          name="to"
           placeholder="To"
-          onPlaceSelected={(place) => {
-            setToPlace(place.formatted_address);
-            if (place.lat && place.lng) {
-              setToCoords({ lat: place.lat, lng: place.lng });
-            } else if (place.geometry?.location) {
-              setToCoords({
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng(),
-              });
-            }
+          // countries={["gb"]}
+          // bias={{ lat: 54.5, lng: -3.5, radiusMeters: 800_000 }}
+          onPlaceSelected={({ formatted_address, lat, lng }) => {
+            setToPlace(formatted_address);
+            setToCoords({ lat, lng });
           }}
         />
 
