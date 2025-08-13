@@ -10,6 +10,7 @@ import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
 import "../GlobalStyles/globalDatePicker.css";
 import { supabase } from "../supabaseClient";
+import { loadGoogleMaps } from "../utils/loadGoogleMaps";
 
 export default function PublishRide() {
   const { user } = useAuth();
@@ -102,6 +103,13 @@ export default function PublishRide() {
   // geocode fallback if user typed raw text
   async function geocodeAddress(address) {
     try {
+      // Ensure Maps JS (Places, since the page uses Autocomplete) is ready
+      await loadGoogleMaps({
+        apiKey: import.meta.env.VITE_MAPS_KEY,
+        libraries: ["places"],
+        v: "weekly",
+      });
+
       const results = await getGeocode({ address });
       if (!results?.length) return null;
       const { lat, lng } = await getLatLng(results[0]);
@@ -111,6 +119,15 @@ export default function PublishRide() {
       return null;
     }
   }
+
+  // (optional but nice) kick off loading on mount so it’s ready by the time the user types
+  useEffect(() => {
+    loadGoogleMaps({
+      apiKey: import.meta.env.VITE_MAPS_KEY,
+      libraries: ["places"],
+      v: "weekly",
+    }).catch((e) => console.error("Maps loader error:", e));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -140,7 +157,7 @@ export default function PublishRide() {
     }
 
     setLoading(true);
-
+    //Test
     const origin =
       fromCoords ?? (fromPlace ? await geocodeAddress(fromPlace) : null);
     const dest = toCoords ?? (toPlace ? await geocodeAddress(toPlace) : null);
