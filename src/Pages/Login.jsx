@@ -20,9 +20,25 @@ export default function Login() {
     return Boolean(url && key);
   }, []);
 
+  const AUTH_TIMEOUT_MS = 10_000;
+  const withTimeout = (p, label) =>
+    Promise.race([
+      p,
+      new Promise((_, rej) =>
+        setTimeout(
+          () => rej(new Error(`${label} timed out after ${AUTH_TIMEOUT_MS}ms`)),
+          AUTH_TIMEOUT_MS
+        )
+      ),
+    ]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setMessage("");
+    console.log(
+      "[Login] Attempting login to:",
+      import.meta.env.VITE_SUPABASE_URL
+    );
 
     if (!envOK) {
       setMessage(
@@ -36,8 +52,7 @@ export default function Login() {
     }
 
     const emailTrim = email.trim();
-    const pwd = password; // don’t trim password
-
+    const pwd = password;
     if (!emailTrim || !pwd) {
       setMessage("❌ Please enter email and password.");
       return;
@@ -45,30 +60,35 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailTrim,
-        password: pwd,
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email: emailTrim, password: pwd }),
+        "Login"
+      );
 
+      console.log("[Login] signInWithPassword result:", {
+        userId: data?.user?.id,
+        hasSession: !!data?.session,
+        error,
+      });
       if (error) {
-        console.error("supabase.auth.signInWithPassword error:", error);
         setMessage(
-          `❌ ${error.message} ${error.status ? `(code ${error.status})` : ""}`
+          `❌ ${error.message}${error.status ? ` (code ${error.status})` : ""}`
         );
         return;
       }
-
-      // data: { user, session }—log once to verify in prod
-      console.log("Login success:", {
-        userId: data?.user?.id,
-        session: Boolean(data?.session),
-      });
-
+      if (!data?.session) {
+        setMessage("❌ No session returned. Please try again.");
+        return;
+      }
       setMessage("✅ Login successful!");
       setTimeout(() => navigate("/"), 600);
     } catch (err) {
-      console.error("Login exception:", err);
-      setMessage("❌ Something went wrong. Please try again.");
+      console.error("[Login] Exception:", err);
+
+      const msg = err?.message?.includes("timed out")
+        ? "❌ No response from auth server. Check network/ad-blockers and try again."
+        : "❌ Something went wrong. Please try again.";
+      setMessage(msg);
     } finally {
       setLoading(false);
     }
