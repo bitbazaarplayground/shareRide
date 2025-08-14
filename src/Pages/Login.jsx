@@ -1,5 +1,5 @@
 // src/Pages/Login.jsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { FaApple, FaFacebookF, FaGoogle, FaInstagram } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -10,43 +10,104 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Runtime guard: make it obvious if Netlify envs are missing
+  const envOK = useMemo(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    return Boolean(url && key);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setMessage("");
+
+    if (!envOK) {
+      setMessage(
+        "❌ Missing Supabase env vars. Check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY on Netlify."
+      );
+      console.error("Supabase envs", {
+        VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY),
+      });
+      return;
+    }
+
+    const emailTrim = email.trim();
+    const pwd = password; // don’t trim password
+
+    if (!emailTrim || !pwd) {
+      setMessage("❌ Please enter email and password.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: emailTrim,
+        password: pwd,
       });
-      if (error) setMessage("❌ " + error.message);
-      else {
-        setMessage("✅ Login successful!");
-        setTimeout(() => navigate("/"), 800);
+
+      if (error) {
+        console.error("supabase.auth.signInWithPassword error:", error);
+        setMessage(
+          `❌ ${error.message} ${error.status ? `(code ${error.status})` : ""}`
+        );
+        return;
       }
-    } catch {
-      setMessage("❌ Something went wrong. Try again.");
+
+      // data: { user, session }—log once to verify in prod
+      console.log("Login success:", {
+        userId: data?.user?.id,
+        session: Boolean(data?.session),
+      });
+
+      setMessage("✅ Login successful!");
+      setTimeout(() => navigate("/"), 600);
+    } catch (err) {
+      console.error("Login exception:", err);
+      setMessage("❌ Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setMessage("");
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
       });
-      if (error) setMessage("❌ " + error.message);
-    } catch {
+      if (error) {
+        console.error("Google OAuth error:", error);
+        setMessage(`❌ ${error.message}`);
+      }
+    } catch (err) {
+      console.error("Google OAuth exception:", err);
       setMessage("❌ Something went wrong.");
     }
   };
 
   const handleFacebookLogin = async () => {
+    setMessage("");
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "facebook",
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
       });
-      if (error) setMessage("❌ " + error.message);
-    } catch {
+      if (error) {
+        console.error("Facebook OAuth error:", error);
+        setMessage(`❌ ${error.message}`);
+      }
+    } catch (err) {
+      console.error("Facebook OAuth exception:", err);
       setMessage("❌ Something went wrong.");
     }
   };
@@ -54,12 +115,15 @@ export default function Login() {
   const handleForgotPassword = async () => {
     const userEmail = prompt("Please enter your email to reset your password:");
     if (!userEmail) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-      redirectTo: `${window.location.origin}/recovery`,
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      userEmail.trim(),
+      {
+        redirectTo: `${window.location.origin}/recovery`,
+      }
+    );
     setMessage(
       error
-        ? "❌ " + error.message
+        ? `❌ ${error.message}`
         : "✅ Password reset email sent! Check your inbox."
     );
   };
@@ -96,7 +160,14 @@ export default function Login() {
       <div className="login-container">
         <h2>Login</h2>
 
-        <form className="login-form" onSubmit={handleLogin}>
+        {!envOK && (
+          <p className="message" style={{ color: "#b00020" }}>
+            ❌ Missing Supabase env vars. Set <code>VITE_SUPABASE_URL</code> and{" "}
+            <code>VITE_SUPABASE_ANON_KEY</code> in Netlify & redeploy.
+          </p>
+        )}
+
+        <form className="login-form" onSubmit={handleLogin} noValidate>
           <input
             type="email"
             inputMode="email"
@@ -118,8 +189,8 @@ export default function Login() {
             required
           />
 
-          <button className="login-submit-btn" type="submit">
-            Log In
+          <button className="login-submit-btn" type="submit" disabled={loading}>
+            {loading ? "Logging in…" : "Log In"}
           </button>
         </form>
 
@@ -131,6 +202,7 @@ export default function Login() {
               className="login-social-btn google"
               onClick={handleGoogleLogin}
               aria-label="Continue with Google"
+              disabled={loading}
             >
               <FaGoogle size={24} color="#DB4437" />
             </button>
@@ -139,6 +211,7 @@ export default function Login() {
               className="login-social-btn facebook"
               onClick={handleFacebookLogin}
               aria-label="Continue with Facebook"
+              disabled={loading}
             >
               <FaFacebookF size={24} color="#1877F2" />
             </button>
@@ -154,6 +227,7 @@ export default function Login() {
               type="button"
               className="login-social-btn apple"
               onClick={() => alert("Apple login not implemented yet.")}
+              disabled={loading}
             >
               <FaApple size={24} color="#333" />
             </button>
@@ -165,6 +239,7 @@ export default function Login() {
             type="button"
             onClick={handleForgotPassword}
             className="linklike"
+            disabled={loading}
           >
             Forgot your password?
           </button>
