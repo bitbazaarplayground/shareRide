@@ -46,7 +46,7 @@ export default function AllPostedRides() {
       }
 
       const now = new Date();
-      const filteredRides = data.filter((ride) => {
+      const filteredRides = (data || []).filter((ride) => {
         if (!ride.date || !ride.time) return false;
         const rideDateTime = new Date(`${ride.date}T${ride.time}`);
         return rideDateTime >= now;
@@ -91,7 +91,10 @@ export default function AllPostedRides() {
 
   useEffect(() => {
     async function fetchSavedRides() {
-      if (!user) return;
+      if (!user?.id) {
+        setSavedRideIds([]); // clear when logged out to avoid stale hearts
+        return;
+      }
       const { data, error } = await supabase
         .from("saved_rides")
         .select("ride_id")
@@ -102,9 +105,10 @@ export default function AllPostedRides() {
       }
     }
     fetchSavedRides();
-  }, [user]);
+  }, [user?.id]);
 
   const toggleSaveRide = async (rideId) => {
+    if (!user?.id) return; // RideCard already prompts; this is a safety guard
     if (savedRideIds.includes(rideId)) {
       await supabase
         .from("saved_rides")
@@ -114,12 +118,9 @@ export default function AllPostedRides() {
       setSavedRideIds((prev) => prev.filter((id) => id !== rideId));
       toast.info("Ride removed from saved rides.");
     } else {
-      await supabase.from("saved_rides").insert([
-        {
-          ride_id: rideId,
-          user_id: user.id,
-        },
-      ]);
+      await supabase
+        .from("saved_rides")
+        .insert([{ ride_id: rideId, user_id: user.id }]);
       setSavedRideIds((prev) => [...prev, rideId]);
       toast.success("Ride saved successfully!");
     }
@@ -148,10 +149,9 @@ export default function AllPostedRides() {
   };
 
   const handleStartChat = async (ridePosterId, rideId) => {
-    const [userA, userB] =
-      user.id < ridePosterId
-        ? [user.id, ridePosterId]
-        : [ridePosterId, user.id];
+    if (!user?.id) return; // RideCard gates auth; guard for safety
+    const userA = user.id < ridePosterId ? user.id : ridePosterId;
+    const userB = user.id < ridePosterId ? ridePosterId : user.id;
 
     const { data: existingChat } = await supabase
       .from("chats")
@@ -162,7 +162,6 @@ export default function AllPostedRides() {
       .maybeSingle();
 
     let chatId;
-
     if (existingChat) {
       chatId = existingChat.id;
     } else {
@@ -171,12 +170,10 @@ export default function AllPostedRides() {
         .insert([{ user1: userA, user2: userB, ride_id: rideId }])
         .select()
         .single();
-
       if (createError) {
         console.error("Error creating chat:", createError);
         return;
       }
-
       chatId = newChat.id;
     }
 
@@ -232,7 +229,8 @@ export default function AllPostedRides() {
                   isSaved={savedRideIds.includes(ride.id)}
                   canSave={true}
                   canEdit={user?.id === ride.profiles?.id}
-                  showBookNow={user && user.id !== ride.profiles?.id}
+                  /* 👇 Show Book button to everyone (hidden only for owner when logged in) */
+                  showBookNow={ride.profiles?.id !== user?.id}
                   onSaveToggle={toggleSaveRide}
                   onDelete={() => confirmDelete(ride.id)}
                   onEdit={(id) => navigate(`/edit-ride/${id}`)}

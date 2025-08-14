@@ -1,6 +1,4 @@
-/* ===========================
-   Navbar.css — improved
-   =========================== */
+/* Navbar.css  */
 
 /* Design tokens */
 :root {
@@ -323,9 +321,9 @@ body {
     flex: 1 1 auto;
     justify-content: center;
   }
-  .help-link {
+  /* .help-link {
     display: none;
-  } /* keep right side uncluttered on small screens */
+  } keep right side uncluttered on small screens */
 }
 
 @media (max-width: 560px) {
