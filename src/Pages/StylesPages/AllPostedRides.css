@@ -1,18 +1,37 @@
-/* AllPostedRides.css */
-/* Container & Animation */
-.all-rides-container {
-  max-width: 1056px;
-  margin: 2rem auto;
-  padding: 1.5rem 0;
-  font-family: "Segoe UI", sans-serif;
-  animation: fadeIn 0.6s ease-in;
+/* AllPostedRides.css – consolidated + trimmed + a11y-friendly */
+
+/* ===== Theme tokens ===== */
+:root {
+  --brand: #e66000;
+  --brand-600: #0062cc;
+  --success: #34a853;
+  --success-600: #288d41;
+  --danger: #dc3545;
+  --warning: #f0ad4e;
+  --text: #1a1a1a;
+  --muted: #333;
+  --card-shadow: rgba(0, 0, 0, 0.04);
 }
+
+/* ===== Page layout ===== */
 .rides-page-wrapper {
-  margin-top: 80px; /* gives space below the SearchBar */
+  margin-top: 80px; /* space under hero search */
   max-width: 1056px;
   margin-left: auto;
   margin-right: auto;
   padding: 0 1rem;
+}
+
+.all-rides-container {
+  max-width: 1056px;
+  margin: 2rem auto;
+  padding: 1.5rem 0;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  animation: fadeIn 0.6s ease-in;
 }
 
 @keyframes fadeIn {
@@ -26,45 +45,7 @@
   }
 }
 
-/* Success toast message */
-.success {
-  background-color: #e6ffed;
-  border-left: 5px solid #2ecc71;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: 6px;
-  font-weight: 500;
-  color: #2b7a4b;
-}
-
-/* Ride card list container */
-.ride-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-/* Each ride card box */
-.ride-card {
-  width: 100%;
-  background: #ffffff;
-  /* border: 1px solid #e0e0e0;
-  border-left: 5px solid #007aff; */
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-/* #007aff */
-
-.ride-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-}
-/* Hero Header */
+/* ===== Hero header with search overlay ===== */
 .hero-header {
   background-image: url("/images/backgroundAllRides.png");
   background-size: cover;
@@ -75,7 +56,6 @@
   align-items: flex-end;
   justify-content: center;
 }
-
 .overlay-content {
   position: absolute;
   bottom: -70px;
@@ -85,29 +65,59 @@
   z-index: 5;
 }
 
-/* Avatar + Username Row */
+/* ===== Feedback / toast-like success stripe ===== */
+.success {
+  background-color: #e6ffed;
+  border-left: 5px solid #2ecc71;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #2b7a4b;
+}
+
+/* ===== List wrapper ===== */
+.ride-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ===== Card ===== */
+.ride-card {
+  width: 100%;
+  background: #fff;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--card-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.ride-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Avatar + nickname row ===== */
 .avatar-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 0.5rem;
 }
-
-.avatar-header img,
+.ride-avatar,
 .poster-avatar {
   width: 42px;
   height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #007aff;
+  border: 2px solid var(--brand);
 }
-
-.initial-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background-color: #007aff;
-  color: white;
+.poster-avatar.initial-avatar {
+  background-color: var(--brand);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,34 +125,47 @@
   font-size: 1rem;
 }
 
-.username {
-  font-weight: 600;
-  font-size: 1rem;
-  color: #007aff;
+/* Make nickname behave like a link but keep accessibility of a button */
+.poster-nickname {
+  background: none !important;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: #0a58ca;
+
   cursor: pointer;
-  text-decoration: none;
+  font: inherit;
+  font-weight: 750;
+
+  border-radius: 3px;
+}
+.poster-nickname:hover {
+  color: #063d9e;
+}
+.poster-nickname:focus-visible {
+  outline: 2px solid #0a58ca;
+  outline-offset: 2px;
 }
 
-/* From and To */
+/* ===== Route (From → To) ===== */
 .ride-locations {
   font-size: 1.05rem;
   font-weight: 600;
   margin-bottom: 0.75rem;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
-/* Ride detail lines: Date, Time, Seats */
+/* ===== Details ===== */
 .ride-details {
   margin-bottom: 0.75rem;
 }
-
 .ride-details p {
   margin: 0.25rem 0;
   font-size: 0.95rem;
-  color: #333;
+  color: var(--muted);
 }
 
-/* Comments/Notes */
+/* Optional notes */
 .ride-notes {
   margin-top: 0.75rem;
   font-style: italic;
@@ -150,14 +173,13 @@
   font-size: 0.92rem;
 }
 
-/* Buttons */
+/* ===== Actions ===== */
 .ride-actions {
   margin-top: 1.2rem;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
-
 .send-message-btn,
 .book-now-btn,
 .edit-ride-btn,
@@ -168,59 +190,91 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
-/* Individual Button Styles */
+/* Individual button colors */
 .send-message-btn {
-  background-color: #34a853;
-  color: white;
+  background-color: var(--success);
+  color: #fff;
 }
 .send-message-btn:hover {
-  background-color: #288d41;
+  background-color: var(--success-600);
 }
 
 .book-now-btn {
-  background-color: #007aff;
-  color: white;
+  background-color: var(--brand);
+  color: #fff;
 }
 .book-now-btn:hover {
-  background-color: #0062cc;
+  background-color: var(--brand-600);
 }
 
 .edit-ride-btn {
-  background-color: #f0ad4e;
-  color: white;
+  background-color: var(--warning);
+  color: #fff;
 }
 .edit-ride-btn:hover {
-  background-color: #ec9a2b;
+  filter: brightness(0.95);
 }
 
 .delete-ride-btn {
-  background-color: #d9534f;
-  color: white;
+  background-color: var(--danger);
+  color: #fff;
 }
 .delete-ride-btn:hover {
-  background-color: #c9302c;
+  filter: brightness(0.95);
 }
 
 .save-ride-btn {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
+  background: transparent;
   font-size: 1.25rem;
   color: red;
+  padding: 0 8px; /* tighter target without huge box */
 }
 
-/* Utility */
-.clickable {
-  cursor: pointer;
-  text-decoration: underline;
-  color: #f17863;
-}
-
+/* Separator line inside card */
 hr {
   margin-top: 1.5rem;
   border: none;
   border-top: 1px solid #e0e0e0;
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .all-rides-container {
+    animation: none;
+  }
+  .ride-card,
+  .send-message-btn,
+  .book-now-btn,
+  .edit-ride-btn,
+  .delete-ride-btn {
+    transition: none;
+  }
+  .ride-card:hover {
+    transform: none;
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .hero-header {
+    height: 280px;
+  }
+  .overlay-content {
+    bottom: -60px;
+  }
+  .ride-actions {
+    gap: 10px;
+  }
+  .send-message-btn,
+  .book-now-btn,
+  .edit-ride-btn,
+  .delete-ride-btn {
+    padding: 10px 14px;
+    font-size: 0.93rem;
+  }
 }

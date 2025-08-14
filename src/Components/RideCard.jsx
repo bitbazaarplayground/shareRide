@@ -1,8 +1,6 @@
-// RideCard.jsx
 import React from "react";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import "./Styles/RideCard.css";
 
 export default function RideCard({
   ride,
@@ -19,12 +17,13 @@ export default function RideCard({
   bookingDetails = null, // NEW for booked rides
 }) {
   const navigate = useNavigate();
+  const isOwner = !!(user && ride?.profiles?.id === user.id);
 
   const formatTime = (timeStr) => {
     if (!timeStr) return "N/A";
-    const [hours, minutes] = timeStr.split(":");
+    const [hours, minutes] = String(timeStr).split(":");
     const date = new Date();
-    date.setHours(+hours, +minutes);
+    date.setHours(+hours || 0, +minutes || 0, 0, 0);
     return date.toLocaleTimeString([], {
       hour: "numeric",
       minute: "2-digit",
@@ -43,30 +42,60 @@ export default function RideCard({
     });
   };
 
+  // Confirm used for message/book/save when logged out
+  const confirmAuthCta = () =>
+    window.confirm(
+      "You must be logged in to message or book a ride.\n\nWould you like to create an account for free?"
+    );
+
+  // Confirm used for username/profile when logged out
+  const confirmAuthProfile = () =>
+    window.confirm(
+      "Please log in to view profiles.\n\nWould you like to create a free account?"
+    );
+
+  const requireAuthForCta = (action) => () => {
+    if (user) return action();
+    if (confirmAuthCta()) navigate("/signup");
+  };
+
+  const handleNicknameClick = () => {
+    if (user) {
+      navigate(`/profile/${ride.profiles.id}`);
+    } else if (confirmAuthProfile()) {
+      navigate("/signup");
+    }
+  };
+
   return (
     <li className="ride-card">
-      {showAvatar && ride.profiles && (
+      {showAvatar && ride?.profiles && (
         <div className="avatar-header">
           {ride.profiles.avatar_url ? (
             <img
               src={ride.profiles.avatar_url}
-              alt={`${ride.profiles.nickname}'s avatar`}
+              alt={`${ride.profiles.nickname || "User"}'s avatar`}
+              className="ride-avatar"
+              referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="poster-avatar initial-avatar">
+            <div className="poster-avatar initial-avatar" aria-hidden="true">
               {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
             </div>
           )}
           <div className="name-destination">
-            <span
+            <button
+              type="button"
               className="poster-nickname clickable"
-              onClick={() => {
-                if (user) navigate(`/profile/${ride.profiles.id}`);
-                else alert("Please log in to view profiles.");
-              }}
+              onClick={handleNicknameClick}
+              aria-label={
+                user
+                  ? `View ${ride.profiles.nickname}'s profile`
+                  : "Log in to view profiles"
+              }
             >
               {ride.profiles.nickname}
-            </span>
+            </button>
           </div>
         </div>
       )}
@@ -111,47 +140,76 @@ export default function RideCard({
       <div className="ride-actions">
         {canEdit ? (
           <>
-            <button onClick={() => onEdit(ride.id)} className="edit-ride-btn">
+            <button
+              type="button"
+              onClick={() => onEdit?.(ride.id)}
+              className="edit-ride-btn"
+            >
               Edit Ride
             </button>
             <button
-              onClick={() => onDelete(ride.id)}
+              type="button"
+              onClick={() => onDelete?.(ride.id)}
               className="delete-ride-btn"
             >
               Delete Ride
             </button>
           </>
         ) : (
-          <>
-            {user && ride.profiles?.id !== user.id && (
-              <>
-                {onStartChat && (
-                  <button
-                    onClick={() => onStartChat(ride.profiles.id, ride.id)}
-                    className="send-message-btn"
-                  >
-                    Send Message
-                  </button>
-                )}
-                {showBookNow && (
-                  <button
-                    onClick={() => navigate(`/splitride-confirm/${ride.id}`)}
-                    className="book-now-btn"
-                  >
-                    Book Now
-                  </button>
-                )}
-                {canSave && onSaveToggle && (
-                  <button
-                    onClick={() => onSaveToggle(ride.id)}
-                    className="save-ride-btn"
-                  >
-                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
-                  </button>
-                )}
-              </>
-            )}
-          </>
+          // Show CTAs for everyone except the owner (logged-out users still see them)
+          !isOwner && (
+            <>
+              {onStartChat && (
+                <button
+                  type="button"
+                  onClick={
+                    user
+                      ? () => onStartChat(ride.profiles?.id, ride.id)
+                      : requireAuthForCta(() => {})
+                  }
+                  className="send-message-btn"
+                >
+                  Send Message
+                </button>
+              )}
+
+              {showBookNow && (
+                <button
+                  type="button"
+                  onClick={
+                    user
+                      ? () => navigate(`/splitride-confirm/${ride.id}`)
+                      : requireAuthForCta(() => {})
+                  }
+                  className="book-now-btn"
+                >
+                  Book Now
+                </button>
+              )}
+
+              {canSave && (
+                <button
+                  type="button"
+                  onClick={
+                    user
+                      ? () => onSaveToggle?.(ride.id)
+                      : requireAuthForCta(() => {})
+                  }
+                  className="save-ride-btn"
+                  aria-label={isSaved ? "Unsave ride" : "Save ride"}
+                  title={
+                    user
+                      ? isSaved
+                        ? "Unsave"
+                        : "Save"
+                      : "Log in to save rides"
+                  }
+                >
+                  {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
+                </button>
+              )}
+            </>
+          )
         )}
       </div>
 
