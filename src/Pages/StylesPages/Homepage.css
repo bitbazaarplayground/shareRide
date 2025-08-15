@@ -71,33 +71,22 @@
   }
 }
 
-/* === WAVE INSIDE HERO (white edge) === */
-.hero-wave {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  width: 100%;
-  height: 72px;
-  display: block;
-  pointer-events: none;
-}
-
-/* === ORIGINAL ORANGE WAVE SEPARATOR === */
-.orange-wave-separator {
-  line-height: 0;
-  width: 100%;
-  background: #fff; /* ensures clean edge against white */
-}
-.orange-wave-separator svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* (Optional) remove old class if it exists */
+/* === WAVES === */
 .orange-bottom-wave {
-  display: none;
+  position: relative;
+  width: 100%;
+  height: 400px; /* 🔼 more height */
+  overflow: hidden;
+  line-height: 0;
+  z-index: 5;
+  margin-top: -130px;
+  margin-bottom: -270px;
+}
+
+.orange-bottom-wave svg {
+  width: 100%;
+  height: 88%;
+  display: block;
 }
 
 /* === BENEFITS SECTION === */
