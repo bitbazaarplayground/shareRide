@@ -147,29 +147,22 @@ export default function Homepage() {
               Door-to-door rides across the UK with trusted users.
             </p>
           </div>
-
-          <svg
-            className="hero-wave"
-            viewBox="0 0 1440 120"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M0,40 C240,110 480,110 720,40 C960,-30 1200,-30 1440,40 L1440,120 L0,120 Z"
-              fill="#fff"
-            />
-          </svg>
         </section>
 
-        <div className="orange-wave-separator" aria-hidden="true">
+        {/* TOP WAVE (OUTSIDE HERO WRAPPER) */}
+        <div className="orange-bottom-wave">
           <svg
-            viewBox="0 0 1440 160"
+            viewBox="0 0 1440 320"
             preserveAspectRatio="none"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
               fill="#e66000"
-              d="M0,96 C180,140 360,140 540,96 C720,52 900,52 1080,96 C1260,140 1440,140 1620,96 L1620,160 L0,160 Z"
+              d="
+              M0,120
+              C20,110 1440,260 1640,40
+              C640,180 180,90 0,80
+              Z"
             />
           </svg>
         </div>
