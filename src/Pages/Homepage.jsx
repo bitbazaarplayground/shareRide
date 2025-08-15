@@ -104,27 +104,27 @@ export default function Homepage() {
             <source
               type="image/avif"
               srcSet="
-      /images/carpoolImage-480.avif   480w,
-      /images/carpoolImage-1024.avif 1024w,
-      /images/carpoolImage-1600.avif 1600w
+      /images/home/carpoolImage-480.avif   480w,
+      /images/home/carpoolImage-1024.avif 1024w,
+      /images/home/carpoolImage-1600.avif 1600w
     "
               sizes="100vw"
             />
             <source
               type="image/webp"
               srcSet="
-      /images/carpoolImage-480.webp   480w,
-      /images/carpoolImage-1024.webp 1024w,
-      /images/carpoolImage-1600.webp 1600w
+      /images/home/carpoolImage-480.webp   480w,
+      /images/home/carpoolImage-1024.webp 1024w,
+      /images/home/carpoolImage-1600.webp 1600w
     "
               sizes="100vw"
             />
             <img
-              src="/images/carpoolImage-1600.jpg"
+              src="/images/home/carpoolImage-1600.jpg"
               srcSet="
-      /images/carpoolImage-480.jpg   480w,
-      /images/carpoolImage-1024.jpg 1024w,
-      /images/carpoolImage-1600.jpg 1600w
+      /images/home/carpoolImage-480.jpg   480w,
+      /images/home/carpoolImage-1024.jpg 1024w,
+      /images/home/carpoolImage-1600.jpg 1600w
     "
               sizes="100vw"
               alt="Happy people in a car sharing a ride"

@@ -44,26 +44,71 @@
     transform: translateY(0);
   }
 }
-
-/* ===== Hero header with search overlay ===== */
+/* New Code start */
+/* ===== Hero (image element, not CSS background) ===== */
 .hero-header {
-  background-image: url("/images/backgroundAllRides.png");
-  background-size: cover;
-  background-position: center;
-  height: 350px;
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  overflow: visible;
 }
+
+/* Optional soft gradient for readability near the bottom */
+.hero-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.hero-media {
+  width: 100%;
+}
+
+.hero-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Keep a stable box even before the image loads */
+  aspect-ratio: 16 / 5; /* ~1600×500 look; adjust if you prefer */
+  object-fit: cover;
+}
+
+/* SearchBar overlay pin */
 .overlay-content {
   position: absolute;
-  bottom: -70px;
-  width: 100%;
-  max-width: 1008px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -56px; /* pulls it below the image edge */
+  width: min(100%, 1008px);
   padding: 0 1rem;
   z-index: 5;
 }
+
+/* Give room so content below doesn't collide with the overlay */
+.rides-page-wrapper {
+  /* you already had 80px for header spacing; add overlay offset */
+  margin-top: calc(80px + 56px);
+  max-width: 1056px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .hero-img {
+    aspect-ratio: 16 / 9; /* taller on mobile for better crop */
+  }
+  .overlay-content {
+    bottom: -44px;
+  }
+  .rides-page-wrapper {
+    margin-top: calc(80px + 44px);
+  }
+}
+/* NEW CODE END */
 
 /* ===== Feedback / toast-like success stripe ===== */
 .success {

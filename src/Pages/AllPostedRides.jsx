@@ -194,7 +194,38 @@ export default function AllPostedRides() {
         />
       </Helmet>
 
-      <div className="hero-header">
+      <section className="hero-header" aria-label="Browse all rides">
+        <picture className="hero-media">
+          <source
+            type="image/avif"
+            srcSet="/images/allrides/all-rides-480.avif 480w,
+            /images/allrides/all-rides-1024.avif 1024w,
+            /images/allrides/all-rides-1600.avif 1600w"
+            sizes="100vw"
+          />
+          <source
+            type="image/webp"
+            srcSet="/images/allrides/all-rides-480.webp 480w,
+            /images/allrides/all-rides-1024.webp 1024w,
+            /images/allrides/all-rides-1600.webp 1600w"
+            sizes="100vw"
+          />
+          <img
+            src="/images/allrides/all-rides-1600.jpg"
+            srcSet="/images/allrides/all-rides-480.jpg 480w,
+            /images/allrides/all-rides-1024.jpg 1024w,
+            /images/allrides/all-rides-1600.jpg 1600w"
+            sizes="100vw"
+            alt=""
+            width="1600"
+            height="500"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+            className="hero-img"
+          />
+        </picture>
+
         <div className="overlay-content">
           <SearchBar
             passengerCount={passengerCount}
@@ -207,7 +238,7 @@ export default function AllPostedRides() {
             setLargeSuitcases={setLargeSuitcases}
           />
         </div>
-      </div>
+      </section>
 
       <div className="rides-page-wrapper">
         {successMessage && <p className="success">{successMessage}</p>}
