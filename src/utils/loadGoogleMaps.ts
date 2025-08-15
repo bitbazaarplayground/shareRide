@@ -3,45 +3,76 @@ type GoogleGlobal = typeof google;
 
 type LoaderOptions = {
   apiKey: string;
-  libraries?: string[]; // e.g. ["places", "geometry"]
-  v?: string; // e.g. "weekly" | "beta" | "3.58"
+  libraries?: string[]; // ["places", "geometry"]
+  v?: string; // "weekly" | "beta" | "3.58"
   language?: string;
   region?: string;
   nonce?: string;
-  timeoutMs?: number;
-  id?: string;
+  timeoutMs?: number; // overall loader timeout
+  id?: string; // <script id>
+  loading?: "async" | "defer"; // Google param; "async" recommended
 };
 
 const promiseCache = new Map<string, Promise<GoogleGlobal>>();
 const DEFAULT_ID = "gmaps-js-sdk";
 
+/** Build the API URL */
 function buildUrl({
   apiKey,
   libraries = ["places"],
   v = "weekly",
   language,
   region,
+  loading = "async",
 }: LoaderOptions): string {
   const params = new URLSearchParams({
     key: apiKey,
     v,
+    loading, // silences SDK warning
   });
-  // Note: for modern Maps, libraries can be loaded via importLibrary.
-  // We still include &libraries=... for backward compatibility.
   if (libraries.length) params.set("libraries", libraries.join(","));
   if (language) params.set("language", language);
   if (region) params.set("region", region);
   return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
 }
 
-// Ensure Places is actually available (works with both legacy & modern API)
-async function ensurePlaces(g: any): Promise<GoogleGlobal> {
-  if (g?.maps?.places) return g as GoogleGlobal;
+/** Wait for google.maps.places to exist; try importLibrary first */
+async function waitForPlaces(timeoutMs = 4000): Promise<GoogleGlobal> {
+  const start = Date.now();
+  const hasPlaces = () =>
+    (window as any).google?.maps?.places
+      ? ((window as any).google as GoogleGlobal)
+      : null;
+
+  const g0 = hasPlaces();
+  if (g0) return g0;
+
+  const g = (window as any).google;
   if (g?.maps?.importLibrary) {
-    await g.maps.importLibrary("places");
-    return g as GoogleGlobal;
+    try {
+      await g.maps.importLibrary("places");
+      const g1 = hasPlaces();
+      if (g1) return g1;
+    } catch {
+      // fall through to polling
+    }
   }
-  throw new Error("Google Maps loaded without Places library.");
+
+  return new Promise<GoogleGlobal>((resolve, reject) => {
+    const tick = () => {
+      const gx = hasPlaces();
+      if (gx) return resolve(gx);
+      if (Date.now() - start > timeoutMs) {
+        return reject(
+          new Error(
+            "Google Maps loaded, but Places library was not available in time."
+          )
+        );
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
 }
 
 export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
@@ -53,10 +84,9 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
     );
   }
 
-  const g = (window as any).google;
-  if (g?.maps) {
-    // Already loaded — make sure Places exists too
-    return ensurePlaces(g);
+  if ((window as any).google?.maps) {
+    // Maps is there; ensure Places is ready
+    return waitForPlaces();
   }
 
   const url = buildUrl(opts);
@@ -66,9 +96,12 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
   const cached = promiseCache.get(cacheKey);
   if (cached) return cached;
 
+  // Reuse any existing Maps script (param order may differ)
   const existing =
     document.getElementById(id) ||
-    Array.from(document.scripts).find((s) => s.src === url);
+    Array.from(document.scripts).find((s) =>
+      s.src.startsWith("https://maps.googleapis.com/maps/api/js")
+    );
 
   const timeoutMs = Math.max(0, opts.timeoutMs ?? 15000);
 
@@ -78,9 +111,8 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
 
       const onSuccess = async () => {
         try {
-          const gNow = (window as any).google;
-          const ok = await ensurePlaces(gNow);
-          resolve(ok);
+          const g = await waitForPlaces(); // 👈 ensure Places, with small wait
+          resolve(g);
         } catch (e) {
           reject(e instanceof Error ? e : new Error(String(e)));
         }
@@ -89,6 +121,7 @@ export function loadGoogleMaps(opts: LoaderOptions): Promise<GoogleGlobal> {
         reject(new Error("Failed to load the Google Maps JavaScript API."));
 
       if (existing) {
+        // If a script is already present, poll until google.maps appears, then ensure Places.
         const start = Date.now();
         const poll = () => {
           if ((window as any).google?.maps) return onSuccess();
