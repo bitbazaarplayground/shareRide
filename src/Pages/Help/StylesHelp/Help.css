@@ -26,6 +26,11 @@ body {
   background-color: #f9f9f9;
   color: var(--text-dark);
 }
+.result-item.is-active {
+  outline: 2px solid var(--primary-color, #e66000);
+  outline-offset: 2px;
+  background: #fff8f3;
+}
 
 /* Wrapper */
 .help-wrapper {
@@ -128,6 +133,20 @@ body {
 .no-results {
   padding: 0.75rem 0.85rem;
   color: #64748b;
+}
+/* Buttons inside the combobox dropdown should look clickable */
+.search-results button.result-item {
+  appearance: none;
+  background: none;
+  border: 0;
+  text-align: left;
+  width: 100%;
+  cursor: pointer !important; /* show hand */
+}
+.search-results .result-item.is-active {
+  outline: 2px solid #e66000;
+  outline-offset: 2px;
+  background: #fff8f3;
 }
 
 /* 🧩 Help Category Cards */

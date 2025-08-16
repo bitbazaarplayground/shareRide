@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import HelpCombobox from "./HelpCombobox";
 import "./StylesHelp/Help.css";
 
 function escapeRegExp(s) {
@@ -34,35 +35,35 @@ const categories = [
   {
     slug: "passenger",
     title: "Passenger",
-    img: "images/help/PassengerHelp.avif",
+    img: "/images/help/PassengerHelp.avif",
     alt: "Passenger support",
     to: "/help/passenger",
   },
   {
     slug: "driver",
     title: "Driver",
-    img: "images/help/taxiHelp.avif",
+    img: "/images/help/taxiHelp.avif",
     alt: "Driver support",
     to: "/help/driver",
   },
   {
     slug: "account",
     title: "Your Profile & Account",
-    img: "images/help/YourProfileHelp.avif",
+    img: "/images/help/YourProfileHelp.avif",
     alt: "Profile and account",
     to: "/help/account",
   },
   {
     slug: "safety",
     title: "Safety & Accessibility",
-    img: "images/help/TrustSafeHelp.avif",
+    img: "/images/help/TrustSafeHelp.avif",
     alt: "Trust, safety and accessibility",
     to: "/help/safety",
   },
   {
     slug: "about",
     title: "How ShareRide works",
-    img: "images/help/about.png",
+    img: "/images/help/about.png",
     alt: "How the app works",
     to: "/help/about",
   },
@@ -99,16 +100,26 @@ export default function HelpPage() {
   const navigate = useNavigate();
 
   // Fetch the help index once
+
   useEffect(() => {
     let alive = true;
-    fetch("/help-index.json", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((json) => {
-        if (alive) setIndexItems(Array.isArray(json) ? json : []);
-      })
-      .catch(() => {
-        if (alive) setIndexItems([]);
-      });
+    (async () => {
+      try {
+        const res = await fetch("/help-index.json", {
+          credentials: "same-origin",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) throw new Error("Not JSON");
+        const data = await res.json();
+        if (alive) setIndexItems(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (alive) {
+          console.error("help-index.json load failed:", e);
+          setIndexItems([]);
+        }
+      }
+    })();
     return () => {
       alive = false;
     };
@@ -230,72 +241,16 @@ export default function HelpPage() {
       </Helmet>
 
       {/* Top Header */}
+
       <header className="help-header">
         <h1>How can we help?</h1>
 
-        <form
-          className="search-box"
-          role="search"
-          onSubmit={onSubmit}
-          aria-labelledby="help-search-label"
-        >
-          <label
-            id="help-search-label"
-            htmlFor="help-search"
-            className="sr-only"
-          >
-            Search help articles
-          </label>
-          <input
-            id="help-search"
-            ref={inputRef}
-            type="search"
-            placeholder="Search help articles"
-            autoComplete="off"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-describedby="help-result-count"
-          />
-          <button type="submit" aria-label="Search">
-            🔍
-          </button>
-        </form>
-
-        <p id="help-result-count" className="sr-only" aria-live="polite">
-          {q
-            ? `${results.length} result${results.length === 1 ? "" : "s"}`
-            : "No search yet"}
-        </p>
-
-        {/* Inline suggestions */}
-        {q && (
-          <div
-            className="search-results"
-            role="listbox"
-            aria-label="Search results"
-          >
-            {results.length === 0 ? (
-              <div role="option" aria-selected="false" className="no-results">
-                No results. Try different keywords or browse categories below.
-              </div>
-            ) : (
-              results.map((r) => (
-                <Link
-                  key={r.path}
-                  role="option"
-                  aria-selected="false"
-                  to={r.path}
-                  className="result-item"
-                >
-                  <span className="result-title">
-                    <Highlight text={r.title} query={q} />
-                  </span>
-                  <span className="result-meta">{r.category}</span>
-                </Link>
-              ))
-            )}
-          </div>
-        )}
+        <HelpCombobox
+          q={q}
+          setQ={setQ}
+          results={results}
+          renderTitle={(title) => <Highlight text={title} query={q} />}
+        />
       </header>
 
       {/* Help Category Cards */}
@@ -365,87 +320,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-// import { Link } from "react-router-dom";
-
-// import "./StylesHelp/Help.css";
-
-// export default function HelpPage() {
-//   return (
-//     <div className="help-wrapper">
-//       {/* Top Header */}
-//       <header className="help-header">
-//         <h1>How can we help?</h1>
-//         <div className="search-box">
-//           <input type="text" placeholder="Search help articles" />
-//           <button aria-label="Search">🔍</button>
-//         </div>
-//       </header>
-
-//       {/* Help Category Cards */}
-//       <section className="help-cards">
-//         <Link to="/help/passenger" className="help-card">
-//           <img src="/images/PassengerHelp.png" alt="Passenger" />
-//           <span>Passenger</span>
-//         </Link>
-//         <Link to="/help/driver" className="help-card">
-//           <img src="public/images/taxiHelp.avif" alt="Driver" />
-//           <span>Driver</span>
-//         </Link>
-//         <Link to="/help/account" className="help-card">
-//           <img
-//             src="public/images/YourProfileHelp.jpeg"
-//             alt="Your Profile and Account"
-//           />
-//           <span>Your Profile & Account</span>
-//         </Link>
-//         <Link to="/help/safety" className="help-card">
-//           <img src="public/images/TrustSafeHelp.png" alt="Trust and Safety" />
-//           <span>Safety & Accessibility</span>
-//         </Link>
-//         <Link to="/help/about" className="help-card">
-//           <img src="/images/help/about.png" alt="About App" />
-//           <span>About ShareRide</span>
-//         </Link>
-//       </section>
-
-//       {/* Article Sections */}
-//       <section className="articles-section">
-//         <div className="articles-box">
-//           <h2>Top Articles</h2>
-//           <ul>
-//             <li>
-//               <Link to="/help/rating-driver">Rating your carpool driver</Link>
-//             </li>
-//             <li>
-//               <Link to="/help/passenger-cancellation">
-//                 Passenger cancellation rate
-//               </Link>
-//             </li>
-//           </ul>
-//         </div>
-
-//         <div className="articles-box">
-//           <h2>Suggested Articles</h2>
-//           <ul>
-//             <li>
-//               <Link to="/help/luggage-policy">Bus Luggage Policy</Link>
-//             </li>
-//             <li>
-//               <Link to="/help/booking">Booking a bus online</Link>
-//             </li>
-//             <li>
-//               <Link to="/help/bus-cancellation">Bus Cancellation Policy</Link>
-//             </li>
-//             <li>
-//               <Link to="/help/cancel-booking">Cancelling your bus booking</Link>
-//             </li>
-//             <li>
-//               <Link to="/help/offering-ride">Offering a ride</Link>
-//             </li>
-//           </ul>
-//         </div>
-//       </section>
-//     </div>
-//   );
-// }
