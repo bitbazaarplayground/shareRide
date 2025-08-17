@@ -125,13 +125,14 @@ export default function HelpCombobox({ q, setQ, results, renderTitle }: Props) {
                   aria-selected={active}
                   className={`result-item${active ? " is-active" : ""}`}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  onMouseDown={(e) => e.preventDefault()} // keep focus on input
+                  onMouseDown={(e) => e.preventDefault()} // keep focus on the input
                   onClick={() => onChoose(r.path)}
                 >
                   <span className="result-title">
                     {renderTitle ? renderTitle(r.title) : r.title}
                   </span>
-                  <span className="result-meta">{r.category}</span>
+                  {/* SR-only context: category announced by AT, not shown visually */}
+                  <span className="sr-only"> — {r.category}</span>
                 </li>
               );
             })

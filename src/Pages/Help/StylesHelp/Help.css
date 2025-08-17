@@ -98,6 +98,7 @@ body {
 }
 
 /* 🔎 Inline search results (appears under the search) */
+/* Results list container */
 .search-results {
   max-width: 680px;
   margin: 0.75rem auto 0;
@@ -106,7 +107,9 @@ body {
   overflow: hidden;
   background: #fff;
 }
-.result-item {
+
+/* A single result row — works for <button>, <a>, or <div> */
+.search-results .result-item {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -115,38 +118,38 @@ body {
   color: inherit;
   text-decoration: none;
   border-top: 1px solid #f1f5f9;
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+
+  /* 🔑 Make it clearly clickable regardless of tag */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.result-item:first-child {
+
+.search-results .result-item:first-child {
   border-top: 0;
 }
-.result-item:hover,
-.result-item:focus {
+
+.search-results .result-item:hover,
+.search-results .result-item:focus {
   background: #f8fafc;
 }
-.result-title {
+
+.search-results .result-item.is-active {
+  outline: 2px solid var(--primary-color, #e66000);
+  outline-offset: 2px;
+  background: #fff8f3;
+}
+
+.search-results .result-title {
   font-weight: 600;
 }
-.result-meta {
-  color: #64748b;
-  font-size: 0.9rem;
-}
+
 .no-results {
   padding: 0.75rem 0.85rem;
   color: #64748b;
-}
-/* Buttons inside the combobox dropdown should look clickable */
-.search-results button.result-item {
-  appearance: none;
-  background: none;
-  border: 0;
-  text-align: left;
-  width: 100%;
-  cursor: pointer !important; /* show hand */
-}
-.search-results .result-item.is-active {
-  outline: 2px solid #e66000;
-  outline-offset: 2px;
-  background: #fff8f3;
 }
 
 /* 🧩 Help Category Cards */
