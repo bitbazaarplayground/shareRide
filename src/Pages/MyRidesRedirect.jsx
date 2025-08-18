@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "../Components/ConfirmModal";
@@ -9,14 +9,45 @@ import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/MyRidesRedirect.css";
 
+const TABS = ["published", "saved", "booked"];
+
 export default function MyRidesRedirect() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // ---- NEW: read & sync ?tab= from URL ----
+  const [searchParams, setSearchParams] = useSearchParams();
+  const normalizeTab = (t) => (TABS.includes(t) ? t : "published");
+
+  const initialTab = useMemo(() => {
+    const t = (searchParams.get("tab") || "").toLowerCase();
+    return normalizeTab(t);
+  }, [searchParams]);
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // keep state in sync with URL (back/forward, external links)
+  useEffect(() => {
+    const t = normalizeTab((searchParams.get("tab") || "").toLowerCase());
+    setActiveTab((prev) => (prev !== t ? t : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const changeTab = (tab) => {
+    const t = normalizeTab(tab);
+    setActiveTab(t);
+    const current = (searchParams.get("tab") || "").toLowerCase();
+    if (current !== t) {
+      // keep URL clean: omit ?tab when on the default tab
+      if (t === "published") setSearchParams({});
+      else setSearchParams({ tab: t });
+    }
+  };
+  // -----------------------------------------
+
   const [publishedRides, setPublishedRides] = useState([]);
   const [savedRides, setSavedRides] = useState([]);
   const [bookedRides, setBookedRides] = useState([]);
-  const [activeTab, setActiveTab] = useState("published");
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rideToDelete, setRideToDelete] = useState(null);
@@ -70,13 +101,6 @@ export default function MyRidesRedirect() {
         }));
         setBookedRides(formatted);
       }
-    };
-
-    const formatLuggage = (entry) => {
-      const parts = [];
-      if (entry.backpacks) parts.push(`${entry.backpacks} backpack(s)`);
-      if (entry.suitcases) parts.push(`${entry.suitcases} suitcase(s)`);
-      return parts.join(", ");
     };
 
     fetchPublishedRides();
@@ -137,19 +161,19 @@ export default function MyRidesRedirect() {
 
       <div className="tab-buttons">
         <button
-          onClick={() => setActiveTab("published")}
+          onClick={() => changeTab("published")}
           className={activeTab === "published" ? "active" : ""}
         >
           Published Rides
         </button>
         <button
-          onClick={() => setActiveTab("saved")}
+          onClick={() => changeTab("saved")}
           className={activeTab === "saved" ? "active" : ""}
         >
           Saved Rides
         </button>
         <button
-          onClick={() => setActiveTab("booked")}
+          onClick={() => changeTab("booked")}
           className={activeTab === "booked" ? "active" : ""}
         >
           Booked Rides
