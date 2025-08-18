@@ -100,7 +100,6 @@ export default function HelpPage() {
   const navigate = useNavigate();
 
   // Fetch the help index once
-
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -112,7 +111,20 @@ export default function HelpPage() {
         const ct = res.headers.get("content-type") || "";
         if (!ct.includes("application/json")) throw new Error("Not JSON");
         const data = await res.json();
-        if (alive) setIndexItems(Array.isArray(data) ? data : []);
+
+        // Support both legacy array and new wrapped { items: [...] } shape
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : [];
+
+        if (alive) setIndexItems(items);
+        if (!Array.isArray(data) && !Array.isArray(data?.items)) {
+          console.warn(
+            "help-index.json did not contain an array or an {items: []} object; falling back to empty list."
+          );
+        }
       } catch (e) {
         if (alive) {
           console.error("help-index.json load failed:", e);
@@ -241,7 +253,6 @@ export default function HelpPage() {
       </Helmet>
 
       {/* Top Header */}
-
       <header className="help-header">
         <h1>How can we help?</h1>
 
@@ -250,6 +261,8 @@ export default function HelpPage() {
           setQ={setQ}
           results={results}
           renderTitle={(title) => <Highlight text={title} query={q} />}
+          inputRef={inputRef}
+          onSubmit={onSubmit}
         />
       </header>
 

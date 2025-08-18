@@ -5,15 +5,18 @@
   "homepage": "/",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n VITE,HELP \"vite\" \"npm:dev:help-index:watch\"",
     "start": "vite",
     "build": "vite build",
     "deploy": "gh-pages -d dist",
+    "build:help-index": "node scripts/stripHelpIndex.mjs",
+    "dev:help-index:watch": "chokidar \"src/Pages/Help/help-index.dev.json5\" --initial --verbose --poll=1000 --await-write-finish=500 -c \"npm run build:help-index\"",
     "lint": "eslint .",
     "preview": "vite preview --host --port 4173 --strictPort",
     "type-check": "tsc --noEmit",
     "type-check:node": "tsc --noEmit -p tsconfig.node.json",
-    "backfill:coords": "node scripts/backfill-ride-coords.mjs"
+    "backfill:coords": "node scripts/backfill-ride-coords.mjs",
+    "prebuild": "npm run build:help-index"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -50,6 +53,8 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^9.2.0",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
