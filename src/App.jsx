@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
 import Navbar from "./Components/Navbar";
@@ -14,6 +14,10 @@ import CookiesPolicy from "./Pages/CookiesPolicy";
 import EditRide from "./Pages/EditRide";
 import Help from "./Pages/Help/Help";
 import PassengerHelp from "./Pages/Help/Passenger/PassengerHelpMain";
+import InvoicesAndReceipts from "./Pages/Help/Passenger/Payments, Pricing and Refunds/InvoicesAndReceipts";
+import PayingForARide from "./Pages/Help/Passenger/Payments, Pricing and Refunds/PayingForARide";
+import Pricing from "./Pages/Help/Passenger/Payments, Pricing and Refunds/Pricing";
+import RefundsAndExchanges from "./Pages/Help/Passenger/Payments, Pricing and Refunds/RefundsAndExhanges";
 import BookingRequestsAndConfirmation from "./Pages/Help/Passenger/SearchingAndBooking/BookingRequestsAndConfirmation";
 import CommunicatingWithDrivers from "./Pages/Help/Passenger/SearchingAndBooking/CommunicatingWithDrivers";
 import HowToBook from "./Pages/Help/Passenger/SearchingAndBooking/HowToBook";
@@ -132,9 +136,9 @@ export default function App() {
           {/* Help */}
 
           <Route path="/help" element={<Help />} />
-          {/* Passenger */}
+          {/* 1. Passenger */}
           <Route path="/help/passenger" element={<PassengerHelp />} />
-          {/* SUBLINKS Searching And Booking */}
+          {/* 1.1 SUBLINKS Searching And Booking */}
           <Route path="/help/passenger/search-tips" element={<SearchTips />} />
           <Route path="/help/passenger/how-to-book" element={<HowToBook />} />
           <Route
@@ -150,8 +154,21 @@ export default function App() {
             element={<CommunicatingWithDrivers />}
           />
           <Route path="/help/passenger/luggage" element={<Luggage />} />
-          {/* SUBLINKS Payments, Pricing and Refunds */}
-          {/* SUBLINKS Your Bookings */}
+          {/* 1.2 SUBLINKS Payments, Pricing and Refunds */}
+          <Route
+            path="/help/passenger/payment-methods"
+            element={<PayingForARide />}
+          />
+          <Route path="/help/passenger/pricing" element={<Pricing />} />
+          <Route
+            path="/help/passenger/refunds"
+            element={<RefundsAndExchanges />}
+          />
+          <Route
+            path="/help/passenger/invoices"
+            element={<InvoicesAndReceipts />}
+          />
+          {/* 1.3 SUBLINKS Your Bookings */}
 
           <Route
             path="/help/passenger/find-booking"
