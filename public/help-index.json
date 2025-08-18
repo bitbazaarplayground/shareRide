@@ -7,6 +7,13 @@
     "popular": true
   },
   {
+    "title": "Offering a ride",
+    "path": "/help/offering-ride",
+    "category": "driver",
+    "tags": ["offer", "ride", "publish"]
+  },
+
+  {
     "title": "Passenger cancellation rate",
     "path": "/help/passenger-cancellation",
     "category": "passenger",
@@ -21,49 +28,61 @@
     "tags": ["search", "filters", "find", "results"]
   },
   {
-    "title": "Using search filters",
-    "path": "/help/passenger/search-filters",
+    "title": "How to Book",
+    "path": "/help/passenger/how-to-book",
     "category": "passenger",
-    "tags": ["search", "filter", "time", "distance"]
+    "tags": ["booking", "request", "join", "confirmation"]
+  },
+  {
+    "title": "Requirements to Book",
+    "path": "/help/passenger/requirements",
+    "category": "passenger",
+    "tags": ["signup", "profile", "verification", "eligibility"]
+  },
+  {
+    "title": "Booking Requests & Confirmation",
+    "path": "/help/passenger/booking-confirmation",
+    "category": "passenger",
+    "tags": ["confirmation", "email", "accepted", "rejected"]
+  },
+  {
+    "title": "Communicating with Drivers",
+    "path": "/help/passenger/communicating-drivers",
+    "category": "passenger",
+    "tags": ["chat", "message", "coordination", "host"]
+  },
+  {
+    "title": "Luggage Guidelines",
+    "path": "/help/passenger/luggage",
+    "category": "passenger",
+    "tags": ["bags", "weight", "limits", "baggage"]
   },
 
   {
-    "title": "Bus Luggage Policy",
-    "path": "/help/luggage-policy",
-    "category": "passenger",
-    "tags": ["luggage", "baggage", "size"]
-  },
-  {
-    "title": "Booking a bus online",
-    "path": "/help/booking",
-    "category": "passenger",
-    "tags": ["booking", "ticket", "reservation"]
-  },
-  {
-    "title": "Bus Cancellation Policy",
-    "path": "/help/bus-cancellation",
-    "category": "passenger",
-    "tags": ["cancellation", "refunds"]
-  },
-  {
-    "title": "Cancelling your bus booking",
-    "path": "/help/cancel-booking",
-    "category": "passenger",
-    "tags": ["cancel", "booking", "refund"]
-  },
-
-  {
-    "title": "Offering a ride",
-    "path": "/help/offering-ride",
-    "category": "driver",
-    "tags": ["offer", "ride", "publish"]
-  },
-  {
-    "title": "Payments & refunds",
-    "path": "/help/payments-refunds",
+    "title": "Paying for a Ride",
+    "path": "/help/passenger/payment-methods",
     "category": "account",
-    "tags": ["payments", "refunds", "billing"]
+    "tags": ["payment", "pre-pay", "deep link", "payment methods"]
   },
+  {
+    "title": "Pricing",
+    "path": "/help/passenger/pricing",
+    "category": "account",
+    "tags": ["pricing", "fare", "cost"]
+  },
+  {
+    "title": "Refunds and Exchanges",
+    "path": "/help/passenger/refunds",
+    "category": "account",
+    "tags": ["refund", "exchange", "cancel", "reimbursement"]
+  },
+  {
+    "title": "Invoices and Receipts",
+    "path": "/help/passenger/invoices",
+    "category": "account",
+    "tags": ["invoice", "receipt", "pre-pay"]
+  },
+
   {
     "title": "Accessibility features",
     "path": "/help/accessibility",

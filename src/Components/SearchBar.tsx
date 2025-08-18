@@ -55,7 +55,7 @@ export default function SearchBar({
 
   // Radius selector (meters). Converted to km for the RPC.
   const radiusOptionsM = [1, 5, 10, 25, 50, 100, 250, 500];
-  const [radiusMeters, setRadiusMeters] = useState<number>(500);
+  const [radiusMeters, setRadiusMeters] = useState<number>(250);
 
   const onFromSelected = (place: SelectedPlace) => {
     setFromSelected(true);
