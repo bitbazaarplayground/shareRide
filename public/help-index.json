@@ -219,6 +219,72 @@
       ]
     },
     {
+      "title": "Creating an Account",
+      "path": "/help/account/creating-account",
+      "category": "account",
+      "tags": [
+        "signup",
+        "register",
+        "verification",
+        "email"
+      ]
+    },
+    {
+      "title": "Managing Your Profile",
+      "path": "/help/account/manage-profile",
+      "category": "account",
+      "tags": [
+        "profile",
+        "photo",
+        "contact",
+        "my account"
+      ]
+    },
+    {
+      "title": "Troubleshooting Login",
+      "path": "/help/account/troubleshooting-login",
+      "category": "account",
+      "tags": [
+        "login",
+        "password",
+        "reset",
+        "email"
+      ]
+    },
+    {
+      "title": "Your Profile and Account",
+      "path": "/help/account",
+      "category": "account",
+      "tags": [
+        "overview",
+        "login",
+        "signup",
+        "issues"
+      ]
+    },
+    {
+      "title": "Leaving Ratings & Comments",
+      "path": "/help/account/ratings",
+      "category": "account",
+      "tags": [
+        "ratings",
+        "comments",
+        "feedback",
+        "review"
+      ]
+    },
+    {
+      "title": "Account Security",
+      "path": "/help/account/security",
+      "category": "account",
+      "tags": [
+        "security",
+        "password",
+        "privacy",
+        "suspicious"
+      ]
+    },
+    {
       "title": "Accessibility features",
       "path": "/help/accessibility",
       "category": "safety",
@@ -229,5 +295,5 @@
       ]
     }
   ],
-  "generatedAt": "2025-08-18T16:25:25.365Z"
+  "generatedAt": "2025-08-19T11:17:25.626Z"
 }
