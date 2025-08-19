@@ -1,11 +1,13 @@
+// src/Pages/MyRidesRedirect.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "../Components/ConfirmModal";
 
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
+import useTabQueryParam from "../hooks/useTabQueryParam";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/MyRidesRedirect.css";
 
@@ -15,35 +17,8 @@ export default function MyRidesRedirect() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ---- NEW: read & sync ?tab= from URL ----
-  const [searchParams, setSearchParams] = useSearchParams();
-  const normalizeTab = (t) => (TABS.includes(t) ? t : "published");
-
-  const initialTab = useMemo(() => {
-    const t = (searchParams.get("tab") || "").toLowerCase();
-    return normalizeTab(t);
-  }, [searchParams]);
-
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  // keep state in sync with URL (back/forward, external links)
-  useEffect(() => {
-    const t = normalizeTab((searchParams.get("tab") || "").toLowerCase());
-    setActiveTab((prev) => (prev !== t ? t : prev));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const changeTab = (tab) => {
-    const t = normalizeTab(tab);
-    setActiveTab(t);
-    const current = (searchParams.get("tab") || "").toLowerCase();
-    if (current !== t) {
-      // keep URL clean: omit ?tab when on the default tab
-      if (t === "published") setSearchParams({});
-      else setSearchParams({ tab: t });
-    }
-  };
-  // -----------------------------------------
+  // ✅ new: keep ?tab= in sync
+  const { activeTab, changeTab } = useTabQueryParam(TABS, "published");
 
   const [publishedRides, setPublishedRides] = useState([]);
   const [savedRides, setSavedRides] = useState([]);
@@ -71,7 +46,7 @@ export default function MyRidesRedirect() {
         .select("rides(*, profiles(*))")
         .eq("user_id", user.id);
 
-      if (!error) setSavedRides(data.map((entry) => entry.rides));
+      if (!error) setSavedRides((data || []).map((entry) => entry.rides));
     };
 
     const fetchBookedRides = async () => {
@@ -90,7 +65,7 @@ export default function MyRidesRedirect() {
         .eq("user_id", user.id);
 
       if (!error) {
-        const formatted = data.map((entry) => ({
+        const formatted = (data || []).map((entry) => ({
           ride: entry.rides,
           bookingDetails: {
             seats: entry.seats_booked,
@@ -108,13 +83,17 @@ export default function MyRidesRedirect() {
     fetchBookedRides();
   }, [user]);
 
-  const today = new Date().toISOString().split("T")[0];
-  const activeRides = publishedRides.filter((r) => r.date >= today);
-  const pastRides = publishedRides.filter((r) => r.date < today);
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const activeRides = useMemo(
+    () => publishedRides.filter((r) => r.date >= today),
+    [publishedRides, today]
+  );
+  const pastRides = useMemo(
+    () => publishedRides.filter((r) => r.date < today),
+    [publishedRides, today]
+  );
 
-  const handleEdit = (rideId) => {
-    navigate(`/edit-ride/${rideId}`);
-  };
+  const handleEdit = (rideId) => navigate(`/edit-ride/${rideId}`);
 
   const confirmDelete = (rideId) => {
     setRideToDelete(rideId);
@@ -264,7 +243,6 @@ export default function MyRidesRedirect() {
       )}
 
       <ToastContainer position="top-center" autoClose={2500} />
-
       <ConfirmModal
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
