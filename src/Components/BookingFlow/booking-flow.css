@@ -1,0 +1,85 @@
+/* src/Components/BookingFlow/booking-flow.css */
+.bf-wrap {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+.bf-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.bf-badge {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.bf-badge.booker {
+  background: #e0f2fe;
+  color: #075985;
+}
+.bf-badge,
+.uber-btn {
+  transition: all 0.2s ease;
+}
+
+.bf-box {
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.bf-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.bf-code {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bf-code-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+.bf-code-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  letter-spacing: 4px;
+  padding: 6px 10px;
+  border: 1px dashed #9ca3af;
+  border-radius: 8px;
+}
+.uber-btn {
+  background: #111;
+  color: #fff;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.muted {
+  color: #6b7280;
+}
+.fineprint {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.uber-btn:hover {
+  background: #333;
+}
+
+@media (max-width: 600px) {
+  .bf-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

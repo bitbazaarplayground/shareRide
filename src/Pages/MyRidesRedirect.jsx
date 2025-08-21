@@ -4,20 +4,24 @@ import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ConfirmModal from "../Components/ConfirmModal";
-
 import RideCard from "../Components/RideCard";
 import { useAuth } from "../Contexts/AuthContext";
 import useTabQueryParam from "../hooks/useTabQueryParam";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/MyRidesRedirect.css";
 
-const TABS = ["published", "saved", "booked"];
+// NEW: booking flow widgets
+import CheckInPanel from "../Components/BookingFlow/CheckInPanel";
+import ConfirmBookedButton from "../Components/BookingFlow/ConfirmBookedButton";
+import IssueCodePanel from "../Components/BookingFlow/IssueCodePanel";
+
+const TABS = ["published", "saved", "booked", "contributed"];
 
 export default function MyRidesRedirect() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ✅ new: keep ?tab= in sync
+  // keep ?tab= in sync
   const { activeTab, changeTab } = useTabQueryParam(TABS, "published");
 
   const [publishedRides, setPublishedRides] = useState([]);
@@ -26,6 +30,7 @@ export default function MyRidesRedirect() {
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rideToDelete, setRideToDelete] = useState(null);
+  const [contributedRides, setContributedRides] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -36,8 +41,7 @@ export default function MyRidesRedirect() {
         .select("*")
         .eq("user_id", user.id)
         .order("date", { ascending: true });
-
-      if (!error) setPublishedRides(data);
+      if (!error) setPublishedRides(data || []);
     };
 
     const fetchSavedRides = async () => {
@@ -45,10 +49,37 @@ export default function MyRidesRedirect() {
         .from("saved_rides")
         .select("rides(*, profiles(*))")
         .eq("user_id", user.id);
-
       if (!error) setSavedRides((data || []).map((entry) => entry.rides));
     };
+    const fetchContributedRides = async () => {
+      const { data, error } = await supabase
+        .from("ride_pool_contributions")
+        .select(
+          `
+          id,
+          ride_pools!inner(ride_id, rides(*, profiles(*))),
+          user_share_minor,
+          platform_fee_minor,
+          checked_in_at,
+          status
+        `
+        )
+        .eq("user_id", user.id)
+        .eq("status", "paid");
 
+      if (!error) {
+        const formatted = (data || []).map((entry) => ({
+          ride: entry.ride_pools.rides,
+          bookingDetails: {
+            paid: true,
+            share: entry.user_share_minor / 100,
+            fee: entry.platform_fee_minor / 100,
+            checkedIn: !!entry.checked_in_at,
+          },
+        }));
+        setContributedRides(formatted);
+      }
+    };
     const fetchBookedRides = async () => {
       const { data, error } = await supabase
         .from("payments")
@@ -81,6 +112,7 @@ export default function MyRidesRedirect() {
     fetchPublishedRides();
     fetchSavedRides();
     fetchBookedRides();
+    fetchContributedRides();
   }, [user]);
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
@@ -157,6 +189,12 @@ export default function MyRidesRedirect() {
         >
           Booked Rides
         </button>
+        <button
+          onClick={() => changeTab("contributed")}
+          className={activeTab === "contributed" ? "active" : ""}
+        >
+          Contributed Rides
+        </button>
       </div>
 
       {activeTab === "published" && (
@@ -221,19 +259,55 @@ export default function MyRidesRedirect() {
           )}
         </div>
       )}
-
+      {activeTab === "contributed" && (
+        <div className="rides-section">
+          {contributedRides.length > 0 ? (
+            <ul className="ride-list">
+              {contributedRides.map(({ ride, bookingDetails }) => (
+                <li key={ride.id} className="ride-list-item">
+                  <RideCard
+                    ride={ride}
+                    user={user}
+                    bookingDetails={bookingDetails}
+                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
+                  />
+                  <div className="booking-flow-widgets">
+                    <CheckInPanel rideId={ride.id} user={user} />
+                    <ConfirmBookedButton rideId={ride.id} user={user} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No contributed rides found.</p>
+          )}
+        </div>
+      )}
       {activeTab === "booked" && (
         <div className="rides-section">
           {bookedRides.length > 0 ? (
             <ul className="ride-list">
               {bookedRides.map(({ ride, bookingDetails }) => (
-                <RideCard
-                  key={ride.id}
-                  ride={ride}
-                  user={user}
-                  bookingDetails={bookingDetails}
-                  onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
-                />
+                <li key={ride.id} className="ride-list-item">
+                  <RideCard
+                    ride={ride}
+                    user={user}
+                    bookingDetails={bookingDetails}
+                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
+                  />
+
+                  {/* ---- Booking Flow widgets ---- */}
+                  <div className="booking-flow-widgets">
+                    {/* Booker: generate/share code */}
+                    <IssueCodePanel rideId={ride.id} user={user} />
+
+                    {/* Everyone: enter the code to check-in when active */}
+                    <CheckInPanel rideId={ride.id} user={user} />
+
+                    {/* Booker: confirm booked (trigger reimbursement) */}
+                    <ConfirmBookedButton rideId={ride.id} user={user} />
+                  </div>
+                </li>
               ))}
             </ul>
           ) : (
