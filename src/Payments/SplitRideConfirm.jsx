@@ -44,19 +44,43 @@ export default function SplitRideConfirm() {
     })();
   }, []);
 
-  // Check if already paid
+  // Check if already paid (for THIS ride)
   useEffect(() => {
     if (!userId || !rideId) return;
     (async () => {
-      const { data } = await supabase
+      // 1) find the poolId for this ride
+      const { data: poolRow, error: poolErr } = await supabase
+        .from("ride_pools")
+        .select("id")
+        .eq("ride_id", rideId)
+        .maybeSingle();
+
+      if (poolErr) {
+        console.warn("pool lookup error", poolErr);
+        setHasPaid(false);
+        return;
+      }
+      if (!poolRow?.id) {
+        setHasPaid(false);
+        return; // no pool yet, so not paid
+      }
+
+      // 2) check if THIS user has a PAID contribution in THIS pool
+      const { data: contribRow, error: cErr } = await supabase
         .from("ride_pool_contributions")
-        .select("status")
+        .select("id")
+        .eq("ride_pool_id", poolRow.id)
         .eq("user_id", userId)
         .eq("status", "paid")
-        .limit(1);
-      if (data && data.length > 0) {
-        setHasPaid(true);
+        .maybeSingle();
+
+      if (cErr) {
+        console.warn("contrib lookup error", cErr);
+        setHasPaid(false);
+        return;
       }
+
+      setHasPaid(!!contribRow?.id);
     })();
   }, [rideId, userId]);
 
