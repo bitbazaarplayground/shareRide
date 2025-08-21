@@ -1,3 +1,4 @@
+// backend/Server.js
 import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
 import "dotenv/config";
@@ -5,92 +6,852 @@ import express from "express";
 import { Resend } from "resend";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// ---------- Boot checks ----------
+const REQUIRED = [
+  "STRIPE_SECRET_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+];
+REQUIRED.forEach((k) => {
+  if (!process.env[k]) console.warn(`⚠️ Missing ${k} in env`);
+});
+if (
+  !process.env.STRIPE_WEBHOOK_SECRET_TEST &&
+  !process.env.STRIPE_WEBHOOK_SECRET_LIVE &&
+  !process.env.STRIPE_WEBHOOK_SECRET
+) {
+  console.warn("⚠️ No Stripe webhook secret configured (TEST/LIVE/fallback).");
+}
 
-// ✅ Supabase client (using service role key, only on backend)
+// ---------- Setup ----------
+const app = express();
+
+// CORS: allow APP_ORIGIN (comma-separated list supported)
+const ORIGINS = (process.env.APP_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (!origin) return cb(null, true); // CLI, Postman, SSR etc.
+      if (ORIGINS.includes(origin)) return cb(null, true);
+      return cb(new Error("CORS: origin not allowed"));
+    },
+    credentials: false,
+  })
+);
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY); // account default API version
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// ✅ Resend setup
-const resend = new Resend(process.env.RESEND_API_KEY);
+const APP_ORIGIN = (process.env.APP_ORIGIN || "http://localhost:5173").split(
+  ","
+)[0];
+const PORT = process.env.PORT || 3000;
 
-const app = express();
-app.use(cors());
+// ---------- Health ----------
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// ---------- Helpers ----------
+const toMinor = (gbp) => Math.round(Number(gbp) * 100);
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const nowIso = () => new Date().toISOString();
+
+function generateCode6() {
+  return String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+}
+
+async function ensureRidePool(rideId, currency = "gbp") {
+  const { data: existing } = await supabase
+    .from("ride_pools")
+    .select("id")
+    .eq("ride_id", rideId)
+    .single();
+  if (existing?.id) return existing.id;
+
+  // Auto-assign booker to the ride creator
+  const { data: rideRow, error: rideErr } = await supabase
+    .from("rides")
+    .select("user_id")
+    .eq("id", rideId)
+    .single();
+  if (rideErr) throw new Error("Ride not found: " + rideErr.message);
+
+  const { data: created, error } = await supabase
+    .from("ride_pools")
+    .insert({
+      ride_id: rideId,
+      currency,
+      booker_user_id: rideRow.user_id || null,
+      status: "collecting",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error("Failed to create ride_pool: " + error.message);
+  return created.id;
+}
+
+// If pool has no booker, assign the ride host as default booker
+async function ensureDefaultBooker(rideId) {
+  const { data: pool } = await supabase
+    .from("ride_pools")
+    .select("id, booker_user_id")
+    .eq("ride_id", rideId)
+    .single();
+  if (!pool) return;
+
+  if (!pool.booker_user_id) {
+    const { data: ride } = await supabase
+      .from("rides")
+      .select("user_id")
+      .eq("id", rideId)
+      .single();
+    if (ride?.user_id) {
+      await supabase
+        .from("ride_pools")
+        .update({ booker_user_id: ride.user_id })
+        .eq("id", pool.id);
+    }
+  }
+}
+
+async function recalcAndMaybeMarkBookable(ridePoolId) {
+  const { data: contribs, error: cErr } = await supabase
+    .from("ride_pool_contributions")
+    .select("user_share_minor, platform_fee_minor, status")
+    .eq("ride_pool_id", ridePoolId);
+  if (cErr) throw new Error(cErr.message);
+
+  const paid = (contribs || []).filter((c) => c.status === "paid");
+  const totalUserShareMinor = paid.reduce(
+    (s, c) => s + (c.user_share_minor || 0),
+    0
+  );
+  const totalFeesMinor = paid.reduce(
+    (s, c) => s + (c.platform_fee_minor || 0),
+    0
+  );
+
+  const { data: pool, error: pErr } = await supabase
+    .from("ride_pools")
+    .update({
+      total_collected_user_share_minor: totalUserShareMinor,
+      total_collected_platform_fee_minor: totalFeesMinor,
+    })
+    .eq("id", ridePoolId)
+    .select("id,status,min_contributors")
+    .single();
+  if (pErr) throw new Error(pErr.message);
+
+  const paidCount = paid.length;
+  if (
+    pool.status === "collecting" &&
+    paidCount >= (pool.min_contributors || 2)
+  ) {
+    await supabase
+      .from("ride_pools")
+      .update({ status: "bookable" })
+      .eq("id", ridePoolId);
+  }
+}
+
+// Build Uber deep link
+function buildUberDeepLink(ride) {
+  const base = "https://m.uber.com/ul/?action=setPickup";
+  const params = new URLSearchParams();
+
+  if (ride?.from_lat && ride?.from_lng) {
+    params.append("pickup[latitude]", String(ride.from_lat));
+    params.append("pickup[longitude]", String(ride.from_lng));
+  }
+  if (ride?.from) params.append("pickup[nickname]", ride.from.slice(0, 60));
+  if (ride?.to_lat && ride?.to_lng) {
+    params.append("dropoff[latitude]", String(ride.to_lat));
+    params.append("dropoff[longitude]", String(ride.to_lng));
+  }
+  if (ride?.to) params.append("dropoff[nickname]", ride.to.slice(0, 60));
+
+  const q = params.toString();
+  return q ? `${base}&${q}` : base;
+}
+
+// Verify Stripe signature against TEST or LIVE webhook secrets
+function verifyStripeSignatureOrThrow(req, stripeInstance) {
+  const sig = req.headers["stripe-signature"];
+  const raw = req.body;
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET_TEST,
+    process.env.STRIPE_WEBHOOK_SECRET_LIVE,
+    process.env.STRIPE_WEBHOOK_SECRET, // fallback
+  ].filter(Boolean);
+  if (secrets.length === 0)
+    throw new Error("No Stripe webhook secret configured");
+
+  let lastErr;
+  for (const secret of secrets) {
+    try {
+      return stripeInstance.webhooks.constructEvent(raw, sig, secret);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error("Stripe signature verification failed");
+}
+
+// ---------- Stripe Webhook (RAW body) ----------
+// Must be BEFORE express.json()
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    let event;
+    try {
+      event = verifyStripeSignatureOrThrow(req, stripe);
+    } catch (err) {
+      console.error("❌ Stripe signature verification failed:", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        const contributionId = Number(session.metadata?.contribution_id);
+        const customerEmail =
+          session.customer_details?.email || session.customer_email || null;
+
+        // 1) Mark contribution as paid
+        const { data: contrib } = await supabase
+          .from("ride_pool_contributions")
+          .update({
+            status: "paid",
+            stripe_session_id: session.id,
+            payment_intent_id: session.payment_intent,
+            amount_total_minor: session.amount_total,
+          })
+          .eq("id", contributionId)
+          .in("status", ["pending"])
+          .select("id, ride_pool_id")
+          .single();
+
+        // If already paid, fetch pool id anyway
+        let ridePoolId = contrib?.ride_pool_id;
+        if (!ridePoolId) {
+          const { data: lookup } = await supabase
+            .from("ride_pool_contributions")
+            .select("ride_pool_id")
+            .eq("id", contributionId)
+            .single();
+          ridePoolId = lookup?.ride_pool_id;
+        }
+        if (!ridePoolId) {
+          console.warn("No ride_pool_id for contribution", contributionId);
+          return res.json({ received: true });
+        }
+
+        // 2) Recalc totals + maybe flip to bookable
+        await recalcAndMaybeMarkBookable(ridePoolId);
+
+        // 3) Optional: Receipt email
+        if (customerEmail) {
+          try {
+            await resend.emails.send({
+              from: "TabFair <no-reply@tabfair.com>",
+              to: customerEmail,
+              subject: "Payment confirmed",
+              html: `<p>Thanks! Your payment has been confirmed.</p>`,
+            });
+          } catch (e) {
+            console.warn("Resend email failed:", e.message);
+          }
+        }
+      }
+
+      res.json({ received: true });
+    } catch (e) {
+      console.error("Webhook handler error:", e);
+      res.status(500).json({ error: "Internal error" });
+    }
+  }
+);
+
+// ---------- JSON parser for normal routes ----------
 app.use(express.json());
 
-const FRONTEND_BASE_URL =
-  process.env.FRONTEND_BASE_URL || "http://localhost:5173";
-
-app.post("/create-checkout-session", async (req, res) => {
-  const { rideId, amount, user_id, email } = req.body;
-
-  if (!rideId || !amount || !user_id) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-
+// ---------- Payments: Create Checkout Session ----------
+app.post("/api/payments/create-checkout-session", async (req, res) => {
   try {
-    // ✅ Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: {
-              name: "GoDutch Ride Coordination Fee",
-              description: `Ride ID: ${rideId}`,
-            },
-            unit_amount: amount,
-          },
-          quantity: 1,
+    const {
+      rideId,
+      userId,
+      email,
+      currency = "gbp",
+      userShare = 0, // £ (decimal)
+      platformFee = 0, // ignored; server enforces 10% capped policy
+      groupSize, // 2..4 desired contributors
+    } = req.body;
+
+    if (!rideId || !userId || userShare == null) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    // 1) Ensure pool exists (auto-assigns booker to ride creator)
+    const ridePoolId = await ensureRidePool(rideId, currency);
+    await ensureDefaultBooker(rideId); // in case legacy pool had no booker
+
+    // 1.1) Honor groupSize (raise min_contributors; never lower)
+    if (Number.isFinite(Number(groupSize))) {
+      const desired = clamp(Number(groupSize), 2, 4);
+      const { data: poolRow } = await supabase
+        .from("ride_pools")
+        .select("min_contributors")
+        .eq("id", ridePoolId)
+        .single();
+      const current = poolRow?.min_contributors ?? 2;
+      if (desired > current) {
+        await supabase
+          .from("ride_pools")
+          .update({ min_contributors: desired })
+          .eq("id", ridePoolId);
+      }
+    }
+
+    // 2) Calculate minor amounts & server-enforce platform fee policy (10% capped £1..£8)
+    const userShareMinor = toMinor(userShare);
+    const platformFeeMinor = clamp(Math.round(userShareMinor * 0.1), 100, 800);
+
+    // 3) Insert pending contribution (unique per user per ride)
+    const { data: contrib, error: insErr } = await supabase
+      .from("ride_pool_contributions")
+      .insert({
+        ride_pool_id: ridePoolId,
+        user_id: userId,
+        currency,
+        user_share_minor: userShareMinor,
+        platform_fee_minor: platformFeeMinor,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (insErr) {
+      return res.status(400).json({ error: insErr.message });
+    }
+
+    // 4) Build Stripe line items
+    const lineItems = [];
+    if (userShareMinor > 0) {
+      lineItems.push({
+        price_data: {
+          currency,
+          product_data: { name: "Your ride share" },
+          unit_amount: userShareMinor,
         },
-      ],
+        quantity: 1,
+      });
+    }
+    if (platformFeeMinor > 0) {
+      lineItems.push({
+        price_data: {
+          currency,
+          product_data: { name: "Platform fee" },
+          unit_amount: platformFeeMinor,
+        },
+        quantity: 1,
+      });
+    }
+    if (lineItems.length === 0) {
+      return res.status(400).json({ error: "Nothing to charge." });
+    }
+
+    const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      success_url: `${FRONTEND_BASE_URL}/payment-success?rideId=${rideId}`,
-      cancel_url: `${FRONTEND_BASE_URL}/splitride-confirm/${rideId}`,
+      customer_email: email,
+      line_items: lineItems,
+      metadata: {
+        ride_id: String(rideId),
+        user_id: String(userId),
+        contribution_id: String(contrib.id),
+      },
+      success_url: `${APP_ORIGIN}/payment-success?session_id={CHECKOUT_SESSION_ID}&rideId=${encodeURIComponent(
+        String(rideId)
+      )}`,
+      cancel_url: `${APP_ORIGIN}/splitride-confirm/${encodeURIComponent(String(rideId))}`,
+      // payment_intent_data: { transfer_group: `ride_${rideId}` }, // optional for Connect reconciliation
     });
 
-    // ✅ Log payment in Supabase
-    const { error } = await supabase.from("payments").insert([
-      {
-        ride_id: rideId,
-        amount,
-        user_id,
-        email,
-      },
-    ]);
-
-    if (error) {
-      console.error("Supabase logging error:", error.message);
-      // Continue even if logging fails
-    }
-
-    // ✅ Send email receipt using Resend
-    try {
-      await resend.emails.send({
-        from: "GoDutch <onboarding@resend.dev>", // This must be verified in Resend
-        to: email,
-        subject: "Your GoDutch Payment Confirmation",
-        html: `
-          <h2>✅ Payment Successful</h2>
-          <p>Thank you for splitting your ride with GoDutch!</p>
-          <p><strong>Ride ID:</strong> ${rideId}</p>
-          <p><strong>Amount Paid:</strong> £${(amount / 100).toFixed(2)}</p>
-          <p>If you have any questions, feel free to contact support.</p>
-        `,
-      });
-    } catch (emailError) {
-      console.error("Resend email failed:", emailError);
-    }
-
     res.json({ url: session.url });
-  } catch (error) {
-    console.error("Stripe error:", error.message);
-    res.status(500).json({ error: "Payment session creation failed" });
+  } catch (err) {
+    console.error("create-checkout-session failed:", err);
+    res.status(500).json({ error: "Failed to create session" });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Stripe server running on port ${PORT}`));
+// ---------- Payments: Verify (optional for PaymentSuccess UI) ----------
+app.get("/api/payments/verify", async (req, res) => {
+  try {
+    const sessionId = req.query.session_id;
+    if (!sessionId)
+      return res.status(400).json({ ok: false, error: "Missing session_id" });
+    const cs = await stripe.checkout.sessions.retrieve(sessionId);
+    return res.json({
+      ok: cs.payment_status === "paid",
+      amount_total: cs.amount_total,
+      currency: cs.currency,
+      livemode: cs.livemode,
+    });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: "Lookup failed" });
+  }
+});
+
+// ---------- Booking status (for UI) ----------
+app.get("/api/rides/:rideId/booking-status", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const userId = req.query.userId;
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select(
+        "id, status, currency, min_contributors, total_collected_user_share_minor, total_collected_platform_fee_minor, booker_user_id, booking_code, code_expires_at, code_issued_at"
+      )
+      .eq("ride_id", rideId)
+      .single();
+
+    if (!pool) return res.json({ exists: false });
+
+    const { data: paidRows } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, user_id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("status", "paid");
+
+    const paidCount = (paidRows || []).length;
+    const checkedInCount = (paidRows || []).filter(
+      (r) => !!r.checked_in_at
+    ).length;
+    const isBooker = !!userId && pool.booker_user_id === userId;
+
+    res.json({
+      exists: true,
+      status: pool.status, // collecting | bookable | checking_in | ready_to_book | booking | booked | paid
+      currency: pool.currency,
+      minContributors: pool.min_contributors,
+      paidCount,
+      checkedInCount,
+      isBooker,
+      bookerUserId: pool.booker_user_id,
+      codeActive: !!(
+        pool.booking_code &&
+        pool.code_expires_at &&
+        new Date(pool.code_expires_at) > new Date()
+      ),
+      codeExpiresAt: pool.code_expires_at,
+      totals: {
+        userShareMinor: pool.total_collected_user_share_minor,
+        platformFeeMinor: pool.total_collected_platform_fee_minor,
+      },
+    });
+  } catch (e) {
+    console.error("booking-status error:", e);
+    res.status(500).json({ error: "Failed to fetch booking status" });
+  }
+});
+
+// ---------- Booker onboarding (Connect Express) ----------
+async function getOrCreateConnectAccountForUser(userId, email) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("stripe_connect_account_id, stripe_connect_onboarded, email")
+    .eq("id", userId)
+    .single();
+
+  const existingId = profile?.stripe_connect_account_id;
+  const emailToUse = email || profile?.email || undefined;
+
+  if (existingId) {
+    return {
+      accountId: existingId,
+      onboarded: !!profile?.stripe_connect_onboarded,
+    };
+  }
+
+  const account = await stripe.accounts.create({
+    type: "express",
+    email: emailToUse,
+    country: "GB",
+    capabilities: { transfers: { requested: true } },
+  });
+
+  await supabase
+    .from("profiles")
+    .update({ stripe_connect_account_id: account.id })
+    .eq("id", userId);
+
+  return { accountId: account.id, onboarded: false };
+}
+
+app.post("/api/booker/onboarding-link", async (req, res) => {
+  try {
+    const { userId, email, returnTo } = req.body;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+    const { accountId } = await getOrCreateConnectAccountForUser(userId, email);
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${APP_ORIGIN}/connect/refresh`,
+      return_url: returnTo || `${APP_ORIGIN}/connect/return`,
+      type: "account_onboarding",
+    });
+
+    res.json({ url: link.url });
+  } catch (e) {
+    console.error("onboarding-link error:", e);
+    res.status(500).json({ error: "Failed to create onboarding link" });
+  }
+});
+
+// ---------- Booking: Issue check-in code (booker only) ----------
+app.post("/api/rides/:rideId/issue-code", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId, ttlSeconds = 600 } = req.body; // 10 mins default
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, booker_user_id, status")
+      .eq("ride_id", rideId)
+      .single();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+    if (pool.booker_user_id !== userId) {
+      return res.status(403).json({ error: "Only booker can issue code" });
+    }
+    if (pool.status !== "bookable" && pool.status !== "checking_in") {
+      return res.status(400).json({ error: "Pool not ready for check-in" });
+    }
+
+    const code = generateCode6();
+    const ttl = clamp(Number(ttlSeconds), 120, 1800); // 2–30 min
+    const issuedAt = new Date();
+    const expiresAt = new Date(issuedAt.getTime() + ttl * 1000).toISOString();
+
+    await supabase
+      .from("ride_pools")
+      .update({
+        booking_code: code,
+        code_expires_at: expiresAt,
+        code_issued_at: issuedAt.toISOString(),
+        status: "checking_in",
+      })
+      .eq("id", pool.id);
+
+    res.json({ code, expiresAt });
+  } catch (e) {
+    console.error("issue-code error:", e);
+    res.status(500).json({ error: "Failed to issue code" });
+  }
+});
+
+// ---------- Booking: User check-in with code ----------
+app.post("/api/rides/:rideId/check-in", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId, code, lat, lng } = req.body;
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, booking_code, code_expires_at, status, min_contributors")
+      .eq("ride_id", rideId)
+      .single();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+
+    const expired =
+      !pool.code_expires_at || new Date(pool.code_expires_at) <= new Date();
+    if (pool.status !== "checking_in" || expired) {
+      return res
+        .status(400)
+        .json({ error: "Check-in not active or code expired" });
+    }
+    if (!code || code !== pool.booking_code) {
+      return res.status(400).json({ error: "Invalid code" });
+    }
+
+    // Must be a PAID contributor
+    const { data: contrib } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .eq("status", "paid")
+      .single();
+    if (!contrib)
+      return res.status(403).json({ error: "You haven't paid for this ride" });
+
+    // Update check-in (idempotent)
+    await supabase
+      .from("ride_pool_contributions")
+      .update({
+        checked_in_at: contrib.checked_in_at || nowIso(),
+        checkin_lat: Number.isFinite(Number(lat)) ? Number(lat) : null,
+        checkin_lng: Number.isFinite(Number(lng)) ? Number(lng) : null,
+      })
+      .eq("id", contrib.id);
+
+    // Count checked-in PAID contributors
+    const { data: paidRows } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("status", "paid");
+
+    const checkedInCount = (paidRows || []).filter(
+      (r) => !!r.checked_in_at
+    ).length;
+
+    // Flip to ready_to_book if threshold met
+    if (checkedInCount >= (pool.min_contributors || 2)) {
+      await supabase
+        .from("ride_pools")
+        .update({ status: "ready_to_book" })
+        .eq("id", pool.id);
+    }
+
+    res.json({
+      ok: true,
+      checkedInCount,
+      required: pool.min_contributors || 2,
+    });
+  } catch (e) {
+    console.error("check-in error:", e);
+    res.status(500).json({ error: "Failed to check in" });
+  }
+});
+
+// ---------- Booking: Claim booker if absent ----------
+app.post("/api/rides/:rideId/claim-booker", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId, graceSeconds = 180 } = req.body; // 3 mins grace
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select(
+        "id, status, booker_user_id, code_issued_at, code_expires_at, min_contributors"
+      )
+      .eq("ride_id", rideId)
+      .single();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+
+    if (!["checking_in", "ready_to_book"].includes(pool.status)) {
+      return res.status(400).json({ error: "Pool not in a claimable state" });
+    }
+
+    const issuedAt = pool.code_issued_at ? new Date(pool.code_issued_at) : null;
+    if (!issuedAt) {
+      return res.status(400).json({ error: "No active check-in session" });
+    }
+    const grace = clamp(Number(graceSeconds), 60, 600);
+    const claimNotBefore = new Date(issuedAt.getTime() + grace * 1000);
+
+    if (new Date() < claimNotBefore) {
+      return res.status(400).json({
+        error: "Too early to claim booker",
+        claimAllowedAt: claimNotBefore.toISOString(),
+      });
+    }
+
+    // Original booker checked in?
+    const { data: origBookerContrib } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", pool.booker_user_id)
+      .eq("status", "paid")
+      .maybeSingle();
+
+    if (origBookerContrib?.checked_in_at) {
+      return res.status(409).json({ error: "Original booker is present" });
+    }
+
+    // Claimant must be PAID + CHECKED-IN
+    const { data: claimant } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .eq("status", "paid")
+      .single();
+    if (!claimant || !claimant.checked_in_at) {
+      return res
+        .status(403)
+        .json({ error: "Only checked-in contributors can claim" });
+    }
+
+    // Need quorum
+    const { data: paidRows } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("status", "paid");
+
+    const checkedInCount = (paidRows || []).filter(
+      (r) => !!r.checked_in_at
+    ).length;
+    const required = pool.min_contributors || 2;
+    if (checkedInCount < required) {
+      return res.status(400).json({
+        error: "Not enough checked-in contributors to reassign",
+        checkedInCount,
+        required,
+      });
+    }
+
+    await supabase
+      .from("ride_pools")
+      .update({ booker_user_id: userId, status: "ready_to_book" })
+      .eq("id", pool.id);
+
+    res.json({ ok: true, newBookerUserId: userId });
+  } catch (e) {
+    console.error("claim-booker error:", e);
+    res.status(500).json({ error: "Failed to claim booker" });
+  }
+});
+
+// ---------- Booker: get Uber deep link (booker only) ----------
+app.get("/api/rides/:rideId/uber-link", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const userId = req.query.userId;
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, status, booker_user_id")
+      .eq("ride_id", rideId)
+      .single();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+    if (pool.booker_user_id !== userId)
+      return res.status(403).json({ error: "Only booker can open Uber" });
+
+    if (pool.status !== "ready_to_book") {
+      return res.status(400).json({ error: "Not ready to book yet" });
+    }
+
+    const { data: ride } = await supabase
+      .from("rides")
+      .select("from, to, from_lat, from_lng, to_lat, to_lng, date, time")
+      .eq("id", rideId)
+      .single();
+
+    const url = buildUberDeepLink(ride);
+
+    await supabase
+      .from("ride_pools")
+      .update({ status: "booking" })
+      .eq("id", pool.id);
+
+    res.json({ url });
+  } catch (e) {
+    console.error("uber-link error:", e);
+    res.status(500).json({ error: "Failed to build Uber link" });
+  }
+});
+
+// ---------- Reimburse booker (transfer pooled user-shares) ----------
+app.post("/api/rides/:rideId/confirm-booked", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId } = req.body; // the booker confirming
+
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, status, booker_user_id, currency")
+      .eq("ride_id", rideId)
+      .single();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+
+    if (pool.booker_user_id !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Only the booker can confirm booking" });
+    }
+    if (!["bookable", "ready_to_book", "booking"].includes(pool.status)) {
+      return res.status(400).json({ error: "Pool not ready to payout" });
+    }
+
+    // Compute collected total (user shares only)
+    const { data: contribs } = await supabase
+      .from("ride_pool_contributions")
+      .select("user_share_minor, status")
+      .eq("ride_pool_id", pool.id);
+
+    const totalUserShareMinor = (contribs || [])
+      .filter((c) => c.status === "paid")
+      .reduce((s, c) => s + (c.user_share_minor || 0), 0);
+
+    if (!totalUserShareMinor || totalUserShareMinor < 50) {
+      return res.status(400).json({ error: "Insufficient collected funds" });
+    }
+
+    // Lookup booker's Connect account
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("stripe_connect_account_id, stripe_connect_onboarded")
+      .eq("id", pool.booker_user_id)
+      .single();
+
+    if (!prof?.stripe_connect_account_id) {
+      return res
+        .status(400)
+        .json({
+          error: "Booker has no Connect account",
+          needs_onboarding: true,
+        });
+    }
+    if (!prof.stripe_connect_onboarded) {
+      return res
+        .status(400)
+        .json({ error: "Booker not fully onboarded", needs_onboarding: true });
+    }
+
+    // Create transfer to the booker's Connect account
+    const transfer = await stripe.transfers.create({
+      amount: totalUserShareMinor,
+      currency: pool.currency || "gbp",
+      destination: prof.stripe_connect_account_id,
+      transfer_group: `ride_${rideId}`,
+    });
+
+    await supabase.from("booker_payouts").insert({
+      ride_id: rideId,
+      booker_user_id: pool.booker_user_id,
+      connected_account_id: prof.stripe_connect_account_id,
+      transfer_id: transfer.id,
+      amount_minor: totalUserShareMinor,
+      status: "transferred",
+    });
+
+    await supabase
+      .from("ride_pools")
+      .update({ status: "booked" })
+      .eq("id", pool.id);
+
+    res.json({
+      ok: true,
+      transferId: transfer.id,
+      amount_minor: totalUserShareMinor,
+    });
+  } catch (e) {
+    console.error("confirm-booked error:", e);
+    res.status(500).json({ error: "Failed to transfer funds" });
+  }
+});
+
+// ---------- Start ----------
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
