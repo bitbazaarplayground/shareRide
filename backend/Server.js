@@ -1,12 +1,20 @@
 // backend/Server.js
 import { createClient } from "@supabase/supabase-js";
 import cors from "cors";
-import "dotenv/config";
+import dotenv from "dotenv";
 import express from "express";
+import path from "path";
 import { Resend } from "resend";
 import Stripe from "stripe";
+import { fileURLToPath } from "url";
 
-// ---------- Boot checks ----------
+/* ---------------------- ENV LOADING (robust) ---------------------- */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Load .env that sits next to this Server.js even if you run from repo root
+dotenv.config({ path: path.join(__dirname, ".env") });
+
+/* ---------------------- Boot checks ---------------------- */
 const REQUIRED = [
   "STRIPE_SECRET_KEY",
   "SUPABASE_URL",
@@ -23,7 +31,7 @@ if (
   console.warn("⚠️ No Stripe webhook secret configured (TEST/LIVE/fallback).");
 }
 
-// ---------- Setup ----------
+/* ---------------------- Setup ---------------------- */
 const app = express();
 
 // CORS: allow APP_ORIGIN (comma-separated list supported)
@@ -51,15 +59,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// First origin is used for success/cancel URLs
 const APP_ORIGIN = (process.env.APP_ORIGIN || "http://localhost:5173").split(
   ","
 )[0];
 const PORT = process.env.PORT || 3000;
 
-// ---------- Health ----------
+/* ---------------------- Health ---------------------- */
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// ---------- Helpers ----------
+/* ---------------------- Helpers ---------------------- */
 const toMinor = (gbp) => Math.round(Number(gbp) * 100);
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const nowIso = () => new Date().toISOString();
@@ -158,7 +167,7 @@ async function recalcAndMaybeMarkBookable(ridePoolId) {
     await supabase
       .from("ride_pools")
       .update({ status: "bookable" })
-      .eq("id", ridePoolId);
+      .eq("id", pool.id);
   }
 }
 
@@ -205,7 +214,7 @@ function verifyStripeSignatureOrThrow(req, stripeInstance) {
   throw lastErr || new Error("Stripe signature verification failed");
 }
 
-// ---------- Stripe Webhook (RAW body) ----------
+/* ---------------------- Stripe Webhook (RAW body) ---------------------- */
 // Must be BEFORE express.json()
 app.post(
   "/api/payments/webhook",
@@ -214,6 +223,7 @@ app.post(
     let event;
     try {
       event = verifyStripeSignatureOrThrow(req, stripe);
+      console.log("🔔 Stripe event:", event.type);
     } catch (err) {
       console.error("❌ Stripe signature verification failed:", err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -222,6 +232,12 @@ app.post(
     try {
       if (event.type === "checkout.session.completed") {
         const session = event.data.object;
+        console.log("✅ checkout.session.completed", {
+          id: session.id,
+          amount_total: session.amount_total,
+          metadata: session.metadata,
+        });
+
         const contributionId = Number(session.metadata?.contribution_id);
         const customerEmail =
           session.customer_details?.email || session.customer_email || null;
@@ -264,8 +280,15 @@ app.post(
             await resend.emails.send({
               from: "TabFair <no-reply@tabfair.com>",
               to: customerEmail,
-              subject: "Payment confirmed",
-              html: `<p>Thanks! Your payment has been confirmed.</p>`,
+              subject: "✅ Payment confirmed",
+              html: `
+                <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111;">
+                  <h2 style="margin:0 0 12px">Thanks for your payment!</h2>
+                  <p style="margin:0 0 8px">You’ve joined a ride on <strong>TabFair</strong>.</p>
+                  <p style="margin:0 0 8px">We’ll notify you when your group is ready to book.</p>
+                  <p style="margin-top:16px; font-size:13px; color:#666">— TabFair Team</p>
+                </div>
+              `,
             });
           } catch (e) {
             console.warn("Resend email failed:", e.message);
@@ -275,16 +298,16 @@ app.post(
 
       res.json({ received: true });
     } catch (e) {
-      console.error("Webhook handler error:", e);
+      console.error("💥 Webhook handler error:", e);
       res.status(500).json({ error: "Internal error" });
     }
   }
 );
 
-// ---------- JSON parser for normal routes ----------
+/* ---------------------- JSON parser for normal routes ---------------------- */
 app.use(express.json());
 
-// ---------- Payments: Create Checkout Session ----------
+/* ---------------------- Payments: Create Checkout Session ---------------------- */
 app.post("/api/payments/create-checkout-session", async (req, res) => {
   try {
     const {
@@ -369,30 +392,42 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
       return res.status(400).json({ error: "Nothing to charge." });
     }
 
+    // 5) Create Checkout Session (save PM for off-session + transfer_group)
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_email: email,
+      customer_email: email || undefined,
+      customer_creation: "if_required",
       line_items: lineItems,
       metadata: {
         ride_id: String(rideId),
         user_id: String(userId),
         contribution_id: String(contrib.id),
       },
+      payment_intent_data: {
+        setup_future_usage: "off_session", // save card for later (no-show/adjustments)
+        transfer_group: `ride_${rideId}`,
+        metadata: {
+          ride_id: String(rideId),
+          user_id: String(userId),
+          contribution_id: String(contrib.id),
+        },
+      },
       success_url: `${APP_ORIGIN}/payment-success?session_id={CHECKOUT_SESSION_ID}&rideId=${encodeURIComponent(
         String(rideId)
       )}`,
       cancel_url: `${APP_ORIGIN}/splitride-confirm/${encodeURIComponent(String(rideId))}`,
-      // payment_intent_data: { transfer_group: `ride_${rideId}` }, // optional for Connect reconciliation
     });
 
-    res.json({ url: session.url });
+    return res.json({ url: session.url });
   } catch (err) {
+    const msg = err?.raw?.message || err?.message || "Failed to create session";
+    const code = err?.type === "StripeInvalidRequestError" ? 400 : 500;
     console.error("create-checkout-session failed:", err);
-    res.status(500).json({ error: "Failed to create session" });
+    return res.status(code).json({ error: msg });
   }
 });
 
-// ---------- Payments: Verify (optional for PaymentSuccess UI) ----------
+/* ---------------------- Payments: Verify (optional for PaymentSuccess UI) ---------------------- */
 app.get("/api/payments/verify", async (req, res) => {
   try {
     const sessionId = req.query.session_id;
@@ -406,11 +441,12 @@ app.get("/api/payments/verify", async (req, res) => {
       livemode: cs.livemode,
     });
   } catch (err) {
+    console.error("verify error:", err);
     return res.status(500).json({ ok: false, error: "Lookup failed" });
   }
 });
 
-// ---------- Booking status (for UI) ----------
+/* ---------------------- Booking status (for UI) ---------------------- */
 app.get("/api/rides/:rideId/booking-status", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -452,6 +488,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
         pool.code_expires_at &&
         new Date(pool.code_expires_at) > new Date()
       ),
+      codeIssuedAt: pool.code_issued_at, // <-- added for UI claim timer
       codeExpiresAt: pool.code_expires_at,
       totals: {
         userShareMinor: pool.total_collected_user_share_minor,
@@ -464,7 +501,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
   }
 });
 
-// ---------- Booker onboarding (Connect Express) ----------
+/* ---------------------- Booker onboarding (Connect Express) ---------------------- */
 async function getOrCreateConnectAccountForUser(userId, email) {
   const { data: profile } = await supabase
     .from("profiles")
@@ -517,7 +554,7 @@ app.post("/api/booker/onboarding-link", async (req, res) => {
   }
 });
 
-// ---------- Booking: Issue check-in code (booker only) ----------
+/* ---------------------- Booking: Issue check-in code (booker only) ---------------------- */
 app.post("/api/rides/:rideId/issue-code", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -558,7 +595,7 @@ app.post("/api/rides/:rideId/issue-code", async (req, res) => {
   }
 });
 
-// ---------- Booking: User check-in with code ----------
+/* ---------------------- Booking: User check-in with code ---------------------- */
 app.post("/api/rides/:rideId/check-in", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -633,7 +670,7 @@ app.post("/api/rides/:rideId/check-in", async (req, res) => {
   }
 });
 
-// ---------- Booking: Claim booker if absent ----------
+/* ---------------------- Booking: Claim booker if absent ---------------------- */
 app.post("/api/rides/:rideId/claim-booker", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -724,7 +761,7 @@ app.post("/api/rides/:rideId/claim-booker", async (req, res) => {
   }
 });
 
-// ---------- Booker: get Uber deep link (booker only) ----------
+/* ---------------------- Booker: get Uber deep link (booker only) ---------------------- */
 app.get("/api/rides/:rideId/uber-link", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -763,7 +800,7 @@ app.get("/api/rides/:rideId/uber-link", async (req, res) => {
   }
 });
 
-// ---------- Reimburse booker (transfer pooled user-shares) ----------
+/* ---------------------- Reimburse booker (transfer pooled user-shares) ---------------------- */
 app.post("/api/rides/:rideId/confirm-booked", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
@@ -807,12 +844,10 @@ app.post("/api/rides/:rideId/confirm-booked", async (req, res) => {
       .single();
 
     if (!prof?.stripe_connect_account_id) {
-      return res
-        .status(400)
-        .json({
-          error: "Booker has no Connect account",
-          needs_onboarding: true,
-        });
+      return res.status(400).json({
+        error: "Booker has no Connect account",
+        needs_onboarding: true,
+      });
     }
     if (!prof.stripe_connect_onboarded) {
       return res
@@ -853,5 +888,9 @@ app.post("/api/rides/:rideId/confirm-booked", async (req, res) => {
   }
 });
 
-// ---------- Start ----------
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+/* ---------------------- Start ---------------------- */
+app.listen(PORT, () =>
+  console.log(
+    `✅ Server running on port ${PORT}\n   Origins: ${ORIGINS.join(", ")}\n   Success/Cancel origin: ${APP_ORIGIN}`
+  )
+);

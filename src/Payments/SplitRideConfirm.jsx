@@ -108,6 +108,7 @@ export default function SplitRideConfirm() {
   }, [userShare]);
 
   if (!ride) return <p>Loading ride...</p>;
+  if (userId === null) return <p>Loading account…</p>;
   if (!userId) return <p>Please sign in to view this ride.</p>;
 
   const handlePayment = async () => {
