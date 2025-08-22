@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import BookingFlow from "../Components/BookingFlow/BookingFlow";
+import useBookingStatus from "../hooks/useBookingStatus";
 import { supabase } from "../supabaseClient";
 import "./StylesPayment/SplitRideConfirm.css";
 
@@ -11,7 +12,6 @@ export default function SplitRideConfirm() {
   const [isPaying, setIsPaying] = useState(false);
   const [userId, setUserId] = useState(null);
   const [userEmail, setUserEmail] = useState(null);
-  const [hasPaid, setHasPaid] = useState(false);
   const [groupSize, setGroupSize] = useState(2);
 
   const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
@@ -40,51 +40,21 @@ export default function SplitRideConfirm() {
       if (data?.user) {
         setUserId(data.user.id);
         setUserEmail(data.user.email);
+      } else {
+        setUserId(""); // not logged in
       }
     })();
   }, []);
 
-  // Check if already paid (for THIS ride)
-  useEffect(() => {
-    if (!userId || !rideId) return;
-    (async () => {
-      // 1) find the poolId for this ride
-      const { data: poolRow, error: poolErr } = await supabase
-        .from("ride_pools")
-        .select("id")
-        .eq("ride_id", rideId)
-        .maybeSingle();
+  // Use backend booking-status (includes hasPaid now)
+  const { status: booking, loading: bookingLoading } = useBookingStatus(
+    rideId,
+    userId,
+    { pollMs: 8000 }
+  );
+  const hasPaid = !!booking?.hasPaid;
 
-      if (poolErr) {
-        console.warn("pool lookup error", poolErr);
-        setHasPaid(false);
-        return;
-      }
-      if (!poolRow?.id) {
-        setHasPaid(false);
-        return; // no pool yet, so not paid
-      }
-
-      // 2) check if THIS user has a PAID contribution in THIS pool
-      const { data: contribRow, error: cErr } = await supabase
-        .from("ride_pool_contributions")
-        .select("id")
-        .eq("ride_pool_id", poolRow.id)
-        .eq("user_id", userId)
-        .eq("status", "paid")
-        .maybeSingle();
-
-      if (cErr) {
-        console.warn("contrib lookup error", cErr);
-        setHasPaid(false);
-        return;
-      }
-
-      setHasPaid(!!contribRow?.id);
-    })();
-  }, [rideId, userId]);
-
-  // Compute pricing
+  // Pricing
   const estimate = useMemo(() => {
     const val = Number(ride?.estimated_fare ?? 35);
     return Number.isFinite(val) ? val : 35;
@@ -208,7 +178,7 @@ export default function SplitRideConfirm() {
       <button
         className="stripe-btn"
         onClick={handlePayment}
-        disabled={isPaying || hasPaid}
+        disabled={isPaying || hasPaid || bookingLoading}
       >
         {hasPaid
           ? "Already Paid"

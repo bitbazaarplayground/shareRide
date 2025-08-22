@@ -1,4 +1,4 @@
-import React from "react";
+// src/Components/RideCard.jsx
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +14,8 @@ export default function RideCard({
   onSaveToggle,
   onStartChat,
   showBookNow = false,
-  bookingDetails = null, // NEW for booked rides
+  bookingDetails = null, // supports legacy "booked" details; may be empty for "contributed"
+  children, // <-- NEW: extra content (e.g., booking flow widgets) renders inside the <li>
 }) {
   const navigate = useNavigate();
   const isOwner = !!(user && ride?.profiles?.id === user.id);
@@ -69,6 +70,7 @@ export default function RideCard({
 
   return (
     <li className="ride-card">
+      {/* Header / poster */}
       {showAvatar && ride?.profiles && (
         <div className="avatar-header">
           {ride.profiles.avatar_url ? (
@@ -100,6 +102,7 @@ export default function RideCard({
         </div>
       )}
 
+      {/* Core details */}
       <div className="ride-locations">
         <strong>{ride.from}</strong> → <strong>{ride.to}</strong>
       </div>
@@ -115,28 +118,34 @@ export default function RideCard({
           <strong>Seats:</strong> {ride.seats}
         </p>
 
-        {bookingDetails && (
-          <>
-            <p>
-              <strong>Seats Booked:</strong> {bookingDetails.seats}
-            </p>
-            <p>
-              <strong>Luggage:</strong>{" "}
-              {[
-                bookingDetails.backpacks &&
-                  `${bookingDetails.backpacks} backpack(s)`,
-                bookingDetails.small &&
-                  `${bookingDetails.small} small suitcase(s)`,
-                bookingDetails.large &&
-                  `${bookingDetails.large} large suitcase(s)`,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-          </>
-        )}
+        {/* Optional: legacy "booked" details (payments table) */}
+        {bookingDetails &&
+          (bookingDetails.seats ||
+            bookingDetails.backpacks ||
+            bookingDetails.small ||
+            bookingDetails.large) && (
+            <>
+              <p>
+                <strong>Seats Booked:</strong> {bookingDetails.seats}
+              </p>
+              <p>
+                <strong>Luggage:</strong>{" "}
+                {[
+                  bookingDetails.backpacks &&
+                    `${bookingDetails.backpacks} backpack(s)`,
+                  bookingDetails.small &&
+                    `${bookingDetails.small} small suitcase(s)`,
+                  bookingDetails.large &&
+                    `${bookingDetails.large} large suitcase(s)`,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            </>
+          )}
       </div>
 
+      {/* Actions */}
       <div className="ride-actions">
         {canEdit ? (
           <>
@@ -212,6 +221,9 @@ export default function RideCard({
           )
         )}
       </div>
+
+      {/* Slot for extra UI (e.g., IssueCodePanel / CheckInPanel / ConfirmBookedButton) */}
+      {children ? <div className="ride-card-extra">{children}</div> : null}
 
       <hr />
     </li>

@@ -1,3 +1,4 @@
+// src/Pages/PaymentSuccess.jsx
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -12,11 +13,11 @@ export default function PaymentSuccess() {
     const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
 
     if (!sessionId) {
-      setStatus("❌ Missing session ID.");
+      setStatus("❌ Missing session id.");
       return;
     }
     if (!BACKEND) {
-      setStatus("❌ Backend not configured.");
+      setStatus("❌ Backend not configured (VITE_STRIPE_BACKEND).");
       return;
     }
 
@@ -28,7 +29,6 @@ export default function PaymentSuccess() {
           )}`
         );
         const data = await res.json();
-
         if (res.ok && data.ok) {
           setStatus("✅ Payment confirmed!");
           setDetails({
@@ -39,8 +39,7 @@ export default function PaymentSuccess() {
         } else {
           setStatus("❌ Could not verify payment.");
         }
-      } catch (err) {
-        console.error("Payment verification error:", err);
+      } catch {
         setStatus("❌ Verification failed.");
       }
     })();
@@ -52,6 +51,7 @@ export default function PaymentSuccess() {
       style={{ maxWidth: 640, margin: "2rem auto" }}
     >
       <h2>✅ Payment Successful!</h2>
+
       <p style={{ marginTop: 8 }}>{status}</p>
 
       {details && (
@@ -59,8 +59,8 @@ export default function PaymentSuccess() {
           Amount charged:{" "}
           <strong>
             {details.currency} {details.amount.toFixed(2)}
-          </strong>{" "}
-          {!details.livemode && <em>(test mode)</em>}
+          </strong>
+          {details.livemode ? "" : " (test mode)"}
         </p>
       )}
 
@@ -70,24 +70,33 @@ export default function PaymentSuccess() {
         </p>
       )}
 
-      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-        <Link className="btn" to="/my-rides?tab=contributed">
+      <div
+        style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}
+      >
+        <Link className="btn" to="/my-rides?tab=booked">
           View My Ride
         </Link>
+
+        {/* Subtle/advanced action: jump straight to the ride room */}
         {rideId && (
           <Link
-            className="btn btn-secondary"
+            className="btn btn-tertiary"
             to={`/splitride-confirm/${rideId}`}
+            aria-label="Open ride room for this ride"
+            title="Open ride room"
           >
-            Back to This Ride
+            Open ride room
           </Link>
         )}
       </div>
 
-      <p style={{ marginTop: 24, color: "#666", fontSize: 14 }}>
+      <p style={{ marginTop: 16, color: "#666" }}>
         We’ll notify you once your group is ready. The booker will be able to
         open Uber and complete the ride.
       </p>
+      <Link className="btn btn-secondary" to="/">
+        Back to Home
+      </Link>
     </div>
   );
 }

@@ -239,8 +239,6 @@ app.post(
         });
 
         const contributionId = Number(session.metadata?.contribution_id);
-        const customerEmail =
-          session.customer_details?.email || session.customer_email || null;
 
         // 1) Mark contribution as paid
         const { data: contrib } = await supabase
@@ -274,32 +272,141 @@ app.post(
         // 2) Recalc totals + maybe flip to bookable
         await recalcAndMaybeMarkBookable(ridePoolId);
 
-        // 3) Optional: Receipt email
-        if (customerEmail) {
+        // 3) Receipt email with ride details + resilient logging
+        let customerEmail =
+          session.customer_details?.email || session.customer_email || null;
+
+        // Fallback to profile email if needed
+        if (!customerEmail && session?.metadata?.user_id) {
           try {
-            await resend.emails.send({
-              from: "TabFair <no-reply@tabfair.com>",
-              to: customerEmail,
-              subject: "✅ Payment confirmed",
-              html: `
-                <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111;">
-                  <h2 style="margin:0 0 12px">Thanks for your payment!</h2>
-                  <p style="margin:0 0 8px">You’ve joined a ride on <strong>TabFair</strong>.</p>
-                  <p style="margin:0 0 8px">We’ll notify you when your group is ready to book.</p>
-                  <p style="margin-top:16px; font-size:13px; color:#666">— TabFair Team</p>
-                </div>
-              `,
-            });
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("email")
+              .eq("id", session.metadata.user_id)
+              .single();
+            if (prof?.email) customerEmail = prof.email;
           } catch (e) {
-            console.warn("Resend email failed:", e.message);
+            console.warn("Profile email lookup failed:", e?.message || e);
           }
+        }
+
+        // Fetch ride details (no FK dependency on profiles in SELECT)
+        let fromLoc = "—",
+          toLoc = "—",
+          date = "—",
+          time = "—",
+          poster = "Host";
+        try {
+          const rideIdMeta = Number(session.metadata?.ride_id);
+          if (rideIdMeta) {
+            const { data: rideRow } = await supabase
+              .from("rides")
+              .select("from, to, date, time, user_id")
+              .eq("id", rideIdMeta)
+              .single();
+
+            if (rideRow) {
+              fromLoc = rideRow.from ?? "—";
+              toLoc = rideRow.to ?? "—";
+              date = rideRow.date ?? "—";
+              time = rideRow.time ?? "—";
+
+              // Poster nickname lookup (safe even if no relationship defined)
+              if (rideRow.user_id) {
+                try {
+                  const { data: prof2 } = await supabase
+                    .from("profiles")
+                    .select("nickname")
+                    .eq("id", rideRow.user_id)
+                    .single();
+                  poster = prof2?.nickname || "Host";
+                } catch (e) {
+                  console.warn(
+                    "Poster nickname lookup failed:",
+                    e?.message || e
+                  );
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Ride lookup for email failed:", e?.message || e);
+        }
+
+        const FROM =
+          process.env.RESEND_FROM || "TabFair <onboarding@resend.dev>";
+        const viewRideUrl = `${APP_ORIGIN}/splitride-confirm/${encodeURIComponent(
+          String(session.metadata?.ride_id || "")
+        )}`;
+        const myRidesBookedUrl = `${APP_ORIGIN}/my-rides?tab=booked`;
+
+        if (customerEmail && process.env.RESEND_API_KEY) {
+          const amount = ((session.amount_total ?? 0) / 100).toFixed(2);
+          const currency = String(session.currency || "gbp").toUpperCase();
+
+          const html = `
+            <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
+              <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
+              <p style="margin:0 0 8px">Thanks for splitting your ride on <strong>TabFair</strong>!</p>
+
+              <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
+                <div style="margin-bottom:6px;"><strong>From:</strong> ${fromLoc}</div>
+                <div style="margin-bottom:6px;"><strong>To:</strong> ${toLoc}</div>
+                <div style="margin-bottom:6px;"><strong>Date:</strong> ${date}</div>
+                <div style="margin-bottom:6px;"><strong>Time:</strong> ${time}</div>
+                <div style="margin-bottom:6px;"><strong>Ride host:</strong> ${poster}</div>
+                <div style="margin-bottom:6px;"><strong>Amount charged:</strong> ${amount} ${currency}</div>
+              </div>
+
+              <p style="margin:0 0 14px;">We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
+
+              <div style="margin:18px 0;">
+                <a href="${myRidesBookedUrl}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;">View My Ride</a>
+                <a href="${viewRideUrl}" style="display:inline-block;margin-left:10px;color:#111;text-decoration:underline;">Open ride room</a>
+              </div>
+
+              <p style="margin-top:16px; font-size:13px; color:#666">— TabFair Team</p>
+            </div>
+          `;
+
+          const text = [
+            "Payment confirmed on TabFair",
+            "",
+            `From: ${fromLoc}`,
+            `To: ${toLoc}`,
+            `Date: ${date}`,
+            `Time: ${time}`,
+            `Ride host: ${poster}`,
+            `Amount charged: ${amount} ${currency}`,
+            "",
+            `View My Ride: ${myRidesBookedUrl}`,
+            `Open ride room: ${viewRideUrl}`,
+          ].join("\n");
+
+          try {
+            const sendRes = await resend.emails.send({
+              from: FROM,
+              to: customerEmail,
+              subject: "✅ TabFair · Payment confirmed",
+              html,
+              text,
+            });
+            console.log("📧 Resend queued:", sendRes?.id || sendRes);
+          } catch (e) {
+            console.warn("Resend email failed:", e?.message || e);
+          }
+        } else {
+          console.log("📧 Skipped email", {
+            customerEmailPresent: !!customerEmail,
+            hasResendKey: !!process.env.RESEND_API_KEY,
+          });
         }
       }
 
-      res.json({ received: true });
+      return res.json({ received: true });
     } catch (e) {
       console.error("💥 Webhook handler error:", e);
-      res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: "Internal error" });
     }
   }
 );
@@ -474,6 +581,21 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
     ).length;
     const isBooker = !!userId && pool.booker_user_id === userId;
 
+    // Whether this user has paid
+    let hasPaid = false;
+    let yourContributionId = null;
+    if (userId) {
+      const { data: yours } = await supabase
+        .from("ride_pool_contributions")
+        .select("id")
+        .eq("ride_pool_id", pool.id)
+        .eq("user_id", userId)
+        .eq("status", "paid")
+        .maybeSingle();
+      hasPaid = !!yours?.id;
+      yourContributionId = yours?.id || null;
+    }
+
     res.json({
       exists: true,
       status: pool.status, // collecting | bookable | checking_in | ready_to_book | booking | booked | paid
@@ -483,12 +605,14 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       checkedInCount,
       isBooker,
       bookerUserId: pool.booker_user_id,
+      hasPaid, // <-- NEW
+      yourContributionId, // <-- NEW
       codeActive: !!(
         pool.booking_code &&
         pool.code_expires_at &&
         new Date(pool.code_expires_at) > new Date()
       ),
-      codeIssuedAt: pool.code_issued_at, // <-- added for UI claim timer
+      codeIssuedAt: pool.code_issued_at, // for claim timer in UI
       codeExpiresAt: pool.code_expires_at,
       totals: {
         userShareMinor: pool.total_collected_user_share_minor,

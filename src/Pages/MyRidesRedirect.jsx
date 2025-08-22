@@ -15,7 +15,7 @@ import CheckInPanel from "../Components/BookingFlow/CheckInPanel";
 import ConfirmBookedButton from "../Components/BookingFlow/ConfirmBookedButton";
 import IssueCodePanel from "../Components/BookingFlow/IssueCodePanel";
 
-const TABS = ["published", "saved", "booked", "contributed"];
+const TABS = ["published", "saved", "booked"];
 
 export default function MyRidesRedirect() {
   const { user } = useAuth();
@@ -30,7 +30,6 @@ export default function MyRidesRedirect() {
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rideToDelete, setRideToDelete] = useState(null);
-  const [contributedRides, setContributedRides] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -51,68 +50,88 @@ export default function MyRidesRedirect() {
         .eq("user_id", user.id);
       if (!error) setSavedRides((data || []).map((entry) => entry.rides));
     };
-    const fetchContributedRides = async () => {
-      const { data, error } = await supabase
+
+    // NEW: Booked rides from ride_pool_contributions (status=paid)
+    const fetchBookedRides = async () => {
+      // 1) user’s paid contributions
+      const { data: contribs, error: cErr } = await supabase
         .from("ride_pool_contributions")
         .select(
-          `
-          id,
-          ride_pools!inner(ride_id, rides(*, profiles(*))),
-          user_share_minor,
-          platform_fee_minor,
-          checked_in_at,
-          status
-        `
+          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status"
         )
         .eq("user_id", user.id)
         .eq("status", "paid");
 
-      if (!error) {
-        const formatted = (data || []).map((entry) => ({
-          ride: entry.ride_pools.rides,
-          bookingDetails: {
-            paid: true,
-            share: entry.user_share_minor / 100,
-            fee: entry.platform_fee_minor / 100,
-            checkedIn: !!entry.checked_in_at,
-          },
-        }));
-        setContributedRides(formatted);
+      if (cErr) {
+        console.warn("contribs error:", cErr);
+        setBookedRides([]);
+        return;
       }
-    };
-    const fetchBookedRides = async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select(
-          `
-          id,
-          seats_booked,
-          backpacks,
-          small_suitcases,
-          large_suitcases,
-          rides(*, profiles(*))
-        `
-        )
-        .eq("user_id", user.id);
+      if (!contribs || contribs.length === 0) {
+        setBookedRides([]);
+        return;
+      }
 
-      if (!error) {
-        const formatted = (data || []).map((entry) => ({
-          ride: entry.rides,
-          bookingDetails: {
-            seats: entry.seats_booked,
-            backpacks: entry.backpacks,
-            small: entry.small_suitcases,
-            large: entry.large_suitcases,
-          },
-        }));
-        setBookedRides(formatted);
+      // 2) pools for those contributions
+      const poolIds = [...new Set(contribs.map((c) => c.ride_pool_id))];
+      const { data: pools, error: pErr } = await supabase
+        .from("ride_pools")
+        .select("id, ride_id, status, min_contributors")
+        .in("id", poolIds);
+
+      if (pErr) {
+        console.warn("pools error:", pErr);
+        setBookedRides([]);
+        return;
       }
+
+      // 3) rides for those pools
+      const rideIds = [
+        ...new Set((pools || []).map((p) => p.ride_id).filter(Boolean)),
+      ];
+      if (rideIds.length === 0) {
+        setBookedRides([]);
+        return;
+      }
+      const { data: rides, error: rErr } = await supabase
+        .from("rides")
+        .select("*, profiles(*)")
+        .in("id", rideIds);
+
+      if (rErr) {
+        console.warn("rides error:", rErr);
+        setBookedRides([]);
+        return;
+      }
+
+      // 4) combine
+      const byPoolId = Object.fromEntries((pools || []).map((p) => [p.id, p]));
+      const byRideId = Object.fromEntries((rides || []).map((r) => [r.id, r]));
+
+      const formatted = contribs
+        .map((c) => {
+          const pool = byPoolId[c.ride_pool_id];
+          const ride = byRideId[pool?.ride_id];
+          if (!ride) return null;
+          return {
+            ride,
+            pool,
+            bookingDetails: {
+              paid: c.status === "paid",
+              share: (c.user_share_minor || 0) / 100,
+              fee: (c.platform_fee_minor || 0) / 100,
+              checkedIn: !!c.checked_in_at,
+            },
+          };
+        })
+        .filter(Boolean);
+
+      setBookedRides(formatted);
     };
 
     fetchPublishedRides();
     fetchSavedRides();
     fetchBookedRides();
-    fetchContributedRides();
   }, [user]);
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
@@ -189,12 +208,6 @@ export default function MyRidesRedirect() {
         >
           Booked Rides
         </button>
-        <button
-          onClick={() => changeTab("contributed")}
-          className={activeTab === "contributed" ? "active" : ""}
-        >
-          Contributed Rides
-        </button>
       </div>
 
       {activeTab === "published" && (
@@ -259,35 +272,12 @@ export default function MyRidesRedirect() {
           )}
         </div>
       )}
-      {activeTab === "contributed" && (
-        <div className="rides-section">
-          {contributedRides.length > 0 ? (
-            <ul className="ride-list">
-              {contributedRides.map(({ ride, bookingDetails }) => (
-                <li key={ride.id} className="ride-list-item">
-                  <RideCard
-                    ride={ride}
-                    user={user}
-                    bookingDetails={bookingDetails}
-                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
-                  />
-                  <div className="booking-flow-widgets">
-                    <CheckInPanel rideId={ride.id} user={user} />
-                    <ConfirmBookedButton rideId={ride.id} user={user} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No contributed rides found.</p>
-          )}
-        </div>
-      )}
+
       {activeTab === "booked" && (
         <div className="rides-section">
           {bookedRides.length > 0 ? (
             <ul className="ride-list">
-              {bookedRides.map(({ ride, bookingDetails }) => (
+              {bookedRides.map(({ ride, bookingDetails, pool }) => (
                 <li key={ride.id} className="ride-list-item">
                   <RideCard
                     ride={ride}
@@ -311,7 +301,7 @@ export default function MyRidesRedirect() {
               ))}
             </ul>
           ) : (
-            <p>No booked rides.</p>
+            <p>No booked rides yet.</p>
           )}
         </div>
       )}
