@@ -115,7 +115,12 @@ export default function RideCard({
           <strong>Time:</strong> {formatTime(ride.time)}
         </p>
         <p>
-          <strong>Seats:</strong> {ride.seats}
+          <strong>Seats:</strong>{" "}
+          {ride.seats ??
+            ride.seats_total ??
+            ride.seat_limit ??
+            ride.max_passengers ??
+            "—"}
         </p>
 
         {/* Optional: legacy "booked" details (payments table) */}

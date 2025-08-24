@@ -33,3 +33,7 @@ npm install
 npm run dev
 
 ```
+
+node Server.js
+stripe listen --forward-to localhost:3000/api/payments/webhook
+npm run dev

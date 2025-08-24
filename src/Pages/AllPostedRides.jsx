@@ -45,6 +45,20 @@ export default function AllPostedRides() {
         return;
       }
 
+      // Helpers: non-breaking fallbacks for capacity/luggage fields
+      const getRemainingSeats = (ride) =>
+        Number(
+          ride.seats ??
+            ride.seats_total ??
+            ride.seat_limit ??
+            ride.max_passengers ??
+            0
+        );
+
+      const getBackpacks = (ride) => Number(ride.backpack_count ?? 0);
+      const getSmall = (ride) => Number(ride.small_suitcase_count ?? 0);
+      const getLarge = (ride) => Number(ride.large_suitcase_count ?? 0);
+
       const now = new Date();
       const filteredRides = (data || []).filter((ride) => {
         if (!ride.date || !ride.time) return false;
@@ -53,29 +67,26 @@ export default function AllPostedRides() {
       });
 
       const matchingRides = filteredRides.filter((ride) => {
-        const remainingSeats = ride.seats;
+        const remainingSeats = getRemainingSeats(ride);
+
         const hasDetailedLuggageFields =
-          ride.backpack_count !== null ||
-          ride.small_suitcase_count !== null ||
-          ride.large_suitcase_count !== null;
+          ride.backpack_count != null ||
+          ride.small_suitcase_count != null ||
+          ride.large_suitcase_count != null;
 
         if (hasDetailedLuggageFields) {
-          const remainingBackpacks = ride.backpack_count || 0;
-          const remainingSmall = ride.small_suitcase_count || 0;
-          const remainingLarge = ride.large_suitcase_count || 0;
-
           return (
             remainingSeats >= passengerCount &&
-            remainingBackpacks >= backpacks &&
-            remainingSmall >= smallSuitcases &&
-            remainingLarge >= largeSuitcases
+            getBackpacks(ride) >= backpacks &&
+            getSmall(ride) >= smallSuitcases &&
+            getLarge(ride) >= largeSuitcases
           );
-        } else if (ride.luggage_limit !== null) {
+        } else if (ride.luggage_limit != null) {
           const totalRequestedLuggage =
             backpacks + smallSuitcases + largeSuitcases;
           return (
             remainingSeats >= passengerCount &&
-            ride.luggage_limit >= totalRequestedLuggage
+            Number(ride.luggage_limit ?? 0) >= totalRequestedLuggage
           );
         }
 
@@ -92,7 +103,7 @@ export default function AllPostedRides() {
   useEffect(() => {
     async function fetchSavedRides() {
       if (!user?.id) {
-        setSavedRideIds([]); // clear when logged out to avoid stale hearts
+        setSavedRideIds([]);
         return;
       }
       const { data, error } = await supabase
@@ -108,7 +119,7 @@ export default function AllPostedRides() {
   }, [user?.id]);
 
   const toggleSaveRide = async (rideId) => {
-    if (!user?.id) return; // RideCard already prompts; this is a safety guard
+    if (!user?.id) return;
     if (savedRideIds.includes(rideId)) {
       await supabase
         .from("saved_rides")
@@ -149,7 +160,7 @@ export default function AllPostedRides() {
   };
 
   const handleStartChat = async (ridePosterId, rideId) => {
-    if (!user?.id) return; // RideCard gates auth; guard for safety
+    if (!user?.id) return;
     const userA = user.id < ridePosterId ? user.id : ridePosterId;
     const userB = user.id < ridePosterId ? ridePosterId : user.id;
 
