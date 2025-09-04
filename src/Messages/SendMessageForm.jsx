@@ -1,54 +1,114 @@
+// src/Messages/SendMessageForm.jsx
 import Picker from "emoji-picker-react";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../Contexts/AuthContext";
 import { supabase } from "../supabaseClient";
 import "./Styles/SendMessageForm.css";
 
-export default function SendMessageForm({ chatId, recipientId, onNewMessage }) {
+/**
+ * Props:
+ *  - chatId: number|string
+ *  - recipientId: string (UUID)
+ *  - onNewMessage?: (msg) => void  // optional; realtime also updates
+ *  - partnerName?: string          // for "Alex is typing…"
+ */
+export default function SendMessageForm({
+  chatId,
+  recipientId,
+  onNewMessage,
+  partnerName,
+}) {
   const { user } = useAuth();
+
   const [content, setContent] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
   const [recipientTyping, setRecipientTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const typingTimeoutRef = useRef(null);
 
-  const handleChange = (e) => {
-    setContent(e.target.value);
+  // Avoid redundant writes
+  const lastTypingSentRef = useRef(null);
 
-    if (!isTyping) {
-      setIsTyping(true);
-    }
-
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const upsertTypingStatus = async (typing) => {
+  const setRemoteTyping = async (typing) => {
     if (!user || !recipientId) return;
+    if (lastTypingSentRef.current === typing) return;
+    lastTypingSentRef.current = typing;
 
     const { error } = await supabase.from("typing_status").upsert(
       {
         sender_id: user.id,
         recipient_id: recipientId,
         is_typing: typing,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(), // force UPDATE for realtime
       },
-      {
-        onConflict: ["sender_id", "recipient_id"],
-      }
+      { onConflict: ["sender_id", "recipient_id"] }
     );
-
-    if (error) {
-      console.error("Failed to upsert typing status:", error);
-    }
+    if (error) console.warn("typing upsert error:", error);
   };
 
+  // Initialize indicator (before realtime fires)
   useEffect(() => {
-    upsertTypingStatus(isTyping);
-  }, [isTyping]);
+    let cancelled = false;
+    (async () => {
+      if (!user || !recipientId) return;
+      const { data, error } = await supabase
+        .from("typing_status")
+        .select("is_typing")
+        .eq("sender_id", recipientId)
+        .eq("recipient_id", user.id)
+        .maybeSingle();
+      if (!cancelled && !error) {
+        setRecipientTyping(!!data?.is_typing);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, recipientId]);
+
+  // Realtime subscription to the partner's typing row
+  useEffect(() => {
+    if (!user || !recipientId) return;
+    const chanName = `typing:${chatId || "global"}`;
+
+    const channel = supabase
+      .channel(chanName)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "typing_status" },
+        (payload) => {
+          const row = payload.new || payload.old;
+          if (!row) return;
+          if (row.sender_id === recipientId && row.recipient_id === user.id) {
+            setRecipientTyping(!!row.is_typing);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [user, recipientId, chatId]);
+
+  // Typing logic:
+  // - Show typing ONLY after user actually types (content becomes non-empty)
+  // - Keep it ON as long as there's any draft text
+  // - Turn OFF when input becomes empty or after sending
+  useEffect(() => {
+    const hasDraft = content.trim().length > 0;
+    setRemoteTyping(hasDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
+
+  // On unmount: best-effort turn typing OFF if empty (if draft remains, we keep)
+  useEffect(() => {
+    return () => {
+      if (content.trim().length === 0) setRemoteTyping(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleChange = (e) => {
+    setContent(e.target.value);
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -60,14 +120,15 @@ export default function SendMessageForm({ chatId, recipientId, onNewMessage }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmed = content.trim();
-    if (!trimmed) return;
+    const cid = Number(chatId);
+    if (!trimmed || !user || !recipientId || !Number.isFinite(cid)) return;
 
     setSending(true);
 
     const { data, error } = await supabase
       .from("messages")
       .insert({
-        chat_id: chatId,
+        chat_id: cid,
         sender_id: user.id,
         recipient_id: recipientId,
         content: trimmed,
@@ -79,47 +140,27 @@ export default function SendMessageForm({ chatId, recipientId, onNewMessage }) {
 
     if (error) {
       console.error("Message send error:", error);
-    } else {
-      setContent("");
-      setShowEmojiPicker(false);
-      setIsTyping(false);
-      await upsertTypingStatus(false);
-
-      if (onNewMessage && data?.[0]) {
-        onNewMessage(data[0]);
-      }
+      return;
     }
+
+    setContent(""); // clear draft
+    await setRemoteTyping(false); // stop typing
+
+    if (onNewMessage && data?.[0]) onNewMessage(data[0]); // optimistic for sender
   };
-
-  useEffect(() => {
-    if (!user || !recipientId) return;
-
-    const channel = supabase
-      .channel("typing-channel")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "typing_status" },
-        (payload) => {
-          const data = payload.new;
-          if (data.sender_id === recipientId && data.recipient_id === user.id) {
-            setRecipientTyping(data.is_typing);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [user, recipientId]);
 
   const handleEmojiClick = (emojiData) => {
-    setContent((prev) => prev + emojiData.emoji);
+    setContent((prev) => prev + (emojiData?.emoji || ""));
   };
+
+  const partnerLabel = partnerName?.trim() || "Your chat partner";
 
   return (
     <>
       {recipientTyping && (
-        <p className="typing-feedback">Your chat partner is typing...</p>
+        <p className="typing-feedback">{partnerLabel} is typing…</p>
       )}
+
       <form onSubmit={handleSubmit} className="send-message-form">
         <div className="textarea-wrapper">
           <textarea
