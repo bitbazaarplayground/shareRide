@@ -31,12 +31,31 @@ export default function AllPostedRides() {
   const { user } = useAuth();
   const successMessage = location.state?.message;
 
+  // Parse YYYY-MM-DD + HH:mm[:ss] as a LOCAL Date (avoids timezone surprises)
+  const parseLocalDateTime = (dateStr, timeStr) => {
+    if (!dateStr || !timeStr) return null;
+    const [y, m, d] = String(dateStr)
+      .split("-")
+      .map((n) => Number(n));
+    const [hh, mm = "0", ss = "0"] = String(timeStr).split(":");
+    const dt = new Date(
+      Number(y),
+      Number(m) - 1,
+      Number(d),
+      Number(hh),
+      Number(mm),
+      Number(ss)
+    );
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  };
+
   useEffect(() => {
     async function fetchRides() {
       const { data, error } = await supabase
         .from("rides")
         .select("*, profiles(id, nickname, avatar_url)")
-        .order("date", { ascending: true });
+        .order("date", { ascending: true })
+        .order("time", { ascending: true });
 
       if (error) {
         setErrorMsg("Failed to fetch rides.");
@@ -59,14 +78,16 @@ export default function AllPostedRides() {
       const getSmall = (ride) => Number(ride.small_suitcase_count ?? 0);
       const getLarge = (ride) => Number(ride.large_suitcase_count ?? 0);
 
+      // Show rides that are NOW or in the FUTURE (hide past rides)
       const now = new Date();
-      const filteredRides = (data || []).filter((ride) => {
-        if (!ride.date || !ride.time) return false;
-        const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+      const timeFiltered = (data || []).filter((ride) => {
+        const rideDateTime = parseLocalDateTime(ride.date, ride.time);
+        if (!rideDateTime) return false; // require valid date+time to show
         return rideDateTime >= now;
       });
 
-      const matchingRides = filteredRides.filter((ride) => {
+      // Apply seat/luggage filters
+      const matchingRides = timeFiltered.filter((ride) => {
         const remainingSeats = getRemainingSeats(ride);
 
         const hasDetailedLuggageFields =
