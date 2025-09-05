@@ -31,17 +31,18 @@ export default function AllPostedRides() {
   const { user } = useAuth();
   const successMessage = location.state?.message;
 
-  // Parse YYYY-MM-DD + HH:mm[:ss] as a LOCAL Date (avoids timezone surprises)
+  // 👇 change this if you want a different “now” window
+  const GRACE_MINUTES = 30;
+
+  // Parse YYYY-MM-DD + HH:mm[:ss] as LOCAL time
   const parseLocalDateTime = (dateStr, timeStr) => {
     if (!dateStr || !timeStr) return null;
-    const [y, m, d] = String(dateStr)
-      .split("-")
-      .map((n) => Number(n));
+    const [y, m, d] = String(dateStr).split("-").map(Number);
     const [hh, mm = "0", ss = "0"] = String(timeStr).split(":");
     const dt = new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
+      y,
+      (m || 1) - 1,
+      d || 1,
       Number(hh),
       Number(mm),
       Number(ss)
@@ -78,12 +79,12 @@ export default function AllPostedRides() {
       const getSmall = (ride) => Number(ride.small_suitcase_count ?? 0);
       const getLarge = (ride) => Number(ride.large_suitcase_count ?? 0);
 
-      // Show rides that are NOW or in the FUTURE (hide past rides)
-      const now = new Date();
+      // Show rides that are NOW or in the FUTURE (allow a small past window)
+      const cutoff = new Date(Date.now() - GRACE_MINUTES * 20 * 1000);
       const timeFiltered = (data || []).filter((ride) => {
         const rideDateTime = parseLocalDateTime(ride.date, ride.time);
-        if (!rideDateTime) return false; // require valid date+time to show
-        return rideDateTime >= now;
+        if (!rideDateTime) return false;
+        return rideDateTime >= cutoff;
       });
 
       // Apply seat/luggage filters
