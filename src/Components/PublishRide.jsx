@@ -95,10 +95,12 @@ export default function PublishRide() {
   }, [fromCoords, toCoords]);
 
   // normalize date (avoid timezone off‑by‑one)
-  const toISODate = (d) =>
-    new Date(d.getFullYear(), d.getMonth(), d.getDate())
-      .toISOString()
-      .split("T")[0];
+  const toLocalYMD = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   // geocode fallback if user typed raw text
   async function geocodeAddress(address) {
@@ -165,7 +167,7 @@ export default function PublishRide() {
     const payload = {
       from: fromPlace,
       to: toPlace,
-      date: toISODate(date),
+      date: toLocalYMD(date),
       time,
       seats: seatsReserved,
       notes,
