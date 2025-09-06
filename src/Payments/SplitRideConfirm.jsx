@@ -12,7 +12,12 @@ export default function SplitRideConfirm() {
   const [isPaying, setIsPaying] = useState(false);
   const [userId, setUserId] = useState(null);
   const [userEmail, setUserEmail] = useState(null);
-  const [groupSize, setGroupSize] = useState(2);
+
+  // Reservations the buyer wants
+  const [seats, setSeats] = useState(1);
+  const [backpacks, setBackpacks] = useState(0);
+  const [small, setSmall] = useState(0);
+  const [large, setLarge] = useState(0);
 
   const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
 
@@ -46,40 +51,59 @@ export default function SplitRideConfirm() {
     })();
   }, []);
 
-  // Use backend booking-status (includes hasPaid now)
+  // Live booking status (server-calculated)
   const { status: booking, loading: bookingLoading } = useBookingStatus(
     rideId,
     userId,
     { pollMs: 8000 }
   );
-  const hasPaid = !!booking?.hasPaid;
 
-  // Pricing
+  const hasPaid = !!booking?.hasPaid;
+  const minContrib = booking?.minContributors || 2;
+  const perSeatMinor = booking?.perSeatMinor || 0;
+  const remainingSeats = booking?.remainingSeats ?? Math.max(minContrib - 0, 0);
+
+  // Estimate for display (fallback only)
   const estimate = useMemo(() => {
     const val = Number(ride?.estimated_fare ?? 35);
     return Number.isFinite(val) ? val : 35;
   }, [ride]);
 
-  const maxByRide = Number(ride?.max_passengers || ride?.seats_total || 4) || 4;
-  const maxSplit = Math.min(4, Math.max(2, maxByRide));
+  // Per-seat preview if backend not ready yet
+  const perSeatPreview =
+    perSeatMinor > 0
+      ? perSeatMinor / 100
+      : Number((estimate / Math.max(2, minContrib)).toFixed(2));
 
+  // Keep seats within valid range when availability updates
   useEffect(() => {
-    setGroupSize((prev) => Math.min(Math.max(prev, 2), maxSplit));
-  }, [maxSplit]);
+    if (!Number.isFinite(remainingSeats)) return;
+    setSeats((prev) => {
+      const x = Math.max(1, Math.min(prev || 1, Math.max(1, remainingSeats)));
+      return x;
+    });
+  }, [remainingSeats]);
 
-  const userShare = useMemo(
-    () => Number((estimate / groupSize).toFixed(2)),
-    [estimate, groupSize]
-  );
+  // Hints from ride limits (UI hints only; server enforces true remaining)
+  const seatLimit =
+    Number(ride?.seat_limit) ||
+    Number(ride?.seats) ||
+    Number(ride?.max_passengers) ||
+    4;
 
-  const platformFee = useMemo(() => {
-    const pct = Number((userShare * 0.1).toFixed(2));
-    return Math.max(1, Math.min(8, pct));
-  }, [userShare]);
+  const bLimit = Number(ride?.backpack_count ?? 0);
+  const sLimit = Number(ride?.small_suitcase_count ?? 0);
+  const lLimit = Number(ride?.large_suitcase_count ?? 0);
+  const totalLimit = Number(ride?.luggage_limit ?? 0);
 
   if (!ride) return <p>Loading ride...</p>;
   if (userId === null) return <p>Loading account…</p>;
   if (!userId) return <p>Please sign in to view this ride.</p>;
+
+  const clampInt = (n, min, max) => {
+    const v = Math.floor(Number(n) || 0);
+    return Math.max(min, Math.min(max, v));
+  };
 
   const handlePayment = async () => {
     if (!BACKEND) {
@@ -89,6 +113,40 @@ export default function SplitRideConfirm() {
     if (hasPaid) {
       alert("You’ve already paid for this ride.");
       return;
+    }
+    if (remainingSeats <= 0) {
+      alert("This ride’s pool is already full.");
+      return;
+    }
+    if (seats < 1) {
+      alert("Please select at least 1 seat.");
+      return;
+    }
+
+    // Light client-side sanity (UI hints only; server enforces actual remaining)
+    if (seatLimit && seats > seatLimit) {
+      alert(`This vehicle allows up to ${seatLimit} seats.`);
+      return;
+    }
+    if (totalLimit) {
+      const totalReq = backpacks + small + large;
+      if (totalReq > totalLimit) {
+        alert(`Total luggage exceeds this ride’s limit (${totalLimit} items).`);
+        return;
+      }
+    } else {
+      if (bLimit && backpacks > bLimit) {
+        alert(`Backpacks exceed limit (${bLimit}).`);
+        return;
+      }
+      if (sLimit && small > sLimit) {
+        alert(`Small suitcases exceed limit (${sLimit}).`);
+        return;
+      }
+      if (lLimit && large > lLimit) {
+        alert(`Large suitcases exceed limit (${lLimit}).`);
+        return;
+      }
     }
 
     setIsPaying(true);
@@ -103,9 +161,10 @@ export default function SplitRideConfirm() {
             userId,
             email: userEmail,
             currency: "gbp",
-            userShare,
-            platformFee,
-            groupSize,
+            seatsReserved: seats, // server prefers seatsReserved
+            backpacks,
+            small,
+            large,
           }),
         }
       );
@@ -120,7 +179,7 @@ export default function SplitRideConfirm() {
       window.location.href = url;
     } catch (err) {
       console.error("Payment error:", err);
-      alert("Failed to initiate payment.");
+      alert(err?.message || "Failed to initiate payment.");
       setIsPaying(false);
     }
   };
@@ -142,43 +201,119 @@ export default function SplitRideConfirm() {
         <strong>Time:</strong> {ride.time || "N/A"}
       </p>
 
+      {/* Price explanation */}
+      <div className="price-box">
+        <p style={{ marginBottom: 8 }}>
+          Price is <strong>per seat</strong>, based on a target group of{" "}
+          <strong>{minContrib}</strong> seats.
+        </p>
+        <p style={{ color: "#555" }}>
+          Per seat: <strong>£{perSeatPreview.toFixed(2)}</strong>
+        </p>
+        <p style={{ color: "#777", fontSize: 13, marginTop: 4 }}>
+          (Unit price stays fixed; once {minContrib} seats are paid, the ride
+          becomes bookable.)
+        </p>
+      </div>
+
+      {/* Seats the buyer needs */}
       <div className="split-controls">
-        <label htmlFor="groupSize">
-          <strong>People splitting:</strong>
+        <label htmlFor="seats">
+          <strong>Seats you need:</strong>
         </label>
         <div className="segmented">
-          {[2, 3, 4].map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`seg-btn ${groupSize === n ? "active" : ""}`}
-              onClick={() => setGroupSize(n)}
-              disabled={n > maxSplit}
-              aria-pressed={groupSize === n}
-            >
-              {n}
-            </button>
-          ))}
-          {maxSplit < 4 && (
-            <span className="cap-note">
-              Capacity limits this to {maxSplit}.
-            </span>
-          )}
+          <input
+            id="seats"
+            type="number"
+            min={1}
+            max={Math.max(1, remainingSeats || 1)}
+            value={seats}
+            onChange={(e) =>
+              setSeats(
+                clampInt(e.target.value, 1, Math.max(1, remainingSeats || 1))
+              )
+            }
+            aria-label="Seats you need"
+          />
+          <span className="cap-note">
+            {remainingSeats > 0
+              ? `${remainingSeats} seat(s) left before booking can start`
+              : "Pool is full"}
+          </span>
         </div>
       </div>
 
+      {/* Luggage the buyer brings */}
+      <div className="luggage-controls">
+        <p>
+          <strong>Your luggage:</strong>{" "}
+          <span style={{ color: "#666", fontSize: 13 }}>
+            (Server enforces remaining capacity)
+          </span>
+        </p>
+        <div className="luggage-grid">
+          <label htmlFor="backpacks">Backpacks</label>
+          <input
+            id="backpacks"
+            type="number"
+            min={0}
+            value={backpacks}
+            onChange={(e) => setBackpacks(clampInt(e.target.value, 0, 99))}
+          />
+          {bLimit ? (
+            <span className="hint">Ride limit: {bLimit}</span>
+          ) : (
+            <span className="hint">&nbsp;</span>
+          )}
+
+          <label htmlFor="small">Small suitcases</label>
+          <input
+            id="small"
+            type="number"
+            min={0}
+            value={small}
+            onChange={(e) => setSmall(clampInt(e.target.value, 0, 99))}
+          />
+          {sLimit ? (
+            <span className="hint">Ride limit: {sLimit}</span>
+          ) : (
+            <span className="hint">&nbsp;</span>
+          )}
+
+          <label htmlFor="large">Large suitcases</label>
+          <input
+            id="large"
+            type="number"
+            min={0}
+            value={large}
+            onChange={(e) => setLarge(clampInt(e.target.value, 0, 99))}
+          />
+          {lLimit ? (
+            <span className="hint">Ride limit: {lLimit}</span>
+          ) : (
+            <span className="hint">&nbsp;</span>
+          )}
+        </div>
+
+        {totalLimit ? (
+          <p className="cap-note">
+            Total luggage items allowed for this ride: {totalLimit}
+          </p>
+        ) : null}
+      </div>
+
       <p>
-        <strong>Estimated Fare:</strong> £{estimate.toFixed(2)}
-      </p>
-      <p>
-        <strong>Your Share:</strong> £{userShare.toFixed(2)} +{" "}
-        <span className="fee">Platform Fee £{platformFee.toFixed(2)}</span>
+        <strong>
+          Your <em>estimated</em> total:
+        </strong>{" "}
+        £{(perSeatPreview * Math.max(1, seats)).toFixed(2)}{" "}
+        <span className="fee"> + platform fee</span>
       </p>
 
       <button
         className="stripe-btn"
         onClick={handlePayment}
-        disabled={isPaying || hasPaid || bookingLoading}
+        disabled={isPaying || hasPaid || bookingLoading || remainingSeats <= 0}
       >
         {hasPaid
           ? "Already Paid"
