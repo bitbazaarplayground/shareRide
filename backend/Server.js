@@ -131,7 +131,64 @@ async function ensureDefaultBooker(rideId) {
   }
 }
 
+// async function recalcAndMaybeMarkBookable(ridePoolId) {
+
+//   const { data: contribs, error: cErr } = await supabase
+//     .from("ride_pool_contributions")
+//     .select(
+//       "user_share_minor, platform_fee_minor, seats_reserved, backpacks_reserved, small_reserved, large_reserved, status"
+//     )
+//     .eq("ride_pool_id", ridePoolId);
+
+//   if (cErr) throw new Error(cErr.message);
+
+//   const paid = (contribs || []).filter((c) => c.status === "paid");
+
+//   const totalUserShareMinor = paid.reduce(
+//     (s, c) => s + (c.user_share_minor || 0),
+//     0
+//   );
+//   const totalFeesMinor = paid.reduce(
+//     (s, c) => s + (c.platform_fee_minor || 0),
+//     0
+//   );
+
+//   const paidSeats = paid.reduce((s, c) => s + (c.seats_reserved || 0), 0);
+//   const paidBackpacks = paid.reduce(
+//     (s, c) => s + (c.backpacks_reserved || 0),
+//     0
+//   );
+//   const paidSmall = paid.reduce((s, c) => s + (c.small_reserved || 0), 0);
+//   const paidLarge = paid.reduce((s, c) => s + (c.large_reserved || 0), 0);
+
+//   const { data: pool, error: pErr } = await supabase
+//     .from("ride_pools")
+//     .update({
+//       total_reserved_seats: paidSeats,
+//       total_reserved_backpacks: paidBackpacks,
+//       total_reserved_small: paidSmall,
+//       total_reserved_large: paidLarge,
+//       total_collected_user_share_minor: totalUserShareMinor,
+//       total_collected_platform_fee_minor: totalFeesMinor,
+//     })
+//     .eq("id", ridePoolId)
+//     .select("id,status,min_contributors")
+//     .single();
+
+//   if (pErr) throw new Error(pErr.message);
+
+//   const minSeats = pool?.min_contributors || 2;
+//   if (pool.status === "collecting" && paidSeats >= minSeats) {
+//     await supabase
+//       .from("ride_pools")
+//       .update({ status: "bookable" })
+//       .eq("id", ridePoolId);
+//   }
+// }
+
+// Build Uber deep link
 async function recalcAndMaybeMarkBookable(ridePoolId) {
+  // 1) Get all contributions for this pool
   const { data: contribs, error: cErr } = await supabase
     .from("ride_pool_contributions")
     .select(
@@ -141,6 +198,7 @@ async function recalcAndMaybeMarkBookable(ridePoolId) {
 
   if (cErr) throw new Error(cErr.message);
 
+  // 2) Only paid rows count toward totals & quorum
   const paid = (contribs || []).filter((c) => c.status === "paid");
 
   const totalUserShareMinor = paid.reduce(
@@ -160,7 +218,32 @@ async function recalcAndMaybeMarkBookable(ridePoolId) {
   const paidSmall = paid.reduce((s, c) => s + (c.small_reserved || 0), 0);
   const paidLarge = paid.reduce((s, c) => s + (c.large_reserved || 0), 0);
 
-  const { data: pool, error: pErr } = await supabase
+  // 3) Fetch current pool status and min_contributors
+  const { data: poolRow, error: pGetErr } = await supabase
+    .from("ride_pools")
+    .select("id, status, min_contributors")
+    .eq("id", ridePoolId)
+    .single();
+  if (pGetErr) throw new Error(pGetErr.message);
+
+  const minSeats = Math.max(2, poolRow?.min_contributors || 2);
+
+  // 4) Compute next status without regressing advanced states
+  const advancedStates = new Set([
+    "checking_in",
+    "ready_to_book",
+    "booking",
+    "booked",
+    "paid",
+  ]);
+
+  let nextStatus = poolRow.status;
+  if (!advancedStates.has(poolRow.status)) {
+    nextStatus = paidSeats >= minSeats ? "bookable" : "collecting";
+  }
+
+  // 5) Persist totals + status in one go
+  const { error: pUpdErr } = await supabase
     .from("ride_pools")
     .update({
       total_reserved_seats: paidSeats,
@@ -169,23 +252,15 @@ async function recalcAndMaybeMarkBookable(ridePoolId) {
       total_reserved_large: paidLarge,
       total_collected_user_share_minor: totalUserShareMinor,
       total_collected_platform_fee_minor: totalFeesMinor,
+      status: nextStatus,
     })
-    .eq("id", ridePoolId)
-    .select("id,status,min_contributors")
-    .single();
+    .eq("id", ridePoolId);
 
-  if (pErr) throw new Error(pErr.message);
+  if (pUpdErr) throw new Error(pUpdErr.message);
 
-  const minSeats = pool?.min_contributors || 2;
-  if (pool.status === "collecting" && paidSeats >= minSeats) {
-    await supabase
-      .from("ride_pools")
-      .update({ status: "bookable" })
-      .eq("id", ridePoolId);
-  }
+  // (optional) You could emit notifications when pool becomes "bookable"
 }
 
-// Build Uber deep link
 function buildUberDeepLink(ride) {
   const base = "https://m.uber.com/ul/?action=setPickup";
   const params = new URLSearchParams();
@@ -431,37 +506,43 @@ app.use(express.json());
 /* ---------------------- Payments: Create Checkout Session ---------------------- */
 app.post("/api/payments/create-checkout-session", async (req, res) => {
   try {
+    // console.log("create-checkout-session body:", req.body);
+
     const {
       rideId,
       userId,
       email,
       currency = "gbp",
 
-      // NEW: reservations coming from client
-      seatsReserved, // preferred
+      // NEW: reservations from client (by-kind or total)
+      seatsReserved, // preferred new param
       backpacks = 0,
       small = 0,
       large = 0,
+      totalItems, // for "total" luggage mode
 
-      // Backwards-compat fallbacks
-      seats, // legacy param from your step 1
-      groupSize, // very legacy
+      // Back-compat
+      seats, // legacy
+      groupSize: legacyGroupSize, // VERY legacy (rename to avoid redeclare)
     } = req.body;
 
-    // ---------- Normalize inputs ----------
+    // ---------- Normalize seats ----------
     const seatsReq = Math.max(
       1,
       Number.isFinite(+seatsReserved)
         ? Math.floor(+seatsReserved)
         : Number.isFinite(+seats)
           ? Math.floor(+seats)
-          : Number.isFinite(+groupSize)
-            ? Math.floor(+groupSize)
+          : Number.isFinite(+legacyGroupSize)
+            ? Math.floor(+legacyGroupSize)
             : 1
     );
+
+    // ---------- Normalize luggage ----------
     const bReq = Math.max(0, Math.floor(Number(backpacks) || 0));
     const sReq = Math.max(0, Math.floor(Number(small) || 0));
     const lReq = Math.max(0, Math.floor(Number(large) || 0));
+    const totalReq = Math.max(0, Math.floor(Number(totalItems) || 0));
 
     if (!rideId || !userId || !Number.isFinite(seatsReq) || seatsReq <= 0) {
       return res.status(400).json({ error: "Missing/invalid fields" });
@@ -504,6 +585,7 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     const sLimit = Number(rideRow?.small_suitcase_count ?? 0);
     const lLimit = Number(rideRow?.large_suitcase_count ?? 0);
     const totalLimit = Number(rideRow?.luggage_limit ?? 0); // legacy total-items cap
+    const hasByKindLimits = Boolean(bLimit || sLimit || lLimit);
 
     // Current PAID reservations (pool keeps paid totals)
     const paidSeats = Number(pool?.total_reserved_seats ?? 0);
@@ -511,7 +593,7 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     const paidS = Number(pool?.total_reserved_small ?? 0);
     const paidL = Number(pool?.total_reserved_large ?? 0);
 
-    // Seats
+    // Seats validation
     const rSeats = Math.max(0, seatsLimit - paidSeats);
     if (seatsReq > rSeats) {
       return res
@@ -519,8 +601,8 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
         .json({ error: `Not enough seats available. Remaining: ${rSeats}` });
     }
 
-    // Luggage (by-kind if any kind limits exist; else use totalLimit if present)
-    if (bLimit || sLimit || lLimit) {
+    // Luggage validation
+    if (hasByKindLimits) {
       const rB = Math.max(0, bLimit - paidB);
       const rS = Math.max(0, sLimit - paidS);
       const rL = Math.max(0, lLimit - paidL);
@@ -540,7 +622,8 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     } else if (totalLimit) {
       const paidTotal = paidB + paidS + paidL;
       const rTotal = Math.max(0, totalLimit - paidTotal);
-      const reqTotal = bReq + sReq + lReq;
+      // allow client to send either totalItems OR a breakdown; prefer totalItems if present
+      const reqTotal = totalReq > 0 ? totalReq : bReq + sReq + lReq;
       if (reqTotal > rTotal) {
         return res
           .status(400)
@@ -548,15 +631,34 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
       }
     }
 
-    // ---------- Server-enforced pricing ----------
-    const minContrib = Math.max(2, Number(pool.min_contributors || 2)); // price split baseline
+    // ---------- Server-enforced pricing (DYNAMIC split) ----------
     const estimate = Number(rideRow?.estimated_fare ?? 35);
     const estimateMinor = toMinor(estimate);
-    const perSeatMinor = Math.max(1, Math.round(estimateMinor / minContrib));
+
+    // dynamicGroupSize = host(1) + already paid seats + your seats
+    const dynamicGroupSize = Math.max(1 + paidSeats + seatsReq, 1);
+    const perSeatMinor = Math.max(
+      1,
+      Math.round(estimateMinor / dynamicGroupSize)
+    );
     const userShareMinor = perSeatMinor * seatsReq;
+
+    // platform fee: 10% capped 1..8
     const platformFeeMinor = clamp(Math.round(userShareMinor * 0.1), 100, 800);
 
     // ---------- Insert pending contribution (with reservations) ----------
+    // In "total" mode, store the total items into backpacks_reserved for accounting (others zero).
+    let insBackpacks = bReq;
+    let insSmall = sReq;
+    let insLarge = lReq;
+
+    if (!hasByKindLimits && totalLimit) {
+      const reqTotal = totalReq > 0 ? totalReq : bReq + sReq + lReq;
+      insBackpacks = reqTotal;
+      insSmall = 0;
+      insLarge = 0;
+    }
+
     const { data: contrib, error: insErr } = await supabase
       .from("ride_pool_contributions")
       .insert({
@@ -566,9 +668,9 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
         user_share_minor: userShareMinor,
         platform_fee_minor: platformFeeMinor,
         seats_reserved: seatsReq,
-        backpacks_reserved: bReq,
-        small_reserved: sReq,
-        large_reserved: lReq,
+        backpacks_reserved: insBackpacks,
+        small_reserved: insSmall,
+        large_reserved: insLarge,
         status: "pending",
       })
       .select("id")
@@ -613,9 +715,9 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
         user_id: String(userId),
         contribution_id: String(contrib.id),
         seats_reserved: String(seatsReq),
-        backpacks: String(bReq),
-        small: String(sReq),
-        large: String(lReq),
+        backpacks: String(insBackpacks),
+        small: String(insSmall),
+        large: String(insLarge),
       },
       payment_intent_data: {
         setup_future_usage: "off_session",
@@ -625,9 +727,9 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
           user_id: String(userId),
           contribution_id: String(contrib.id),
           seats_reserved: String(seatsReq),
-          backpacks: String(bReq),
-          small: String(sReq),
-          large: String(lReq),
+          backpacks: String(insBackpacks),
+          small: String(insSmall),
+          large: String(insLarge),
         },
       },
       success_url: `${APP_ORIGIN}/payment-success?session_id={CHECKOUT_SESSION_ID}&rideId=${encodeURIComponent(
@@ -670,57 +772,120 @@ app.get("/api/payments/verify", async (req, res) => {
 app.get("/api/rides/:rideId/booking-status", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
-    const userId = req.query.userId;
-
-    // pool
-    const { data: pool } = await supabase
+    const userId = req.query.userId || null;
+    // Ensure the pool exists before returning the booking status, so the user can see accurate seat/luggage limits before attempting to pay
+    // 1) Pool for this ride (might not exist yet)
+    let { data: pool, error: poolErr } = await supabase
       .from("ride_pools")
       .select(
-        "id, status, currency, min_contributors, total_reserved_seats, total_reserved_backpacks, total_reserved_small, total_reserved_large, booker_user_id, booking_code, code_expires_at, code_issued_at"
+        "id, status, currency, min_contributors, " +
+          "total_reserved_seats, total_reserved_backpacks, total_reserved_small, total_reserved_large, " +
+          "total_collected_user_share_minor, total_collected_platform_fee_minor, " +
+          "booker_user_id, booking_code, code_expires_at, code_issued_at"
       )
       .eq("ride_id", rideId)
       .maybeSingle();
 
-    if (!pool) return res.json({ exists: false });
+    // 🔧 If no pool exists yet, create one (important!)
+    console.log("🧪 checking for existing pool for ride", rideId);
 
-    // ride limits
-    const { data: ride } = await supabase
+    if (!pool) {
+      console.log("🧪 no pool found — creating ride_pool now");
+      const { data: created, error: createErr } = await supabase
+        .from("rides")
+        .select("user_id")
+        .eq("id", rideId)
+        .single();
+
+      if (createErr || !created?.user_id) {
+        console.error(
+          "booking-status: ride lookup failed:",
+          createErr?.message
+        );
+        return res.status(500).json({ error: "Ride not found" });
+      }
+
+      const { data: newPool, error: newPoolErr } = await supabase
+        .from("ride_pools")
+        .insert({
+          ride_id: rideId,
+          currency: "gbp",
+          booker_user_id: created.user_id,
+          status: "collecting",
+        })
+        .select(
+          "id, status, currency, min_contributors, total_reserved_seats, total_reserved_backpacks, total_reserved_small, total_reserved_large, total_collected_user_share_minor, total_collected_platform_fee_minor, booker_user_id, booking_code, code_expires_at, code_issued_at"
+        )
+        .single();
+
+      if (newPoolErr) {
+        console.error(
+          "❌ Failed to create ride pool:",
+          newPoolErr?.message || "No data returned"
+        );
+        return res.status(500).json({ error: "Failed to create ride pool" });
+      }
+
+      pool = newPool; // use the freshly created pool
+    }
+
+    // 2) Ride limits (capacity + luggage)
+    const { data: ride, error: rideErr } = await supabase
       .from("rides")
       .select(
-        "seat_limit, seats, max_passengers, backpack_count, small_suitcase_count, large_suitcase_count, luggage_limit"
+        "seat_limit, seats, max_passengers, " +
+          "backpack_count, small_suitcase_count, large_suitcase_count, " +
+          "luggage_limit"
       )
       .eq("id", rideId)
       .single();
 
-    // paid contributors (for UI)
-    const { data: paidRows } = await supabase
+    if (rideErr) {
+      console.error("booking-status ride error:", rideErr);
+      return res.status(500).json({ error: "Ride fetch failed" });
+    }
+
+    // 3) Paid rows → sum seats + compute hasPaid + checked-in
+    const { data: paidRows, error: paidErr } = await supabase
       .from("ride_pool_contributions")
-      .select("id, user_id, checked_in_at, status")
+      .select("user_id, seats_reserved, checked_in_at")
       .eq("ride_pool_id", pool.id)
       .eq("status", "paid");
 
+    if (paidErr) {
+      console.error("booking-status paid rows error:", paidErr);
+      return res.status(500).json({ error: "Paid rows fetch failed" });
+    }
+
+    const paidSeats = (paidRows || []).reduce(
+      (sum, r) => sum + (Number(r.seats_reserved) || 0),
+      0
+    );
     const paidCount = (paidRows || []).length;
     const checkedInCount = (paidRows || []).filter(
       (r) => !!r.checked_in_at
     ).length;
+    const hasPaid =
+      !!userId &&
+      (paidRows || []).some((r) => String(r.user_id) === String(userId));
     const isBooker = !!userId && pool.booker_user_id === userId;
 
-    // limits & remaining (null-safe)
-    const seatsLimit =
+    // 4) Capacity (host baseline = 1 seat)
+    const capacity =
       Number(ride?.seat_limit) ||
       Number(ride?.seats) ||
       Number(ride?.max_passengers) ||
       4;
 
+    // Remaining seats for buyers = capacity - (host(1) + already paid seats)
+    const remainingSeats = Math.max(capacity - (1 + paidSeats), 0);
+
+    // 5) Luggage remaining (based on pool totals; host luggage is not auto-counted)
     const bLimit = Number(ride?.backpack_count ?? 0);
     const sLimit = Number(ride?.small_suitcase_count ?? 0);
     const lLimit = Number(ride?.large_suitcase_count ?? 0);
-    const totalLimit = Number(ride?.luggage_limit ?? 0); // legacy “total items” cap
+    const totalLimit = Number(ride?.luggage_limit ?? 0); // legacy total-items cap
 
-    const rSeats = Math.max(
-      0,
-      seatsLimit - Number(pool.total_reserved_seats ?? 0)
-    );
     const rB = Math.max(0, bLimit - Number(pool.total_reserved_backpacks ?? 0));
     const rS = Math.max(0, sLimit - Number(pool.total_reserved_small ?? 0));
     const rL = Math.max(0, lLimit - Number(pool.total_reserved_large ?? 0));
@@ -731,8 +896,41 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       Number(pool.total_reserved_large ?? 0);
     const rTotal = Math.max(0, totalLimit - reservedTotal);
 
+    // 🔁 Build a luggage object once (used in both response sections)
+    const luggageObj =
+      bLimit || sLimit || lLimit
+        ? {
+            mode: "byKind",
+            byKind: {
+              backpacks: { limit: bLimit, remaining: rB },
+              small: { limit: sLimit, remaining: rS },
+              large: { limit: lLimit, remaining: rL },
+            },
+            total: { limit: 0, remaining: 0 },
+          }
+        : totalLimit
+          ? {
+              mode: "total",
+              byKind: {
+                backpacks: { limit: 0, remaining: 0 },
+                small: { limit: 0, remaining: 0 },
+                large: { limit: 0, remaining: 0 },
+              },
+              total: { limit: totalLimit, remaining: rTotal },
+            }
+          : { mode: "none", byKind: {}, total: { limit: 0, remaining: 0 } };
+
+    // ✅ Final response
     res.json({
       exists: true,
+
+      // --- dynamic split fields used by SplitRideConfirm.jsx ---
+      capacity, // total seats incl host
+      paidSeats, // seats already paid (excludes host)
+      remainingSeats, // capacity - (1 host + paidSeats)
+      hasPaid,
+
+      // --- status & meta ---
       status: pool.status,
       currency: pool.currency,
       minContributors: pool.min_contributors,
@@ -740,6 +938,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       checkedInCount,
       isBooker,
       bookerUserId: pool.booker_user_id,
+
       codeActive: !!(
         pool.booking_code &&
         pool.code_expires_at &&
@@ -747,23 +946,20 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       ),
       codeIssuedAt: pool.code_issued_at,
       codeExpiresAt: pool.code_expires_at,
-      capacity: {
-        seats: { limit: seatsLimit, remaining: rSeats },
-        luggage: {
-          mode:
-            bLimit || sLimit || lLimit
-              ? "byKind"
-              : totalLimit
-                ? "total"
-                : "none",
-          byKind: {
-            backpacks: { limit: bLimit, remaining: rB },
-            small: { limit: sLimit, remaining: rS },
-            large: { limit: lLimit, remaining: rL },
-          },
-          total: { limit: totalLimit, remaining: rTotal },
-        },
+
+      // 🔵 Existing detailed shape (for backward compatibility)
+      capacityDetail: {
+        seats: { limit: capacity, remaining: remainingSeats },
+        luggage: luggageObj,
       },
+
+      // 🟢 New alias structure (more UI-friendly)
+      capacityV2: {
+        seats: { limit: capacity, remaining: remainingSeats },
+        luggage: luggageObj,
+      },
+
+      // 💰 Totals
       totals: {
         userShareMinor: pool.total_collected_user_share_minor,
         platformFeeMinor: pool.total_collected_platform_fee_minor,
