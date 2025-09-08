@@ -179,6 +179,7 @@ export default function PublishRide() {
       large_suitcase_count: largeSuitcases,
       user_id: user.id,
       status: "active",
+      estimated_fare: estimate ? Number(estimate) : null,
       // coordinates
       from_lat: origin?.lat ?? null,
       from_lng: origin?.lng ?? null,
