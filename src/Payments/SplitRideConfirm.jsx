@@ -66,7 +66,6 @@ export default function SplitRideConfirm() {
     userId,
     { pollMs: 8000 }
   );
-  console.log("📦 booking raw data:", booking);
 
   const hasPaid = !!booking?.hasPaid;
 
@@ -86,6 +85,15 @@ export default function SplitRideConfirm() {
     booking?.capacity?.luggage ?? booking?.capacityDetail?.luggage ?? null;
 
   const luggageMode = luggageRoot?.mode || "none"; // "byKind" | "total" | "none"
+  console.log(
+    "🔄 Fresh booking from backend:",
+    booking?.capacityV2.luggage.byKind
+  );
+  console.log("🔄 Fresh booking from backend (luggage):", {
+    mode: luggageMode,
+    byKind: luggageRoot?.byKind,
+    total: luggageRoot?.total,
+  });
 
   const remB = luggageRoot?.byKind?.backpacks?.remaining ?? 0;
   const remS = luggageRoot?.byKind?.small?.remaining ?? 0;

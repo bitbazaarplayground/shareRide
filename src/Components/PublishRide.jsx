@@ -49,7 +49,7 @@ export default function PublishRide() {
       case "minibus":
         return { seat: 8, backpack: 8, small: 6, large: 6 };
       default:
-        return { seat: 4, backpack: 3, small: 2, large: 2 };
+        return { seat: 4, backpack: 4, small: 2, large: 2 };
     }
   }
 
@@ -174,9 +174,9 @@ export default function PublishRide() {
       vehicle_type: vehicleType,
       seat_limit: limits.seat,
       luggage_limit: limits.large,
-      backpack_count: backpacks,
-      small_suitcase_count: smallSuitcases,
-      large_suitcase_count: largeSuitcases,
+      backpack_count: showLuggage ? backpacks : limits.backpack,
+      small_suitcase_count: showLuggage ? smallSuitcases : limits.small,
+      large_suitcase_count: showLuggage ? largeSuitcases : limits.large,
       user_id: user.id,
       status: "active",
       estimated_fare: estimate ? Number(estimate) : null,
