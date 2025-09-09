@@ -833,9 +833,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
     const { data: ride, error: rideErr } = await supabase
       .from("rides")
       .select(
-        "seat_limit, seats, max_passengers, " +
-          "backpack_count, small_suitcase_count, large_suitcase_count, " +
-          "luggage_limit"
+        "seat_limit, seats, backpack_count, small_suitcase_count, large_suitcase_count, luggage_limit"
       )
       .eq("id", rideId)
       .single();
@@ -919,6 +917,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
               total: { limit: totalLimit, remaining: rTotal },
             }
           : { mode: "none", byKind: {}, total: { limit: 0, remaining: 0 } };
+    console.log("📦 luggage mode for ride", rideId, "=", luggageObj.mode);
 
     // ✅ Final response
     res.json({
