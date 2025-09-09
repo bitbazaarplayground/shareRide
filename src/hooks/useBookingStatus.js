@@ -36,5 +36,5 @@ export default function useBookingStatus(
     return () => clearInterval(t);
   }, [fetchStatus, pollMs]);
 
-  return { status: status, loading, error, refresh: fetchStatus };
+  return { data, status: data, loading, error, refresh: fetchStatus };
 }
