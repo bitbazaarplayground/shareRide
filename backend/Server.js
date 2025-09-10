@@ -949,7 +949,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
     const bLimit = Number(ride?.backpack_count ?? 0);
     const sLimit = Number(ride?.small_suitcase_count ?? 0);
     const lLimit = Number(ride?.large_suitcase_count ?? 0);
-    const totalLimit = Number(ride?.luggage_limit ?? 0); // legacy total-items cap
+    const totalLimit = Number(ride?.luggage_limit ?? 0); // fallback legacy
 
     const rB = Math.max(0, bLimit - Number(pool.total_reserved_backpacks ?? 0));
     const rS = Math.max(0, sLimit - Number(pool.total_reserved_small ?? 0));
@@ -960,6 +960,7 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       Number(pool.total_reserved_small ?? 0) +
       Number(pool.total_reserved_large ?? 0);
     const rTotal = Math.max(0, totalLimit - reservedTotal);
+
     console.log("📊 Booking status breakdown:", {
       rideId,
       capacity,
@@ -973,30 +974,30 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
       },
       remainingLuggage: { backpacks: rB, small: rS, large: rL, total: rTotal },
     });
-
+    // ✅ Always prefer byKind if any per-kind limits exist
+    const hasByKind = bLimit > 0 || sLimit > 0 || lLimit > 0;
     // 🔁 Build a luggage object once (used in both response sections)
-    const luggageObj =
-      bLimit || sLimit || lLimit
+    const luggageObj = hasByKind
+      ? {
+          mode: "byKind",
+          byKind: {
+            backpacks: { limit: bLimit, remaining: rB },
+            small: { limit: sLimit, remaining: rS },
+            large: { limit: lLimit, remaining: rL },
+          },
+          total: { limit: 0, remaining: 0 },
+        }
+      : totalLimit > 0
         ? {
-            mode: "byKind",
+            mode: "total",
             byKind: {
-              backpacks: { limit: bLimit, remaining: rB },
-              small: { limit: sLimit, remaining: rS },
-              large: { limit: lLimit, remaining: rL },
+              backpacks: { limit: 0, remaining: 0 },
+              small: { limit: 0, remaining: 0 },
+              large: { limit: 0, remaining: 0 },
             },
-            total: { limit: 0, remaining: 0 },
+            total: { limit: totalLimit, remaining: rTotal },
           }
-        : totalLimit
-          ? {
-              mode: "total",
-              byKind: {
-                backpacks: { limit: 0, remaining: 0 },
-                small: { limit: 0, remaining: 0 },
-                large: { limit: 0, remaining: 0 },
-              },
-              total: { limit: totalLimit, remaining: rTotal },
-            }
-          : { mode: "none", byKind: {}, total: { limit: 0, remaining: 0 } };
+        : { mode: "none", byKind: {}, total: { limit: 0, remaining: 0 } };
 
     // ✅ Final response
     res.json({

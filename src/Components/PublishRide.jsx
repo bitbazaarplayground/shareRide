@@ -173,14 +173,19 @@ export default function PublishRide() {
       notes,
       vehicle_type: vehicleType,
       seat_limit: limits.seat,
-      luggage_limit: limits.large,
-      backpack_count: showLuggage ? backpacks : limits.backpack,
-      small_suitcase_count: showLuggage ? smallSuitcases : limits.small,
-      large_suitcase_count: showLuggage ? largeSuitcases : limits.large,
+
+      // fallback total capacity
+      luggage_limit: limits.backpack + limits.small + limits.large,
+
+      // per-kind limits (🚨 always use vehicle capacity, not host's selection)
+      backpack_count: limits.backpack,
+      small_suitcase_count: limits.small,
+      large_suitcase_count: limits.large,
+
       user_id: user.id,
       status: "active",
       estimated_fare: estimate ? Number(estimate) : null,
-      // coordinates
+
       from_lat: origin?.lat ?? null,
       from_lng: origin?.lng ?? null,
       to_lat: dest?.lat ?? null,
