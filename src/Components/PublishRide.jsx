@@ -12,6 +12,9 @@ import "../GlobalStyles/globalDatePicker.css";
 import { supabase } from "../supabaseClient";
 import { loadGoogleMaps } from "../utils/loadGoogleMaps";
 
+const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
+const APP_ORIGIN = import.meta.env.VITE_APP_ORIGIN;
+
 export default function PublishRide() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +22,7 @@ export default function PublishRide() {
   // addresses + coords
   const [fromPlace, setFromPlace] = useState("");
   const [toPlace, setToPlace] = useState("");
-  const [fromCoords, setFromCoords] = useState(null); // { lat, lng } | null
+  const [fromCoords, setFromCoords] = useState(null);
   const [toCoords, setToCoords] = useState(null);
 
   // fare estimate (very rough)
@@ -94,7 +97,7 @@ export default function PublishRide() {
     setEstimate(price);
   }, [fromCoords, toCoords]);
 
-  // normalize date (avoid timezone off‑by‑one)
+  // normalize date (avoid timezone off-by-one)
   const toLocalYMD = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -105,13 +108,11 @@ export default function PublishRide() {
   // geocode fallback if user typed raw text
   async function geocodeAddress(address) {
     try {
-      // Ensure Maps JS (Places, since the page uses Autocomplete) is ready
       await loadGoogleMaps({
         apiKey: import.meta.env.VITE_MAPS_KEY,
         libraries: ["places"],
         v: "weekly",
       });
-
       const results = await getGeocode({ address });
       if (!results?.length) return null;
       const { lat, lng } = await getLatLng(results[0]);
@@ -122,7 +123,6 @@ export default function PublishRide() {
     }
   }
 
-  // (optional but nice) kick off loading on mount so it’s ready by the time the user types
   useEffect(() => {
     loadGoogleMaps({
       apiKey: import.meta.env.VITE_MAPS_KEY,
@@ -159,7 +159,6 @@ export default function PublishRide() {
     }
 
     setLoading(true);
-    //Test
     const origin =
       fromCoords ?? (fromPlace ? await geocodeAddress(fromPlace) : null);
     const dest = toCoords ?? (toPlace ? await geocodeAddress(toPlace) : null);
@@ -173,19 +172,13 @@ export default function PublishRide() {
       notes,
       vehicle_type: vehicleType,
       seat_limit: limits.seat,
-
-      // fallback total capacity
       luggage_limit: limits.backpack + limits.small + limits.large,
-
-      // per-kind limits (🚨 always use vehicle capacity, not host's selection)
       backpack_count: limits.backpack,
       small_suitcase_count: limits.small,
       large_suitcase_count: limits.large,
-
       user_id: user.id,
       status: "active",
       estimated_fare: estimate ? Number(estimate) : null,
-
       from_lat: origin?.lat ?? null,
       from_lng: origin?.lng ?? null,
       to_lat: dest?.lat ?? null,
@@ -193,17 +186,37 @@ export default function PublishRide() {
     };
 
     try {
+      // 1. Insert ride
       const { data, error } = await supabase
         .from("rides")
         .insert([payload])
-        .select();
+        .select("id")
+        .single();
 
       if (error) throw error;
+
+      const rideId = data.id;
+
+      // 2. Immediately create ride_pool via backend
+      const poolRes = await fetch(
+        `${BACKEND}/api/rides/${rideId}/create-pool`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id }),
+        }
+      );
+
+      if (!poolRes.ok) {
+        console.error("⚠️ Ride pool creation failed", await poolRes.json());
+      } else {
+        console.log("✅ Ride pool created for ride", rideId);
+      }
 
       setMessage("✅ Ride published successfully!");
       setTimeout(() => {
         navigate("/all-rides", {
-          state: { rides: data, message: "✅ Ride published successfully!" },
+          state: { rides: [data], message: "✅ Ride published successfully!" },
         });
       }, 1000);
     } catch (err) {
@@ -216,14 +229,13 @@ export default function PublishRide() {
 
   const limits = getMaxByVehicle(vehicleType);
 
-  // Page JSON-LD (optional but nice)
   const webPageJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: "Publish a Ride — TabFair",
     description:
       "Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers.",
-    url: "https://jade-rolypoly-5d4274.netlify.app/publishride",
+    url: `${APP_ORIGIN}/publishride`,
   };
 
   return (
@@ -234,10 +246,7 @@ export default function PublishRide() {
           name="description"
           content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
         />
-        <link
-          rel="canonical"
-          href="https://jade-rolypoly-5d4274.netlify.app/publishride"
-        />
+        <link rel="canonical" href={`${APP_ORIGIN}/publishride`} />
 
         {/* Open Graph */}
         <meta property="og:type" content="website" />
@@ -247,14 +256,8 @@ export default function PublishRide() {
           property="og:description"
           content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
         />
-        <meta
-          property="og:url"
-          content="https://jade-rolypoly-5d4274.netlify.app/publishride"
-        />
-        <meta
-          property="og:image"
-          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
-        />
+        <meta property="og:url" content={`${APP_ORIGIN}/publishride`} />
+        <meta property="og:image" content={`${APP_ORIGIN}/og-image.jpg`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
 
@@ -265,10 +268,7 @@ export default function PublishRide() {
           name="twitter:description"
           content="Offer a ride, set your pickup and drop-off, and share the cost with trusted passengers."
         />
-        <meta
-          name="twitter:image"
-          content="https://jade-rolypoly-5d4274.netlify.app/og-image.jpg"
-        />
+        <meta name="twitter:image" content={`${APP_ORIGIN}/og-image.jpg`} />
 
         {/* JSON-LD */}
         <script type="application/ld+json">
@@ -279,22 +279,21 @@ export default function PublishRide() {
       <h2>Publish Your Ride</h2>
 
       <form onSubmit={handleSubmit}>
+        {/* From */}
         <label className="sr-only" htmlFor="from">
           From
         </label>
         <AutocompleteInput
-          id="from" // ← connects label ↔ input (a11y)
+          id="from"
           name="from"
           placeholder="From"
-          // Optional: choose ONE—restrict to UK *or* bias toward UK
-          // countries={["gb"]}                             // UK-only
-          // bias={{ lat: 54.5, lng: -3.5, radiusMeters: 800_000 }} // UK-biased
           onPlaceSelected={({ formatted_address, lat, lng }) => {
             setFromPlace(formatted_address);
             setFromCoords({ lat, lng });
           }}
         />
 
+        {/* To */}
         <label className="sr-only" htmlFor="to">
           To
         </label>
@@ -302,8 +301,6 @@ export default function PublishRide() {
           id="to"
           name="to"
           placeholder="To"
-          // countries={["gb"]}
-          // bias={{ lat: 54.5, lng: -3.5, radiusMeters: 800_000 }}
           onPlaceSelected={({ formatted_address, lat, lng }) => {
             setToPlace(formatted_address);
             setToCoords({ lat, lng });
@@ -312,6 +309,7 @@ export default function PublishRide() {
 
         {estimate && <p>Estimated Taxi Cost: £{estimate}</p>}
 
+        {/* Date + Time */}
         <DatePicker
           selected={date}
           minDate={new Date()}
@@ -321,7 +319,6 @@ export default function PublishRide() {
           className="custom-datepicker"
           calendarClassName="global-datepicker"
         />
-
         <input
           type="time"
           value={time}
@@ -330,6 +327,7 @@ export default function PublishRide() {
           aria-label="Departure time"
         />
 
+        {/* Passengers */}
         <label>
           How many passengers are traveling with you?{" "}
           <em>(including yourself)</em>
@@ -342,6 +340,7 @@ export default function PublishRide() {
           max={limits.seat}
         />
 
+        {/* Luggage */}
         <label>Are you carrying any luggage?</label>
         <select
           value={showLuggage ? "yes" : "no"}
@@ -382,6 +381,7 @@ export default function PublishRide() {
           </>
         )}
 
+        {/* Vehicle */}
         <label htmlFor="vehicleType">Vehicle Type</label>
         <select
           id="vehicleType"
@@ -393,12 +393,14 @@ export default function PublishRide() {
           <option value="minibus">Minibus (8 seats, 6 large bags)</option>
         </select>
 
+        {/* Notes */}
         <textarea
           placeholder="Notes (optional)"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
 
+        {/* Submit */}
         <button type="submit" disabled={loading}>
           {loading ? "Publishing..." : "Publish"}
         </button>

@@ -25,9 +25,12 @@ export default function SplitRideConfirm() {
   const [largeSuitcases, setLargeSuitcases] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Booking lock countdown
+  const [lockRemaining, setLockRemaining] = useState(null);
+
   const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
 
-  // Load ride details (incl. estimated_fare for preview only)
+  // Load ride details (for preview only)
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
@@ -57,10 +60,54 @@ export default function SplitRideConfirm() {
     })();
   }, []);
 
-  // Live booking status (server-calculated)
-  // returns one of:
-  //  A) { capacity: { seats:{limit,remaining}, luggage:{...} }, remainingSeats, hasPaid, ... }
-  //  B) { capacityDetail: { luggage:{...} }, capacity:{seats:{...}}, ... }
+  // 🔒 Request a booking lock immediately on arrival
+  useEffect(() => {
+    if (!rideId || !userId || !BACKEND) return;
+
+    let interval;
+    (async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          console.warn("No Supabase token, cannot lock seat");
+          return;
+        }
+
+        const resp = await fetch(`${BACKEND}/api/rides/${rideId}/lock-seat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          console.error("Lock-seat error:", json);
+          return;
+        }
+
+        if (json.expiresAt) {
+          const expiry = new Date(json.expiresAt).getTime();
+          const update = () => {
+            const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+            setLockRemaining(diff);
+          };
+          update(); // start immediately
+          interval = setInterval(update, 1000);
+        }
+      } catch (e) {
+        console.error("Lock-seat fetch failed:", e);
+      }
+    })();
+
+    return () => clearInterval(interval);
+  }, [rideId, userId, BACKEND]);
+
+  // Live booking status (poll every 8s)
   const { data: booking, loading: bookingLoading } = useBookingStatus(
     rideId,
     userId,
@@ -69,7 +116,22 @@ export default function SplitRideConfirm() {
 
   const hasPaid = !!booking?.hasPaid;
 
-  // Seats limits
+  // If backend reports a new lock expiry, sync countdown
+  useEffect(() => {
+    if (!booking?.lock?.expiresAt) return;
+    const expiry = new Date(booking.lock.expiresAt).getTime();
+
+    const update = () => {
+      const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+      setLockRemaining(diff);
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [booking?.lock?.expiresAt]);
+
+  // --- Capacity handling ---
   const seatsLimit =
     booking?.capacity?.seats?.limit ??
     booking?.capacityDetail?.seats?.limit ??
@@ -77,41 +139,37 @@ export default function SplitRideConfirm() {
 
   const remainingSeats =
     booking?.capacity?.seats?.remaining ??
-    booking?.remainingSeats ?? // tolerate old shape
+    booking?.remainingSeats ??
     Math.max(seatsLimit - 0, 0);
 
-  // Luggage limits: accept either booking.capacity.luggage or booking.capacityDetail.luggage
   const luggageRoot =
     booking?.capacity?.luggage ?? booking?.capacityDetail?.luggage ?? null;
-
-  const luggageMode = luggageRoot?.mode || "none"; // "byKind" | "total" | "none"
+  const luggageMode = luggageRoot?.mode || "none";
 
   const remB = luggageRoot?.byKind?.backpacks?.remaining ?? 0;
   const remS = luggageRoot?.byKind?.small?.remaining ?? 0;
   const remL = luggageRoot?.byKind?.large?.remaining ?? 0;
   const remTotal = luggageRoot?.total?.remaining ?? 0;
 
-  // Keep seats within valid range when status changes
+  // Clamp seats/luggage on capacity updates
   useEffect(() => {
     setSeats((prev) =>
       clampInt(prev || 1, 1, Math.max(1, remainingSeats || 1))
     );
   }, [remainingSeats]);
 
-  // Clamp luggage on remaining changes
   useEffect(() => {
     if (luggageMode === "byKind") {
-      setBackpacks((v) => clampInt(v, 0, Math.max(0, remB)));
-      setSmallSuitcases((v) => clampInt(v, 0, Math.max(0, remS)));
-      setLargeSuitcases((v) => clampInt(v, 0, Math.max(0, remL)));
+      setBackpacks((v) => clampInt(v, 0, remB));
+      setSmallSuitcases((v) => clampInt(v, 0, remS));
+      setLargeSuitcases((v) => clampInt(v, 0, remL));
       setTotalItems(0);
     } else if (luggageMode === "total") {
-      setTotalItems((v) => clampInt(v, 0, Math.max(0, remTotal)));
+      setTotalItems((v) => clampInt(v, 0, remTotal));
       setBackpacks(0);
       setSmallSuitcases(0);
       setLargeSuitcases(0);
     } else {
-      // none
       setBackpacks(0);
       setSmallSuitcases(0);
       setLargeSuitcases(0);
@@ -119,33 +177,32 @@ export default function SplitRideConfirm() {
     }
   }, [luggageMode, remB, remS, remL, remTotal]);
 
-  // Estimate for display (fallback only)
+  // --- Pricing preview ---
   const estimate = useMemo(() => {
     const val = Number(ride?.estimated_fare ?? 35);
     return Number.isFinite(val) ? val : 35;
   }, [ride]);
 
-  // paidSeats approximation: seatsLimit - remainingSeats
   const paidSeats = Math.max(0, seatsLimit - (remainingSeats ?? 0));
 
-  // Dynamic per-seat preview: host(1) + paidSeats + seatsSelected
   const perSeatPreview = useMemo(() => {
     const groupSize = Math.max(1 + paidSeats + (seats || 1), 1);
     return estimate / groupSize;
   }, [estimate, paidSeats, seats]);
 
-  // Luggage validation (client-side UI guard; server re-validates)
+  const dynamicTotal = (perSeatPreview * Math.max(1, seats)).toFixed(2);
+
+  // --- Luggage validation ---
   const luggageValid = useMemo(() => {
     if (luggageMode === "byKind") {
-      if (backpacks > remB) return false;
-      if (smallSuitcases > remS) return false;
-      if (largeSuitcases > remL) return false;
-      return true;
+      return (
+        backpacks <= remB && smallSuitcases <= remS && largeSuitcases <= remL
+      );
     }
     if (luggageMode === "total") {
       return totalItems <= remTotal;
     }
-    return true; // no luggage constraints
+    return true;
   }, [
     luggageMode,
     backpacks,
@@ -164,10 +221,7 @@ export default function SplitRideConfirm() {
       ? `Not enough luggage capacity. Remaining — Backpacks: ${remB}, Small: ${remS}, Large: ${remL}.`
       : `Not enough luggage capacity. Remaining total items: ${remTotal}.`);
 
-  if (!ride) return <p>Loading ride...</p>;
-  if (userId === null) return <p>Loading account…</p>;
-  if (!userId) return <p>Please sign in to view this ride.</p>;
-
+  // --- Handle payment ---
   const handlePayment = async () => {
     if (!BACKEND) {
       alert("Payment backend is not configured (VITE_STRIPE_BACKEND).");
@@ -189,6 +243,11 @@ export default function SplitRideConfirm() {
       alert(luggageError || "Your luggage exceeds the remaining capacity.");
       return;
     }
+    if (lockRemaining !== null && lockRemaining <= 0) {
+      alert("Booking time has expired. Please try booking again.");
+      window.location.href = "/all-rides";
+      return;
+    }
 
     setIsPaying(true);
     try {
@@ -197,7 +256,6 @@ export default function SplitRideConfirm() {
         userId,
         email: userEmail,
         currency: "gbp",
-        // send both for compatibility with current backend
         seatsReserved: seats,
         seats,
       };
@@ -210,11 +268,18 @@ export default function SplitRideConfirm() {
         body.totalItems = totalItems;
       }
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch(
         `${BACKEND}/api/payments/create-checkout-session`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`, // ✅ Required
+          },
           body: JSON.stringify(body),
         }
       );
@@ -226,6 +291,7 @@ export default function SplitRideConfirm() {
 
       const { url } = await response.json();
       if (!url) throw new Error("No Checkout URL returned");
+
       window.location.href = url;
     } catch (err) {
       console.error("Payment error:", err);
@@ -234,7 +300,10 @@ export default function SplitRideConfirm() {
     }
   };
 
-  const dynamicTotal = (perSeatPreview * Math.max(1, seats)).toFixed(2);
+  // --- Render ---
+  if (!ride) return <p>Loading ride...</p>;
+  if (userId === null) return <p>Loading account…</p>;
+  if (!userId) return <p>Please sign in to view this ride.</p>;
 
   return (
     <div className="split-confirm-container">
@@ -253,7 +322,6 @@ export default function SplitRideConfirm() {
         <strong>Time:</strong> {ride.time || "N/A"}
       </p>
 
-      {/* Price explanation */}
       <div className="price-box">
         <p style={{ marginBottom: 8 }}>
           Price is split across everyone traveling. The host counts as{" "}
@@ -270,7 +338,6 @@ export default function SplitRideConfirm() {
         </p>
       </div>
 
-      {/* Seats the buyer needs */}
       <div className="split-controls">
         <label htmlFor="seats">
           <strong>Seats you need:</strong>
@@ -297,8 +364,6 @@ export default function SplitRideConfirm() {
         </div>
       </div>
 
-      {/* Luggage controls */}
-      {console.log("Luggage render check:", { luggageMode, remB, remS, remL })}
       {luggageMode !== "none" && (
         <div className="split-controls" style={{ marginTop: 16 }}>
           <label>
@@ -376,7 +441,7 @@ export default function SplitRideConfirm() {
             </div>
           )}
 
-          {luggageMode !== "none" && !luggageValid && (
+          {!luggageValid && (
             <p className="error" role="alert" style={{ marginTop: 6 }}>
               {luggageError}
             </p>
@@ -389,6 +454,43 @@ export default function SplitRideConfirm() {
         <span className="fee"> + platform fee</span>
       </p>
 
+      {/* Lock countdown timer */}
+      {lockRemaining !== null && (
+        <div style={{ marginTop: 12 }}>
+          {lockRemaining > 0 ? (
+            <p
+              style={{
+                color: "#444",
+                fontWeight: 500,
+              }}
+            >
+              ⏳ You have {Math.floor(lockRemaining / 60)}m {lockRemaining % 60}
+              s to complete checkout
+            </p>
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <p style={{ color: "red", fontWeight: 600 }}>
+                ⚠️ Booking time has expired. Please try booking again.
+              </p>
+              <button
+                onClick={() => (window.location.href = "/all-rides")}
+                style={{
+                  marginTop: 8,
+                  padding: "10px 16px",
+                  background: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                🔙 Back to All Rides
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         className="stripe-btn"
         onClick={handlePayment}
@@ -397,7 +499,8 @@ export default function SplitRideConfirm() {
           hasPaid ||
           bookingLoading ||
           remainingSeats <= 0 ||
-          !luggageValid
+          !luggageValid ||
+          (lockRemaining !== null && lockRemaining <= 0)
         }
       >
         {hasPaid

@@ -82,7 +82,7 @@ async function ensureRidePool(rideId, currency = "gbp") {
     .from("ride_pools")
     .select("id")
     .eq("ride_id", rideId)
-    .single();
+    .maybeSingle();
   if (existing?.id) return existing.id;
 
   // Auto-assign booker to the ride creator
@@ -506,8 +506,6 @@ app.use(express.json());
 /* ---------------------- Payments: Create Checkout Session ---------------------- */
 app.post("/api/payments/create-checkout-session", async (req, res) => {
   try {
-    // console.log("create-checkout-session body:", req.body);
-
     const {
       rideId,
       userId,
@@ -523,8 +521,28 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
 
       // Back-compat
       seats, // legacy
-      groupSize: legacyGroupSize, // VERY legacy (rename to avoid redeclare)
+      groupSize: legacyGroupSize, // VERY legacy
     } = req.body;
+
+    // 1) Authenticate user via Supabase token
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: "Missing Authorization token" });
+    }
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser(token);
+    if (userErr || !user) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    const userIdFromToken = user.id;
+    if (userIdFromToken !== userId) {
+      return res.status(403).json({ error: "User mismatch" });
+    }
 
     // ---------- Normalize seats ----------
     const seatsReq = Math.max(
@@ -544,26 +562,35 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     const lReq = Math.max(0, Math.floor(Number(large) || 0));
     const totalReq = Math.max(0, Math.floor(Number(totalItems) || 0));
 
-    if (!rideId || !userId || !Number.isFinite(seatsReq) || seatsReq <= 0) {
+    if (
+      !rideId ||
+      !userId ||
+      !email ||
+      !Number.isFinite(seatsReq) ||
+      seatsReq <= 0
+    ) {
       return res.status(400).json({ error: "Missing/invalid fields" });
     }
 
-    // ---------- Ensure pool exists + still collecting ----------
+    // ---------- Ensure pool exists ----------
     const ridePoolId = await ensureRidePool(rideId, currency);
     await ensureDefaultBooker(rideId);
 
+    // ---------- Fetch pool + ride ----------
     const [{ data: pool }, { data: rideRow }] = await Promise.all([
       supabase
         .from("ride_pools")
         .select(
-          "id, status, min_contributors, currency, total_reserved_seats, total_reserved_backpacks, total_reserved_small, total_reserved_large"
+          "id, status, min_contributors, currency, " +
+            "total_reserved_seats, total_reserved_backpacks, total_reserved_small, total_reserved_large"
         )
         .eq("id", ridePoolId)
         .single(),
       supabase
         .from("rides")
         .select(
-          "estimated_fare, seat_limit, seats, max_passengers, backpack_count, small_suitcase_count, large_suitcase_count, luggage_limit"
+          "estimated_fare, seat_limit, seats, max_passengers, " +
+            "backpack_count, small_suitcase_count, large_suitcase_count, luggage_limit"
         )
         .eq("id", rideId)
         .single(),
@@ -572,6 +599,29 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     if (!pool) return res.status(404).json({ error: "Pool not found" });
     if (pool.status !== "collecting") {
       return res.status(400).json({ error: "Pool not collecting" });
+    }
+
+    // ---------- 🔒 Validate booking lock ----------
+    const { data: contribLock, error: contribErr } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, created_at, status")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (contribErr) {
+      return res.status(500).json({ error: "Failed to check booking lock" });
+    }
+    if (!contribLock || contribLock.status !== "pending") {
+      return res.status(400).json({ error: "No active booking lock found" });
+    }
+
+    const createdAt = new Date(contribLock.created_at).getTime();
+    const expiresAt = createdAt + 5 * 60 * 1000;
+    if (Date.now() > expiresAt) {
+      return res.status(400).json({ error: "Booking lock expired" });
     }
 
     // ---------- Capacity limits ----------
@@ -584,64 +634,40 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     const bLimit = Number(rideRow?.backpack_count ?? 0);
     const sLimit = Number(rideRow?.small_suitcase_count ?? 0);
     const lLimit = Number(rideRow?.large_suitcase_count ?? 0);
-    const totalLimit = Number(rideRow?.luggage_limit ?? 0); // legacy total-items cap
+    const totalLimit = Number(rideRow?.luggage_limit ?? 0);
     const hasByKindLimits = Boolean(bLimit || sLimit || lLimit);
 
-    // Current PAID reservations (pool keeps paid totals)
+    // Current PAID totals (from pool)
     const paidSeats = Number(pool?.total_reserved_seats ?? 0);
     const paidB = Number(pool?.total_reserved_backpacks ?? 0);
     const paidS = Number(pool?.total_reserved_small ?? 0);
     const paidL = Number(pool?.total_reserved_large ?? 0);
 
-    // Seats validation
+    // ---------- Seat validation ----------
     const rSeats = Math.max(0, seatsLimit - paidSeats);
     if (seatsReq > rSeats) {
-      return res
-        .status(400)
-        .json({ error: `Not enough seats available. Remaining: ${rSeats}` });
+      return res.status(400).json({
+        error: `Not enough seats available. Remaining: ${rSeats}`,
+      });
     }
 
-    // Luggage validation
+    // ---------- Luggage validation ----------
     if (hasByKindLimits) {
       const rB = Math.max(0, bLimit - paidB);
       const rS = Math.max(0, sLimit - paidS);
       const rL = Math.max(0, lLimit - paidL);
 
-      console.log("📦 Luggage validation — limits vs. requested:", {
-        bLimit,
-        sLimit,
-        lLimit,
-        totalLimit,
-        paidB,
-        paidS,
-        paidL,
-        bReq,
-        sReq,
-        lReq,
-      });
-
       if (bReq > rB) {
-        console.warn(
-          `❌ Booking failed — Backpacks over limit. Requested: ${bReq}, Remaining: ${rB}`
-        );
-
         return res
           .status(400)
           .json({ error: `Backpacks over limit. Remaining: ${rB}` });
       }
       if (sReq > rS) {
-        console.warn(
-          `❌ Booking failed — Backpacks over limit. Requested: ${sReq}, Remaining: ${rS}`
-        );
-
         return res
           .status(400)
           .json({ error: `Small suitcases over limit. Remaining: ${rS}` });
       }
       if (lReq > rL) {
-        console.warn(
-          `❌ Booking failed — Backpacks over limit. Requested: ${lReq}, Remaining: ${rL}`
-        );
         return res
           .status(400)
           .json({ error: `Large suitcases over limit. Remaining: ${rL}` });
@@ -649,47 +675,19 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     } else if (totalLimit) {
       const paidTotal = paidB + paidS + paidL;
       const rTotal = Math.max(0, totalLimit - paidTotal);
-      // allow client to send either totalItems OR a breakdown; prefer totalItems if present
-      console.log("📊 Booking status — ride capacity and reservations:", {
-        rideId,
-        capacity,
-        paidSeats,
-        remainingSeats,
-        declaredLimits: {
-          seats: ride?.seat_limit,
-          backpacks: bLimit,
-          small: sLimit,
-          large: lLimit,
-          totalLuggage: totalLimit,
-        },
-        poolTotals: {
-          reservedSeats: paidSeats,
-          reservedBackpacks: pool.total_reserved_backpacks,
-          reservedSmall: pool.total_reserved_small,
-          reservedLarge: pool.total_reserved_large,
-        },
-        remaining: {
-          seats: remainingSeats,
-          backpacks: rB,
-          small: rS,
-          large: rL,
-          total: rTotal,
-        },
-      });
 
       const reqTotal = totalReq > 0 ? totalReq : bReq + sReq + lReq;
       if (reqTotal > rTotal) {
-        return res
-          .status(400)
-          .json({ error: `Luggage over limit. Remaining items: ${rTotal}` });
+        return res.status(400).json({
+          error: `Luggage over limit. Remaining items: ${rTotal}`,
+        });
       }
     }
 
-    // ---------- Server-enforced pricing (DYNAMIC split) ----------
+    // ---------- Server-enforced pricing ----------
     const estimate = Number(rideRow?.estimated_fare ?? 35);
     const estimateMinor = toMinor(estimate);
 
-    // dynamicGroupSize = host(1) + already paid seats + your seats
     const dynamicGroupSize = Math.max(1 + paidSeats + seatsReq, 1);
     const perSeatMinor = Math.max(
       1,
@@ -697,11 +695,9 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
     );
     const userShareMinor = perSeatMinor * seatsReq;
 
-    // platform fee: 10% capped 1..8
     const platformFeeMinor = clamp(Math.round(userShareMinor * 0.1), 100, 800);
 
-    // ---------- Insert pending contribution (with reservations) ----------
-    // In "total" mode, store the total items into backpacks_reserved for accounting (others zero).
+    // ---------- Update pending contribution with reservations ----------
     let insBackpacks = bReq;
     let insSmall = sReq;
     let insLarge = lReq;
@@ -713,11 +709,9 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
       insLarge = 0;
     }
 
-    const { data: contrib, error: insErr } = await supabase
+    const { error: updateErr } = await supabase
       .from("ride_pool_contributions")
-      .insert({
-        ride_pool_id: ridePoolId,
-        user_id: userId,
+      .update({
         currency,
         user_share_minor: userShareMinor,
         platform_fee_minor: platformFeeMinor,
@@ -725,13 +719,11 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
         backpacks_reserved: insBackpacks,
         small_reserved: insSmall,
         large_reserved: insLarge,
-        status: "pending",
       })
-      .select("id")
-      .single();
+      .eq("id", contribLock.id);
 
-    if (insErr) {
-      return res.status(400).json({ error: insErr.message });
+    if (updateErr) {
+      return res.status(400).json({ error: updateErr.message });
     }
 
     // ---------- Stripe Checkout ----------
@@ -767,7 +759,7 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
       metadata: {
         ride_id: String(rideId),
         user_id: String(userId),
-        contribution_id: String(contrib.id),
+        contribution_id: String(contribLock.id),
         seats_reserved: String(seatsReq),
         backpacks: String(insBackpacks),
         small: String(insSmall),
@@ -779,7 +771,7 @@ app.post("/api/payments/create-checkout-session", async (req, res) => {
         metadata: {
           ride_id: String(rideId),
           user_id: String(userId),
-          contribution_id: String(contrib.id),
+          contribution_id: String(contribLock.id),
           seats_reserved: String(seatsReq),
           backpacks: String(insBackpacks),
           small: String(insSmall),
@@ -819,6 +811,73 @@ app.get("/api/payments/verify", async (req, res) => {
   } catch (err) {
     console.error("verify error:", err);
     return res.status(500).json({ ok: false, error: "Lookup failed" });
+  }
+});
+/* ---------------------- Create ride pool (post-publish) ---------------------- */
+app.post("/api/rides/:rideId/create-pool", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId } = req.body;
+
+    if (!rideId || !userId) {
+      return res.status(400).json({ error: "rideId and userId are required" });
+    }
+
+    // 1) Check if ride exists
+    const { data: ride, error: rideErr } = await supabase
+      .from("rides")
+      .select("id, user_id, status")
+      .eq("id", rideId)
+      .single();
+
+    if (rideErr || !ride) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    if (ride.status !== "active") {
+      return res.status(400).json({ error: "Ride is not active" });
+    }
+
+    // 2) Check if pool already exists
+    const { data: existingPool } = await supabase
+      .from("ride_pools")
+      .select("id")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (existingPool) {
+      return res.json({
+        message: "✅ Ride pool already exists",
+        poolId: existingPool.id,
+      });
+    }
+
+    // 3) Insert new pool
+    const { data: newPool, error: poolErr } = await supabase
+      .from("ride_pools")
+      .insert({
+        ride_id: rideId,
+        currency: "gbp",
+        booker_user_id: ride.user_id || userId,
+        status: "collecting",
+      })
+      .select("id")
+      .single();
+
+    if (poolErr) {
+      console.error("❌ create-pool error:", poolErr);
+      return res.status(500).json({ error: "Failed to create ride pool" });
+    }
+
+    console.log("✅ Ride pool created:", { rideId, poolId: newPool.id });
+
+    return res.json({
+      message: "✅ Ride pool created successfully",
+      poolId: newPool.id,
+    });
+  } catch (err) {
+    console.error("❌ create-pool error:", err);
+    return res.status(500).json({ error: "Failed to create ride pool" });
   }
 });
 
@@ -999,6 +1058,32 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
           }
         : { mode: "none", byKind: {}, total: { limit: 0, remaining: 0 } };
 
+    //timer for code expiry
+    // Identify if THIS user has a pending contribution
+    let myContrib = null;
+    if (userId) {
+      const { data: contribRow } = await supabase
+        .from("ride_pool_contributions")
+        .select("id, created_at")
+        .eq("ride_pool_id", pool.id)
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      myContrib = contribRow || null;
+    }
+
+    const lock = myContrib
+      ? {
+          contributionId: myContrib.id,
+          expiresAt: new Date(
+            new Date(myContrib.created_at).getTime() + 5 * 60 * 1000
+          ).toISOString(),
+        }
+      : null;
+
     // ✅ Final response
     res.json({
       exists: true,
@@ -1043,10 +1128,122 @@ app.get("/api/rides/:rideId/booking-status", async (req, res) => {
         userShareMinor: pool.total_collected_user_share_minor,
         platformFeeMinor: pool.total_collected_platform_fee_minor,
       },
+      lock,
     });
   } catch (e) {
     console.error("booking-status error:", e);
     res.status(500).json({ error: "Failed to fetch booking status" });
+  }
+});
+/* ---------------------- Lock seat (create/refresh pending contrib) ---------------------- */
+app.post("/api/rides/:rideId/lock-seat", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+
+    // 1) Authenticate user via Supabase token (Bearer <access_token>)
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token)
+      return res.status(401).json({ error: "Missing Authorization token" });
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser(token);
+    if (userErr || !user)
+      return res.status(401).json({ error: "Invalid or expired token" });
+
+    const userId = user.id;
+    if (!rideId || !userId) {
+      return res
+        .status(400)
+        .json({ error: "rideId and valid user auth required" });
+    }
+
+    // 2) Find ride pool (need currency too, and ensure pool is collecting)
+    const { data: pool, error: poolErr } = await supabase
+      .from("ride_pools")
+      .select("id, currency, status")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (poolErr || !pool) {
+      return res.status(404).json({ error: "Ride pool not found" });
+    }
+    if (pool.status !== "collecting") {
+      return res.status(400).json({ error: "Pool not collecting" });
+    }
+
+    // 3) Get latest pending contribution for this user
+    let { data: contrib, error: contribErr } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, created_at, status")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (contribErr) {
+      console.error("lock-seat: contrib lookup failed:", contribErr);
+      return res.status(500).json({ error: "Failed to check contribution" });
+    }
+
+    const nowMs = Date.now();
+    if (contrib) {
+      const createdAtMs = new Date(contrib.created_at).getTime();
+      const expired = nowMs > createdAtMs + 5 * 60 * 1000;
+
+      if (expired) {
+        // 4a) Refresh the lock by bumping created_at to now()
+        const { data: refreshed, error: bumpErr } = await supabase
+          .from("ride_pool_contributions")
+          .update({ created_at: new Date().toISOString() })
+          .eq("id", contrib.id)
+          .select("id, created_at")
+          .single();
+
+        if (bumpErr) {
+          console.error("lock-seat: bump created_at failed:", bumpErr);
+          return res.status(500).json({ error: "Failed to refresh lock" });
+        }
+        contrib = refreshed;
+      }
+    } else {
+      // 4b) No pending: create a fresh lock (zero reservations; will be set at checkout call)
+      const { data: newContrib, error: insertErr } = await supabase
+        .from("ride_pool_contributions")
+        .insert({
+          ride_pool_id: pool.id,
+          user_id: userId,
+          currency: pool.currency || "gbp", // ✅ include currency to satisfy NOT NULL
+          user_share_minor: 0, // safe defaults
+          platform_fee_minor: 0,
+          seats_reserved: 0,
+          backpacks_reserved: 0,
+          small_reserved: 0,
+          large_reserved: 0,
+          status: "pending",
+        })
+        .select("id, created_at")
+        .single();
+
+      if (insertErr) {
+        console.error("lock-seat: insert failed:", insertErr); // ✅ log the real reason
+        return res.status(500).json({ error: "Failed to create pending lock" });
+      }
+
+      contrib = newContrib;
+    }
+
+    const expiresAt = new Date(
+      new Date(contrib.created_at).getTime() + 5 * 60 * 1000
+    ).toISOString();
+    return res.json({ contributionId: contrib.id, expiresAt });
+  } catch (err) {
+    console.error("❌ lock-seat error:", err);
+    return res.status(500).json({ error: "Failed to lock seat" });
   }
 });
 
