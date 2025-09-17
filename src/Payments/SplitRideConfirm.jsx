@@ -110,11 +110,14 @@ export default function SplitRideConfirm() {
   const safeFormat = (val) =>
     Number.isFinite(val) ? (val / 100).toFixed(2) : "0.00";
 
-  // Live booking status (poll every 8s)
+  // Live booking status (poll every 8s), optionally pass seats for backend preview
   const { data: booking, loading: bookingLoading } = useBookingStatus(
     rideId,
     userId,
-    { pollMs: 8000 }
+    {
+      pollMs: 8000,
+      seats: seats, // Optional: send current seat selection to backend (if implemented)
+    }
   );
 
   const hasPaid = !!booking?.hasPaid;
@@ -149,32 +152,11 @@ export default function SplitRideConfirm() {
   const luggageRoot =
     booking?.capacity?.luggage ?? booking?.capacityDetail?.luggage ?? null;
 
-  // Subtract host luggage baseline if defined
-  // const remB = Math.max(
-  //   (luggageRoot?.byKind?.backpacks?.limit ?? 0) -
-  //     (ride?.backpack_count ?? 0) -
-  //     (booking?.totals?.backpacks ?? 0),
-  //   0
-  // );
-  // const remS = Math.max(
-  //   (luggageRoot?.byKind?.small?.limit ?? 0) -
-  //     (ride?.small_suitcase_count ?? 0) -
-  //     (booking?.totals?.small ?? 0),
-  //   0
-  // );
-  // const remL = Math.max(
-  //   (luggageRoot?.byKind?.large?.limit ?? 0) -
-  //     (ride?.large_suitcase_count ?? 0) -
-  //     (booking?.totals?.large ?? 0),
-  //   0
-  // );
-
   // Use backend-provided remaining capacity directly
   const remB = Math.max(luggageRoot?.byKind?.backpacks?.remaining ?? 0, 0);
   const remS = Math.max(luggageRoot?.byKind?.small?.remaining ?? 0, 0);
   const remL = Math.max(luggageRoot?.byKind?.large?.remaining ?? 0, 0);
 
-  // Clamp seats/luggage on capacity updates
   const luggageMode = luggageRoot?.mode ?? "none";
   const remTotal = luggageRoot?.total?.remaining ?? 0;
 
@@ -203,29 +185,10 @@ export default function SplitRideConfirm() {
     }
   }, [luggageMode, remB, remS, remL, remTotal]);
 
-  // --- Pricing preview ---
-  const estimate = useMemo(() => {
-    const val = Number(ride?.estimated_fare ?? 35);
-    return Number.isFinite(val) ? val : 35;
-  }, [ride]);
-
-  const paidSeats = Math.max(0, seatsLimit - (remainingSeats ?? 0));
-
-  // const perSeatPreview = useMemo(() => {
-  //   const hostSeats = Number(ride?.seats ?? 1);
-  //   const groupSize = hostSeats + paidSeats + seats;
-  //   return estimate / Math.max(groupSize, 1);
-  // }, [estimate, paidSeats, seats, ride]);
-
-  // // const dynamicTotal = safeFormat(perSeatPreview * Math.max(1, seats));
-  // const dynamicTotal = useMemo(() => {
-  //   const perSeat = booking?.perSeatMinor ?? 0;
-  //   return safeFormat(perSeat * seats);
-  // }, [booking?.perSeatMinor, seats]);
-  // helper to get minor units if we need a fallback
+  // --- Pricing preview (mirror backend formula) ---
   const pennies = (gbp) => Math.round(Number(gbp || 0) * 100);
 
-  // estimate in minor units from backend; fall back to local estimate if needed
+  // Use server‑provided estimateMinor if present; otherwise fallback to ride.estimated_fare
   const estimateMinor = useMemo(() => {
     const fromBackend = Number(booking?.estimateMinor ?? 0);
     if (Number.isFinite(fromBackend) && fromBackend > 0) return fromBackend;
@@ -235,7 +198,6 @@ export default function SplitRideConfirm() {
   const hostSeatsFixed = Number(ride?.seats ?? 1);
   const paidSeatsFixed = Number(booking?.paidSeats ?? 0);
 
-  // mirror backend formula exactly
   const perSeatPreviewMinor = useMemo(() => {
     const groupSize = Math.max(
       hostSeatsFixed + paidSeatsFixed + (seats || 1),
@@ -313,7 +275,7 @@ export default function SplitRideConfirm() {
         email: userEmail,
         currency: "gbp",
         seatsReserved: seats,
-        seats,
+        seats: seats,
       };
 
       if (luggageMode === "byKind") {
@@ -392,8 +354,6 @@ export default function SplitRideConfirm() {
           Per seat (preview):{" "}
           <strong>£{safeFormat(perSeatPreviewMinor)}</strong>
         </p>
-
-        {/* <p style={{ color: "#555" }}> Current per seat (preview):{" "} <strong>£{perSeatPreview.toFixed(2)}</strong> </p> */}
 
         <p style={{ color: "#777", fontSize: 13, marginTop: 4 }}>
           Final amount is calculated on the server at checkout. A small platform
