@@ -107,6 +107,9 @@ export default function SplitRideConfirm() {
     return () => clearInterval(interval);
   }, [rideId, userId, BACKEND]);
 
+  const safeFormat = (val) =>
+    Number.isFinite(val) ? (val / 100).toFixed(2) : "0.00";
+
   // Live booking status (poll every 8s)
   const { data: booking, loading: bookingLoading } = useBookingStatus(
     rideId,
@@ -137,21 +140,44 @@ export default function SplitRideConfirm() {
     booking?.capacityDetail?.seats?.limit ??
     4;
 
+  const hostSeats = Number(ride?.seats ?? 1);
   const remainingSeats =
-    booking?.capacity?.seats?.remaining ??
-    booking?.remainingSeats ??
-    Math.max(seatsLimit - 0, 0);
+    (booking?.capacity?.seats?.limit ?? seatsLimit) -
+    hostSeats -
+    (booking?.paidSeats ?? 0);
 
   const luggageRoot =
     booking?.capacity?.luggage ?? booking?.capacityDetail?.luggage ?? null;
-  const luggageMode = luggageRoot?.mode || "none";
 
-  const remB = luggageRoot?.byKind?.backpacks?.remaining ?? 0;
-  const remS = luggageRoot?.byKind?.small?.remaining ?? 0;
-  const remL = luggageRoot?.byKind?.large?.remaining ?? 0;
-  const remTotal = luggageRoot?.total?.remaining ?? 0;
+  // Subtract host luggage baseline if defined
+  // const remB = Math.max(
+  //   (luggageRoot?.byKind?.backpacks?.limit ?? 0) -
+  //     (ride?.backpack_count ?? 0) -
+  //     (booking?.totals?.backpacks ?? 0),
+  //   0
+  // );
+  // const remS = Math.max(
+  //   (luggageRoot?.byKind?.small?.limit ?? 0) -
+  //     (ride?.small_suitcase_count ?? 0) -
+  //     (booking?.totals?.small ?? 0),
+  //   0
+  // );
+  // const remL = Math.max(
+  //   (luggageRoot?.byKind?.large?.limit ?? 0) -
+  //     (ride?.large_suitcase_count ?? 0) -
+  //     (booking?.totals?.large ?? 0),
+  //   0
+  // );
+
+  // Use backend-provided remaining capacity directly
+  const remB = Math.max(luggageRoot?.byKind?.backpacks?.remaining ?? 0, 0);
+  const remS = Math.max(luggageRoot?.byKind?.small?.remaining ?? 0, 0);
+  const remL = Math.max(luggageRoot?.byKind?.large?.remaining ?? 0, 0);
 
   // Clamp seats/luggage on capacity updates
+  const luggageMode = luggageRoot?.mode ?? "none";
+  const remTotal = luggageRoot?.total?.remaining ?? 0;
+
   useEffect(() => {
     setSeats((prev) =>
       clampInt(prev || 1, 1, Math.max(1, remainingSeats || 1))
@@ -185,12 +211,42 @@ export default function SplitRideConfirm() {
 
   const paidSeats = Math.max(0, seatsLimit - (remainingSeats ?? 0));
 
-  const perSeatPreview = useMemo(() => {
-    const groupSize = Math.max(1 + paidSeats + (seats || 1), 1);
-    return estimate / groupSize;
-  }, [estimate, paidSeats, seats]);
+  // const perSeatPreview = useMemo(() => {
+  //   const hostSeats = Number(ride?.seats ?? 1);
+  //   const groupSize = hostSeats + paidSeats + seats;
+  //   return estimate / Math.max(groupSize, 1);
+  // }, [estimate, paidSeats, seats, ride]);
 
-  const dynamicTotal = (perSeatPreview * Math.max(1, seats)).toFixed(2);
+  // // const dynamicTotal = safeFormat(perSeatPreview * Math.max(1, seats));
+  // const dynamicTotal = useMemo(() => {
+  //   const perSeat = booking?.perSeatMinor ?? 0;
+  //   return safeFormat(perSeat * seats);
+  // }, [booking?.perSeatMinor, seats]);
+  // helper to get minor units if we need a fallback
+  const pennies = (gbp) => Math.round(Number(gbp || 0) * 100);
+
+  // estimate in minor units from backend; fall back to local estimate if needed
+  const estimateMinor = useMemo(() => {
+    const fromBackend = Number(booking?.estimateMinor ?? 0);
+    if (Number.isFinite(fromBackend) && fromBackend > 0) return fromBackend;
+    return pennies(ride?.estimated_fare ?? 35);
+  }, [booking?.estimateMinor, ride?.estimated_fare]);
+
+  const hostSeatsFixed = Number(ride?.seats ?? 1);
+  const paidSeatsFixed = Number(booking?.paidSeats ?? 0);
+
+  // mirror backend formula exactly
+  const perSeatPreviewMinor = useMemo(() => {
+    const groupSize = Math.max(
+      hostSeatsFixed + paidSeatsFixed + (seats || 1),
+      1
+    );
+    return Math.max(1, Math.round(estimateMinor / groupSize));
+  }, [estimateMinor, hostSeatsFixed, paidSeatsFixed, seats]);
+
+  const dynamicTotal = useMemo(() => {
+    return safeFormat(perSeatPreviewMinor * Math.max(1, seats));
+  }, [perSeatPreviewMinor, seats]);
 
   // --- Luggage validation ---
   const luggageValid = useMemo(() => {
@@ -328,10 +384,17 @@ export default function SplitRideConfirm() {
           <strong>1 seat</strong>. The more seats you add now, the lower the{" "}
           <strong>per-seat</strong> price.
         </p>
-        <p style={{ color: "#555" }}>
-          Current per seat (preview):{" "}
-          <strong>£{perSeatPreview.toFixed(2)}</strong>
+        <p style={{ marginTop: 16 }}>
+          <strong>Your total (preview):</strong> £{dynamicTotal}{" "}
+          <span className="fee"> + platform fee</span>
         </p>
+        <p style={{ color: "#555" }}>
+          Per seat (preview):{" "}
+          <strong>£{safeFormat(perSeatPreviewMinor)}</strong>
+        </p>
+
+        {/* <p style={{ color: "#555" }}> Current per seat (preview):{" "} <strong>£{perSeatPreview.toFixed(2)}</strong> </p> */}
+
         <p style={{ color: "#777", fontSize: 13, marginTop: 4 }}>
           Final amount is calculated on the server at checkout. A small platform
           fee applies.
