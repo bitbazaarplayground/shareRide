@@ -5,6 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { getGeocode, getLatLng } from "use-places-autocomplete";
+import { getVehicleCapacity } from "../../backend/helpers/capacity";
 import AutocompleteInput from "../Components/AutocompleteInput";
 import "../Components/Styles/PublishRide.css";
 import { useAuth } from "../Contexts/AuthContext";
@@ -44,17 +45,6 @@ export default function PublishRide() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showLuggage, setShowLuggage] = useState(false);
-
-  function getMaxByVehicle(type) {
-    switch (type) {
-      case "van":
-        return { seat: 6, backpack: 6, small: 4, large: 4 };
-      case "minibus":
-        return { seat: 8, backpack: 8, small: 6, large: 6 };
-      default:
-        return { seat: 4, backpack: 4, small: 2, large: 2 };
-    }
-  }
 
   // require login + completed profile
   useEffect(() => {
@@ -144,7 +134,8 @@ export default function PublishRide() {
       return;
     }
 
-    const limits = getMaxByVehicle(vehicleType);
+    const limits = getVehicleCapacity(vehicleType);
+
     if (seatsReserved > limits.seat) {
       setMessage(`❌ Max ${limits.seat} passengers allowed for this vehicle.`);
       return;
@@ -173,9 +164,9 @@ export default function PublishRide() {
       vehicle_type: vehicleType,
       seat_limit: limits.seat,
       luggage_limit: limits.backpack + limits.small + limits.large,
-      backpack_count: limits.backpack,
-      small_suitcase_count: limits.small,
-      large_suitcase_count: limits.large,
+      backpack_count: backpacks || 0,
+      small_suitcase_count: smallSuitcases || 0,
+      large_suitcase_count: largeSuitcases || 0,
       user_id: user.id,
       status: "active",
       estimated_fare: estimate ? Number(estimate) : null,
@@ -227,7 +218,7 @@ export default function PublishRide() {
     }
   };
 
-  const limits = getMaxByVehicle(vehicleType);
+  const limits = getVehicleCapacity(vehicleType);
 
   const webPageJsonLd = {
     "@context": "https://schema.org",
