@@ -69,7 +69,7 @@ export default function RideCard({
   };
 
   return (
-    <li className="ride-card">
+    <div className="ride-card">
       {/* Header / poster */}
       {showAvatar && ride?.profiles && (
         <div className="avatar-header">
@@ -231,6 +231,6 @@ export default function RideCard({
       {children ? <div className="ride-card-extra">{children}</div> : null}
 
       <hr />
-    </li>
+    </div>
   );
 }

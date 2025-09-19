@@ -1,4 +1,5 @@
 // backend/Server.js
+import bodyParser from "body-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -14,7 +15,7 @@ import ridesRouter from "./routes/rides.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env that sits next to Server.js (not just project root)
+// Load .env that sits next to Server.js
 dotenv.config();
 console.log("DEBUG SUPABASE_URL:", process.env.SUPABASE_URL);
 
@@ -27,10 +28,12 @@ const REQUIRED = [
 REQUIRED.forEach((k) => {
   if (!process.env[k]) console.warn(`⚠️ Missing ${k} in env`);
 });
+
+// Webhook secret check
 if (
+  !process.env.STRIPE_WEBHOOK_SECRET &&
   !process.env.STRIPE_WEBHOOK_SECRET_TEST &&
-  !process.env.STRIPE_WEBHOOK_SECRET_LIVE &&
-  !process.env.STRIPE_WEBHOOK_SECRET
+  !process.env.STRIPE_WEBHOOK_SECRET_LIVE
 ) {
   console.warn("⚠️ No Stripe webhook secret configured (TEST/LIVE/fallback).");
 }
@@ -55,8 +58,10 @@ app.use(
   })
 );
 
-// Stripe webhook needs raw body → handled inside payments.js
-// JSON parser for all other routes
+// Raw body only for Stripe webhook (must come before express.json)
+app.use("/api/payments/webhook", bodyParser.raw({ type: "application/json" }));
+
+// JSON parser for everything else
 app.use(express.json());
 
 /* ---------------------- Health route ---------------------- */

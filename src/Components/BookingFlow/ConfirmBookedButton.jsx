@@ -16,10 +16,16 @@ export default function ConfirmBookedButton({ rideId, user }) {
   if (loading || !status?.exists) return null;
 
   // Only booker can see this; must be ready_to_book or booking, and quorum met
+  const quorumMet = status.checkedInCount >= (status.minContributors || 2);
   const canConfirm =
-    status.isBooker &&
-    ["ready_to_book", "booking"].includes(status.status) &&
-    status.checkedInCount >= (status.minContributors || 2);
+    status.isBooker && status.status === "ready_to_book" && status.quorumMet;
+
+  if (!canConfirm) {
+    if (status.isBooker && !status.quorumMet) {
+      return <p className="muted">Waiting for more riders to check in…</p>;
+    }
+    return null;
+  }
 
   const onConfirm = async () => {
     if (!BACKEND) return alert("Backend not configured (VITE_STRIPE_BACKEND).");

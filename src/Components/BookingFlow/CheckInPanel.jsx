@@ -11,6 +11,7 @@ export default function CheckInPanel({ rideId, user }) {
 
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   const show =
     !loading &&
@@ -40,11 +41,55 @@ export default function CheckInPanel({ rideId, user }) {
     }
   };
 
+  const onClaimHost = async () => {
+    if (!BACKEND) return alert("Backend not configured.");
+    setClaiming(true);
+    try {
+      const res = await fetch(`${BACKEND}/api/rides/${rideId}/claim-booker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to claim host");
+      alert(
+        "✅ You are now the host! You can generate codes and confirm booking."
+      );
+      refresh();
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Failed to claim host.");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   if (!show) return null;
+
+  const canClaimHost =
+    status?.status === "checking_in" || status?.status === "ready_to_book"; // server enforces grace + quorum
 
   return (
     <div className="checkin-panel">
       <h4>Enter check-in code</h4>
+
+      {/* Host badge */}
+      {status?.isBooker && (
+        <span
+          style={{
+            display: "inline-block",
+            background: "#007bff",
+            color: "white",
+            borderRadius: "12px",
+            padding: "2px 10px",
+            fontSize: "0.85rem",
+            marginBottom: "0.5rem",
+          }}
+        >
+          ⭐ You are the host
+        </span>
+      )}
+
       <div className="checkin-row">
         <input
           type="text"
@@ -63,6 +108,24 @@ export default function CheckInPanel({ rideId, user }) {
       <p className="muted">
         This confirms you’re present with the group and unlocks booking.
       </p>
+
+      {/* Claim host UI */}
+      {canClaimHost && !status?.isBooker && (
+        <div style={{ marginTop: "0.75rem" }}>
+          <button
+            className="btn btn-secondary"
+            onClick={onClaimHost}
+            disabled={claiming}
+          >
+            {claiming ? "Claiming…" : "Claim Host"}
+          </button>
+          <p className="muted" style={{ marginTop: "0.25rem" }}>
+            Waiting for the host to confirm. If the host cannot continue,
+            another rider may be assigned as the new host to keep the ride
+            moving.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
