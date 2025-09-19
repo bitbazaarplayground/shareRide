@@ -13,11 +13,25 @@ export default function IssueCodePanel({ rideId, user }) {
   const [busy, setBusy] = useState(false);
   const [countdown, setCountdown] = useState(null); // seconds
 
-  // Only booker sees this and only when pool is "bookable" or "checking_in"
+  // ---- Helpful message ----
+  if (!canIssue) {
+    if (status?.isBooker && (status?.paidSeats || 0) < 2) {
+      return (
+        <p className="muted">
+          Waiting for at least one rider to confirm payment before issuing a
+          check-in code.
+        </p>
+      );
+    }
+    return null;
+  }
+  // Booker can issue code only if host & at least one rider are paid
+  const enoughPaid = (status?.paidSeats || 0) >= 2; // host + ≥1 rider
   const canIssue =
     !loading &&
     status?.exists &&
     status.isBooker &&
+    enoughPaid &&
     ["bookable", "checking_in"].includes(status.status);
 
   const code = status?.codeActive ? "••••••" : null; // we don’t expose the code value from status; server returns it only when created

@@ -30,16 +30,33 @@ export default function PaymentSuccess() {
         );
         const data = await res.json();
         if (res.ok && data.ok) {
-          setStatus("✅ Payment confirmed!");
+          // Map reason into human text
+          let message = "";
+          if (data.reason === "paid") {
+            message = "✅ Payment captured!";
+          } else if (data.reason === "requires_capture") {
+            message = "✅ Payment authorized";
+          } else if (data.reason === "succeeded") {
+            message = "✅ Payment succeeded.";
+          } else {
+            message = `✅ Payment confirmed (status: ${data.reason})`;
+          }
+
+          setStatus(message);
           setDetails({
             amount: (data.amount_total ?? 0) / 100,
             currency: (data.currency || "gbp").toUpperCase(),
             livemode: !!data.livemode,
           });
         } else {
-          setStatus("❌ Could not verify payment.");
+          setStatus(
+            `❌ Could not verify payment. ${
+              data?.reason ? `Reason: ${data.reason}` : ""
+            }`
+          );
         }
-      } catch {
+      } catch (err) {
+        console.error("verify fetch error:", err);
         setStatus("❌ Verification failed.");
       }
     })();
@@ -56,11 +73,10 @@ export default function PaymentSuccess() {
 
       {details && (
         <p style={{ color: "#555" }}>
-          Amount charged:{" "}
+          Amount authorized:{" "}
           <strong>
             {details.currency} {details.amount.toFixed(2)}
           </strong>
-          {details.livemode ? "" : " (test mode)"}
         </p>
       )}
 
@@ -77,7 +93,6 @@ export default function PaymentSuccess() {
           View My Ride
         </Link>
 
-        {/* Subtle/advanced action: jump straight to the ride room */}
         {rideId && (
           <Link
             className="btn btn-tertiary"
@@ -91,8 +106,9 @@ export default function PaymentSuccess() {
       </div>
 
       <p style={{ marginTop: 16, color: "#666" }}>
-        We’ll notify you once your group is ready. The booker will be able to
-        open Uber and complete the ride.
+        Funds are pre-authorized. Final capture will happen once the group is
+        ready and the ride is booked in Uber. Any unused buffer will be
+        automatically refunded.
       </p>
       <Link className="btn btn-secondary" to="/">
         Back to Home

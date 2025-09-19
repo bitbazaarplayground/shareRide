@@ -5,9 +5,18 @@ import { getVehicleCapacity } from "../helpers/capacity.js";
 import { sendEmail } from "../helpers/email.js";
 import { clamp, toMinor } from "../helpers/pricing.js";
 import { recalcAndMaybeMarkBookable } from "../helpers/ridePool.js";
-import { stripe, verifyStripeSignatureOrThrow } from "../helpers/stripe.js";
+import { stripe } from "../helpers/stripe.js";
 
 const router = express.Router();
+
+/* ---------------------- Pick correct webhook secret ---------------------- */
+function getWebhookSecret() {
+  return (
+    process.env.STRIPE_WEBHOOK_SECRET ||
+    process.env.STRIPE_WEBHOOK_SECRET_TEST ||
+    process.env.STRIPE_WEBHOOK_SECRET_LIVE
+  );
+}
 
 /* ---------------------- Origin picker ---------------------- */
 function getAppOrigin() {
@@ -21,145 +30,144 @@ function getAppOrigin() {
   return ORIGINS.find((o) => o.includes("localhost")) || ORIGINS[0];
 }
 
-/* ---------------------- Stripe Webhook (RAW body) ---------------------- */
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    let event;
-    try {
-      event = verifyStripeSignatureOrThrow(req);
-      console.log("🔔 Stripe event:", event.type);
-    } catch (err) {
-      console.error("❌ Stripe signature verification failed:", err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+/* ---------------------- Stripe Webhook ---------------------- */
+router.post("/webhook", async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  const secret = getWebhookSecret();
+  let event;
 
-    try {
-      if (event.type === "checkout.session.completed") {
-        const session = event.data.object;
-        const contributionId = Number(session.metadata?.contribution_id || 0);
-        if (!contributionId) return res.json({ received: true });
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    console.log("🔔 Stripe event:", event.type);
+  } catch (err) {
+    console.error("❌ Stripe signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-        // 1) Mark contribution as paid (idempotent)
-        const { data: updated } = await supabase
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const contributionId = Number(session.metadata?.contribution_id || 0);
+      if (!contributionId) return res.json({ received: true });
+
+      // 1) Mark contribution as paid (idempotent)
+      const { data: updated } = await supabase
+        .from("ride_pool_contributions")
+        .update({
+          status: "paid",
+          stripe_session_id: session.id,
+          payment_intent_id: session.payment_intent,
+          amount_total_minor: session.amount_total ?? null,
+        })
+        .eq("id", contributionId)
+        .in("status", ["pending"])
+        .select("id, ride_pool_id, is_host")
+        .single();
+
+      let ridePoolId = updated?.ride_pool_id;
+      if (!ridePoolId) {
+        const { data: lookup } = await supabase
           .from("ride_pool_contributions")
-          .update({
-            status: "paid",
-            stripe_session_id: session.id,
-            payment_intent_id: session.payment_intent,
-            amount_total_minor: session.amount_total ?? null,
-          })
+          .select("ride_pool_id")
           .eq("id", contributionId)
-          .in("status", ["pending"])
-          .select("id, ride_pool_id, is_host")
           .single();
-
-        let ridePoolId = updated?.ride_pool_id;
-        if (!ridePoolId) {
-          const { data: lookup } = await supabase
-            .from("ride_pool_contributions")
-            .select("ride_pool_id")
-            .eq("id", contributionId)
-            .single();
-          ridePoolId = lookup?.ride_pool_id || null;
-        }
-
-        if (ridePoolId) {
-          await recalcAndMaybeMarkBookable(ridePoolId);
-        }
-
-        // 2) Email receipt (best-effort)
-        let customerEmail =
-          session.customer_details?.email || session.customer_email || null;
-
-        if (!customerEmail && session?.metadata?.user_id) {
-          try {
-            const { data: prof } = await supabase
-              .from("profiles")
-              .select("email")
-              .eq("id", session.metadata.user_id)
-              .single();
-            if (prof?.email) customerEmail = prof.email;
-          } catch {}
-        }
-
-        // ride details for email
-        let fromLoc = "—",
-          toLoc = "—",
-          date = "—",
-          time = "—",
-          poster = "Host";
-        try {
-          const rideIdMeta = Number(session.metadata?.ride_id || 0);
-          if (rideIdMeta) {
-            const { data: rideRow } = await supabase
-              .from("rides")
-              .select("from, to, date, time, user_id")
-              .eq("id", rideIdMeta)
-              .single();
-            if (rideRow) {
-              fromLoc = rideRow.from ?? "—";
-              toLoc = rideRow.to ?? "—";
-              date = rideRow.date ?? "—";
-              time = rideRow.time ?? "—";
-              if (rideRow.user_id) {
-                const { data: prof2 } = await supabase
-                  .from("profiles")
-                  .select("nickname")
-                  .eq("id", rideRow.user_id)
-                  .single();
-                poster = prof2?.nickname || "Host";
-              }
-            }
-          }
-        } catch {}
-
-        if (customerEmail) {
-          const amount = ((session.amount_total ?? 0) / 100).toFixed(2);
-          const currency = String(session.currency || "gbp").toUpperCase();
-
-          const html = `
-            <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
-              <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
-              <p>Thanks for splitting your ride on <strong>TabFair</strong>!</p>
-              <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
-                <div><strong>From:</strong> ${fromLoc}</div>
-                <div><strong>To:</strong> ${toLoc}</div>
-                <div><strong>Date:</strong> ${date}</div>
-                <div><strong>Time:</strong> ${time}</div>
-                <div><strong>Ride host:</strong> ${poster}</div>
-                <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
-              </div>
-              <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
-            </div>
-          `;
-          const text = [
-            "Payment confirmed on TabFair",
-            `From: ${fromLoc}`,
-            `To: ${toLoc}`,
-            `Date: ${date}`,
-            `Time: ${time}`,
-            `Ride host: ${poster}`,
-            `Amount charged: ${amount} ${currency}`,
-          ].join("\n");
-
-          await sendEmail(
-            customerEmail,
-            "✅ TabFair · Payment confirmed",
-            html,
-            text
-          );
-        }
+        ridePoolId = lookup?.ride_pool_id || null;
       }
 
-      return res.json({ received: true });
-    } catch (e) {
-      console.error("💥 Webhook handler error:", e);
-      return res.status(500).json({ error: "Internal error" });
+      if (ridePoolId) {
+        await recalcAndMaybeMarkBookable(ridePoolId);
+      }
+
+      // 2) Email receipt (best-effort)
+      let customerEmail =
+        session.customer_details?.email || session.customer_email || null;
+
+      if (!customerEmail && session?.metadata?.user_id) {
+        try {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("email")
+            .eq("id", session.metadata.user_id)
+            .single();
+          if (prof?.email) customerEmail = prof.email;
+        } catch {}
+      }
+
+      // ride details for email
+      let fromLoc = "—",
+        toLoc = "—",
+        date = "—",
+        time = "—",
+        poster = "Host";
+      try {
+        const rideIdMeta = Number(session.metadata?.ride_id || 0);
+        if (rideIdMeta) {
+          const { data: rideRow } = await supabase
+            .from("rides")
+            .select("from, to, date, time, user_id")
+            .eq("id", rideIdMeta)
+            .single();
+          if (rideRow) {
+            fromLoc = rideRow.from ?? "—";
+            toLoc = rideRow.to ?? "—";
+            date = rideRow.date ?? "—";
+            time = rideRow.time ?? "—";
+            if (rideRow.user_id) {
+              const { data: prof2 } = await supabase
+                .from("profiles")
+                .select("nickname")
+                .eq("id", rideRow.user_id)
+                .single();
+              poster = prof2?.nickname || "Host";
+            }
+          }
+        }
+      } catch {}
+
+      if (customerEmail) {
+        const amount = ((session.amount_total ?? 0) / 100).toFixed(2);
+        const currency = String(session.currency || "gbp").toUpperCase();
+
+        const html = `
+          <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
+            <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
+            <p>Thanks for splitting your ride on <strong>TabFair</strong>!</p>
+            <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
+              <div><strong>From:</strong> ${fromLoc}</div>
+              <div><strong>To:</strong> ${toLoc}</div>
+              <div><strong>Date:</strong> ${date}</div>
+              <div><strong>Time:</strong> ${time}</div>
+              <div><strong>Ride host:</strong> ${poster}</div>
+              <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
+            </div>
+            <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
+          </div>
+        `;
+        const text = [
+          "Payment confirmed on TabFair",
+          `From: ${fromLoc}`,
+          `To: ${toLoc}`,
+          `Date: ${date}`,
+          `Time: ${time}`,
+          `Ride host: ${poster}`,
+          `Amount charged: ${amount} ${currency}`,
+        ].join("\n");
+
+        await sendEmail(
+          customerEmail,
+          "✅ TabFair · Payment confirmed",
+          html,
+          text
+        );
+      }
     }
+
+    return res.json({ received: true });
+  } catch (e) {
+    console.error("💥 Webhook handler error:", e);
+    return res.status(500).json({ error: "Internal error" });
   }
-);
+});
 
 /* ---------------------- Create Checkout Session ---------------------- */
 router.post("/create-checkout-session", express.json(), async (req, res) => {
@@ -393,23 +401,133 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
     return res.status(500).json({ error: "Failed to create session" });
   }
 });
-
-/* ---------------------- Verify (PaymentSuccess UI) ---------------------- */
-router.get("/verify", async (req, res) => {
+/* ---------------------- Host Confirmation Checkout ---------------------- */
+router.post("/create-host-session", express.json(), async (req, res) => {
   try {
-    const sessionId = req.query.session_id;
-    if (!sessionId)
-      return res.status(400).json({ ok: false, error: "Missing session_id" });
-    const cs = await stripe.checkout.sessions.retrieve(sessionId);
-    return res.json({
-      ok: cs.payment_status === "paid",
-      amount_total: cs.amount_total,
-      currency: cs.currency,
-      livemode: cs.livemode,
+    const { rideId, userId, email, currency = "gbp" } = req.body;
+
+    // ===== Auth =====
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: "Missing token" });
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser(token);
+
+    if (userErr || !user) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // 🔒 Cross-check that the caller’s userId matches the verified JWT user.id
+    if (user.id !== userId) {
+      return res.status(403).json({ error: "User mismatch" });
+    }
+
+    // ===== Ensure pool exists =====
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, status, currency")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+    if (!pool) return res.status(404).json({ error: "Pool not found" });
+
+    // ===== Host contribution (must be pending) =====
+    const { data: contrib } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, is_host, status, seats_reserved, user_share_minor")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!contrib || !contrib.is_host) {
+      return res.status(400).json({ error: "Not host of this ride" });
+    }
+    if (contrib.status !== "pending") {
+      return res.status(400).json({ error: "Host already confirmed" });
+    }
+
+    // ===== Fetch ride details for estimate =====
+    const { data: rideRow } = await supabase
+      .from("rides")
+      .select("estimated_fare, seats, vehicle_type")
+      .eq("id", rideId)
+      .single();
+    if (!rideRow) return res.status(404).json({ error: "Ride not found" });
+
+    // Default share: host covers at least their seats
+    const estimate = Number(rideRow?.estimated_fare ?? 35);
+    const estimateMinor = toMinor(estimate);
+    const hostSeats = Number(rideRow?.seats ?? 1);
+    const perSeatMinor = Math.max(1, Math.round(estimateMinor / hostSeats));
+    const userShareMinor = perSeatMinor * hostSeats;
+
+    // Platform fee for host
+    const platformFeeMinor =
+      clamp(Math.round(userShareMinor * 0.1), 100, 800) || 0;
+
+    // Update host contribution row
+    const { error: updErr } = await supabase
+      .from("ride_pool_contributions")
+      .update({
+        currency,
+        user_share_minor: userShareMinor,
+        platform_fee_minor: platformFeeMinor,
+        seats_reserved: hostSeats,
+      })
+      .eq("id", contrib.id);
+    if (updErr) return res.status(400).json({ error: updErr.message });
+
+    // ===== Stripe Checkout =====
+    const lineItems = [];
+    if (userShareMinor > 0) {
+      lineItems.push({
+        price_data: {
+          currency,
+          product_data: { name: `Host seats x${hostSeats}` },
+          unit_amount: userShareMinor,
+        },
+        quantity: 1,
+      });
+    }
+    if (platformFeeMinor > 0) {
+      lineItems.push({
+        price_data: {
+          currency,
+          product_data: { name: "Platform fee (host)" },
+          unit_amount: platformFeeMinor,
+        },
+        quantity: 1,
+      });
+    }
+
+    const APP_ORIGIN = getAppOrigin();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: email || undefined,
+      line_items: lineItems,
+      metadata: {
+        ride_id: String(rideId),
+        user_id: String(userId),
+        contribution_id: String(contrib.id),
+        is_host: "true",
+      },
+      payment_intent_data: {
+        capture_method: "manual",
+        transfer_group: `ride_${rideId}`,
+      },
+      success_url: `${APP_ORIGIN}/payment-success?session_id={CHECKOUT_SESSION_ID}&rideId=${encodeURIComponent(
+        String(rideId)
+      )}`,
+      cancel_url: `${APP_ORIGIN}/my-rides?tab=published`,
     });
+
+    return res.json({ url: session.url });
   } catch (err) {
-    console.error("verify error:", err);
-    return res.status(500).json({ ok: false, error: "Lookup failed" });
+    console.error("create-host-session failed:", err);
+    return res.status(500).json({ error: "Failed to create host session" });
   }
 });
 

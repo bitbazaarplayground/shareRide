@@ -2,7 +2,7 @@
 import express from "express";
 import { getUserFromToken, supabase } from "../helpers/auth.js";
 import { getVehicleCapacity } from "../helpers/capacity.js";
-import { clamp, generateCode6, nowIso, toMinor } from "../helpers/pricing.js";
+import { clamp, generateCode6, toMinor } from "../helpers/pricing.js";
 import { buildUberDeepLink } from "../helpers/ridePool.js";
 import { stripe } from "../helpers/stripe.js";
 
@@ -247,6 +247,12 @@ router.get("/:rideId/booking-status", async (req, res) => {
     const estimateMinor = toMinor(Number(ride?.estimated_fare ?? 35));
     const groupSize = Math.max(hostSeats + paidSeats, 1); // without the *current* user
     const perSeatMinor = Math.max(1, Math.round(estimateMinor / groupSize));
+    const checkedInCount = (paidRows || []).filter(
+      (r) => !!r.checked_in_at
+    ).length;
+
+    const required = pool.min_contributors || 2;
+    const quorumMet = checkedInCount >= required;
 
     res.json({
       exists: true,
@@ -258,6 +264,19 @@ router.get("/:rideId/booking-status", async (req, res) => {
       remainingSeats,
       estimateMinor,
       perSeatMinor,
+      // Booking code info
+      codeActive: !!(
+        pool.booking_code &&
+        pool.code_expires_at &&
+        new Date(pool.code_expires_at) > new Date()
+      ),
+      codeIssuedAt: pool.code_issued_at,
+      codeExpiresAt: pool.code_expires_at,
+      checkedInCount,
+      required: pool.min_contributors || 2,
+      quorumMet,
+      status: pool.status,
+      isBooker: userId && pool.booker_user_id === userId,
     });
   } catch (e) {
     console.error("booking-status error:", e);
@@ -324,29 +343,54 @@ router.post("/:rideId/lock-seat", async (req, res) => {
 });
 
 /* ---------------------- Issue check-in code (booker only) ---------------------- */
-router.post("/:rideId/issue-code", async (req, res) => {
+router.post("/:rideId/issue-code", express.json(), async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
-    const { userId, ttlSeconds = 600 } = req.body;
 
-    const { data: pool } = await supabase
+    // Validate body
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ error: "Missing or invalid JSON body" });
+    }
+
+    const { userId, ttlSeconds = 600 } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "Missing userId in request body" });
+    }
+
+    // Load pool
+    const { data: pool, error: poolErr } = await supabase
       .from("ride_pools")
       .select("id, booker_user_id, status")
       .eq("ride_id", rideId)
-      .single();
+      .maybeSingle();
+
+    if (poolErr) {
+      console.error("Supabase pool error:", poolErr.message);
+      return res
+        .status(500)
+        .json({ error: "Database error while fetching pool" });
+    }
     if (!pool) return res.status(404).json({ error: "Pool not found" });
-    if (pool.booker_user_id !== userId)
-      return res.status(403).json({ error: "Only booker can issue code" });
-    if (pool.status !== "bookable" && pool.status !== "checking_in") {
-      return res.status(400).json({ error: "Pool not ready for check-in" });
+
+    // Must be the booker
+    if (pool.booker_user_id !== userId) {
+      return res.status(403).json({ error: "Only the booker can issue code" });
     }
 
+    // Pool must be in the right state
+    if (!["bookable", "checking_in"].includes(pool.status)) {
+      return res
+        .status(400)
+        .json({ error: `Pool not ready for check-in (status=${pool.status})` });
+    }
+
+    // Generate code & expiry
     const code = generateCode6();
-    const ttl = clamp(Number(ttlSeconds), 120, 1800);
+    const ttl = clamp(Number(ttlSeconds), 120, 1800); // 2–30 min
     const issuedAt = new Date();
     const expiresAt = new Date(issuedAt.getTime() + ttl * 1000).toISOString();
 
-    await supabase
+    const { error: updErr } = await supabase
       .from("ride_pools")
       .update({
         booking_code: code,
@@ -356,83 +400,15 @@ router.post("/:rideId/issue-code", async (req, res) => {
       })
       .eq("id", pool.id);
 
-    res.json({ code, expiresAt });
+    if (updErr) {
+      console.error("Supabase update error:", updErr.message);
+      return res.status(500).json({ error: "Failed to update pool with code" });
+    }
+
+    return res.json({ code, expiresAt });
   } catch (e) {
     console.error("issue-code error:", e);
     res.status(500).json({ error: "Failed to issue code" });
-  }
-});
-
-/* ---------------------- Check-in ---------------------- */
-router.post("/:rideId/check-in", async (req, res) => {
-  try {
-    const rideId = Number(req.params.rideId);
-    const { userId, code, lat, lng } = req.body;
-
-    const { data: pool } = await supabase
-      .from("ride_pools")
-      .select("id, booking_code, code_expires_at, status, min_contributors")
-      .eq("ride_id", rideId)
-      .single();
-    if (!pool) return res.status(404).json({ error: "Pool not found" });
-
-    const expired =
-      !pool.code_expires_at || new Date(pool.code_expires_at) <= new Date();
-    if (pool.status !== "checking_in" || expired) {
-      return res
-        .status(400)
-        .json({ error: "Check-in not active or code expired" });
-    }
-    if (!code || code !== pool.booking_code) {
-      return res.status(400).json({ error: "Invalid code" });
-    }
-
-    // Must be PAID contributor
-    const { data: contrib } = await supabase
-      .from("ride_pool_contributions")
-      .select("id, checked_in_at")
-      .eq("ride_pool_id", pool.id)
-      .eq("user_id", userId)
-      .eq("status", "paid")
-      .single();
-    if (!contrib)
-      return res.status(403).json({ error: "You haven't paid for this ride" });
-
-    // Update check-in (idempotent)
-    await supabase
-      .from("ride_pool_contributions")
-      .update({
-        checked_in_at: contrib.checked_in_at || nowIso(),
-        checkin_lat: Number.isFinite(Number(lat)) ? Number(lat) : null,
-        checkin_lng: Number.isFinite(Number(lng)) ? Number(lng) : null,
-      })
-      .eq("id", contrib.id);
-
-    // Count checked-in paid contributors
-    const { data: paidRows } = await supabase
-      .from("ride_pool_contributions")
-      .select("id, checked_in_at")
-      .eq("ride_pool_id", pool.id)
-      .eq("status", "paid");
-    const checkedInCount = (paidRows || []).filter(
-      (r) => !!r.checked_in_at
-    ).length;
-
-    if (checkedInCount >= (pool.min_contributors || 2)) {
-      await supabase
-        .from("ride_pools")
-        .update({ status: "ready_to_book" })
-        .eq("id", pool.id);
-    }
-
-    res.json({
-      ok: true,
-      checkedInCount,
-      required: pool.min_contributors || 2,
-    });
-  } catch (e) {
-    console.error("check-in error:", e);
-    res.status(500).json({ error: "Failed to check in" });
   }
 });
 
@@ -442,22 +418,25 @@ router.post("/:rideId/claim-booker", async (req, res) => {
     const rideId = Number(req.params.rideId);
     const { userId, graceSeconds = 180 } = req.body;
 
+    // Load pool
     const { data: pool } = await supabase
       .from("ride_pools")
-      .select(
-        "id, status, booker_user_id, code_issued_at, code_expires_at, min_contributors"
-      )
+      .select("id, status, booker_user_id, code_issued_at, min_contributors")
       .eq("ride_id", rideId)
       .single();
     if (!pool) return res.status(404).json({ error: "Pool not found" });
 
+    // Pool must be in check-in or ready state
     if (!["checking_in", "ready_to_book"].includes(pool.status)) {
       return res.status(400).json({ error: "Pool not in a claimable state" });
     }
+
+    // Check if code was issued
     const issuedAt = pool.code_issued_at ? new Date(pool.code_issued_at) : null;
     if (!issuedAt)
       return res.status(400).json({ error: "No active check-in session" });
 
+    // Grace period before takeover allowed
     const grace = clamp(Number(graceSeconds), 60, 600);
     const claimNotBefore = new Date(issuedAt.getTime() + grace * 1000);
     if (new Date() < claimNotBefore) {
@@ -467,7 +446,7 @@ router.post("/:rideId/claim-booker", async (req, res) => {
       });
     }
 
-    // Original booker checked in?
+    // Was original booker checked in?
     const { data: origBookerContrib } = await supabase
       .from("ride_pool_contributions")
       .select("id, checked_in_at")
@@ -475,6 +454,7 @@ router.post("/:rideId/claim-booker", async (req, res) => {
       .eq("user_id", pool.booker_user_id)
       .eq("status", "paid")
       .maybeSingle();
+
     if (origBookerContrib?.checked_in_at) {
       return res.status(409).json({ error: "Original booker is present" });
     }
@@ -487,22 +467,25 @@ router.post("/:rideId/claim-booker", async (req, res) => {
       .eq("user_id", userId)
       .eq("status", "paid")
       .single();
+
     if (!claimant || !claimant.checked_in_at) {
       return res
         .status(403)
         .json({ error: "Only checked-in contributors can claim" });
     }
 
-    // Need quorum
+    // Check quorum
     const { data: paidRows } = await supabase
       .from("ride_pool_contributions")
       .select("id, checked_in_at")
       .eq("ride_pool_id", pool.id)
       .eq("status", "paid");
+
     const checkedInCount = (paidRows || []).filter(
       (r) => !!r.checked_in_at
     ).length;
     const required = pool.min_contributors || 2;
+
     if (checkedInCount < required) {
       return res.status(400).json({
         error: "Not enough checked-in contributors to reassign",
@@ -511,10 +494,12 @@ router.post("/:rideId/claim-booker", async (req, res) => {
       });
     }
 
+    // Reassign booker
     await supabase
       .from("ride_pools")
       .update({ booker_user_id: userId, status: "ready_to_book" })
       .eq("id", pool.id);
+
     res.json({ ok: true, newBookerUserId: userId });
   } catch (e) {
     console.error("claim-booker error:", e);

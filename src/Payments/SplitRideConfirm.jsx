@@ -317,6 +317,17 @@ export default function SplitRideConfirm() {
       setIsPaying(false);
     }
   };
+  // helper: calculate platform fee in GBP (string)
+  const calcPlatformFee = (totalMinor) => {
+    const feeMinor = Math.min(
+      Math.max(Math.round(totalMinor * 0.1), 100), // min £1
+      800 // max £8
+    );
+    return feeMinor;
+  };
+  const subtotalMinor = perSeatPreviewMinor * seats;
+  const feeMinor = calcPlatformFee(subtotalMinor);
+  const totalWithFee = ((subtotalMinor + feeMinor) / 100).toFixed(2);
 
   // --- Render ---
   if (!ride) return <p>Loading ride...</p>;
@@ -342,14 +353,19 @@ export default function SplitRideConfirm() {
 
       <div className="price-box">
         <p style={{ marginBottom: 8 }}>
-          Price is split across everyone traveling. The host counts as{" "}
-          <strong>1 seat</strong>. The more seats you add now, the lower the{" "}
-          <strong>per-seat</strong> price.
+          Price is split across everyone traveling. The more seats you add now,
+          the lower the <strong>per-seat</strong> price.
         </p>
         <p style={{ marginTop: 16 }}>
-          <strong>Your total (preview):</strong> £{dynamicTotal}{" "}
-          <span className="fee"> + platform fee</span>
+          <strong>
+            Your total<sup style={{ fontSize: "0.8em" }}>*</sup>:
+          </strong>{" "}
+          £{dynamicTotal}{" "}
+          <span className="fee">
+            + £{(feeMinor / 100).toFixed(2)} platform fee
+          </span>
         </p>
+
         <p style={{ color: "#555" }}>
           Per seat (preview):{" "}
           <strong>£{safeFormat(perSeatPreviewMinor)}</strong>
@@ -378,6 +394,7 @@ export default function SplitRideConfirm() {
               )
             }
             aria-label="Seats you need"
+            disabled={lockRemaining !== null && lockRemaining <= 0}
           />
           <span className="cap-note">
             {remainingSeats > 0
@@ -411,6 +428,7 @@ export default function SplitRideConfirm() {
                   onChange={(e) =>
                     setBackpacks(clampInt(e.target.value, 0, Math.max(0, remB)))
                   }
+                  disabled={lockRemaining !== null && lockRemaining <= 0}
                 />
               </div>
               <div className="luggage-field">
@@ -426,6 +444,7 @@ export default function SplitRideConfirm() {
                       clampInt(e.target.value, 0, Math.max(0, remS))
                     )
                   }
+                  disabled={lockRemaining !== null && lockRemaining <= 0}
                 />
               </div>
               <div className="luggage-field">
@@ -441,6 +460,7 @@ export default function SplitRideConfirm() {
                       clampInt(e.target.value, 0, Math.max(0, remL))
                     )
                   }
+                  disabled={lockRemaining !== null && lockRemaining <= 0}
                 />
               </div>
             </div>
@@ -473,8 +493,10 @@ export default function SplitRideConfirm() {
       )}
 
       <p style={{ marginTop: 16 }}>
-        <strong>Your total (preview):</strong> £{dynamicTotal}{" "}
-        <span className="fee"> + platform fee</span>
+        <strong>
+          Your total<sup style={{ fontSize: "0.8em" }}>*</sup>:
+        </strong>{" "}
+        £{totalWithFee}
       </p>
 
       {/* Lock countdown timer */}
@@ -537,7 +559,9 @@ export default function SplitRideConfirm() {
         After payment, we’ll guide the booker to open Uber and complete the
         booking.
       </p>
-
+      <p className="footnote">
+        * Final price may vary slightly depending on Uber’s final fare.
+      </p>
       <div style={{ marginTop: 24 }}>
         <BookingFlow
           rideId={rideId}

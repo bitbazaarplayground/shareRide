@@ -10,7 +10,7 @@ import useTabQueryParam from "../hooks/useTabQueryParam";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/MyRidesRedirect.css";
 
-// NEW: booking flow widgets
+// Booking flow widgets (active rides only)
 import CheckInPanel from "../Components/BookingFlow/CheckInPanel";
 import ConfirmBookedButton from "../Components/BookingFlow/ConfirmBookedButton";
 import IssueCodePanel from "../Components/BookingFlow/IssueCodePanel";
@@ -51,7 +51,7 @@ export default function MyRidesRedirect() {
       if (!error) setSavedRides((data || []).map((entry) => entry.rides));
     };
 
-    // NEW: Booked rides from ride_pool_contributions (status=paid)
+    // Booked rides from ride_pool_contributions (status=paid)
     const fetchBookedRides = async () => {
       // 1) user’s paid contributions
       const { data: contribs, error: cErr } = await supabase
@@ -134,7 +134,10 @@ export default function MyRidesRedirect() {
     fetchBookedRides();
   }, [user]);
 
+  // Today as YYYY-MM-DD
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+
+  // Published: Active vs Past (unchanged)
   const activeRides = useMemo(
     () => publishedRides.filter((r) => r.date >= today),
     [publishedRides, today]
@@ -142,6 +145,22 @@ export default function MyRidesRedirect() {
   const pastRides = useMemo(
     () => publishedRides.filter((r) => r.date < today),
     [publishedRides, today]
+  );
+
+  // NEW: Booked: Active vs Past
+  const bookedActive = useMemo(
+    () =>
+      bookedRides
+        .filter(({ ride }) => ride.date >= today)
+        .sort((a, b) => a.ride.date.localeCompare(b.ride.date)),
+    [bookedRides, today]
+  );
+  const bookedPast = useMemo(
+    () =>
+      bookedRides
+        .filter(({ ride }) => ride.date < today)
+        .sort((a, b) => b.ride.date.localeCompare(a.ride.date)),
+    [bookedRides, today]
   );
 
   const handleEdit = (rideId) => navigate(`/edit-ride/${rideId}`);
@@ -216,14 +235,67 @@ export default function MyRidesRedirect() {
           {activeRides.length > 0 ? (
             <ul className="ride-list">
               {activeRides.map((ride) => (
-                <RideCard
-                  key={ride.id}
-                  ride={ride}
-                  user={user}
-                  canEdit={true}
-                  onEdit={handleEdit}
-                  onDelete={() => confirmDelete(ride.id)}
-                />
+                <li key={ride.id} className="ride-list-item">
+                  <RideCard
+                    ride={ride}
+                    user={user}
+                    canEdit={true}
+                    onEdit={handleEdit}
+                    onDelete={() => confirmDelete(ride.id)}
+                  />
+
+                  {/* Host "Confirm Ride" button */}
+                  {ride.user_id === user.id && (
+                    <button
+                      className="btn"
+                      onClick={async () => {
+                        try {
+                          // 🔑 get Supabase JWT
+                          const {
+                            data: { session },
+                          } = await supabase.auth.getSession();
+                          const token = session?.access_token;
+
+                          if (!token) {
+                            toast.error(
+                              "Not authenticated. Please log in again."
+                            );
+                            return;
+                          }
+
+                          const res = await fetch(
+                            `${import.meta.env.VITE_STRIPE_BACKEND}/api/payments/create-host-session`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({
+                                rideId: ride.id,
+                                userId: user.id,
+                                email: user.email,
+                              }),
+                            }
+                          );
+
+                          const data = await res.json();
+                          if (data.url) {
+                            window.location.href = data.url; // redirect to Stripe Checkout
+                          } else {
+                            toast.error(
+                              data.error || "Failed to start host confirmation"
+                            );
+                          }
+                        } catch (e) {
+                          toast.error("Request failed");
+                        }
+                      }}
+                    >
+                      Confirm Ride
+                    </button>
+                  )}
+                </li>
               ))}
             </ul>
           ) : (
@@ -275,9 +347,10 @@ export default function MyRidesRedirect() {
 
       {activeTab === "booked" && (
         <div className="rides-section">
-          {bookedRides.length > 0 ? (
+          <h3>Active Booked Rides</h3>
+          {bookedActive.length > 0 ? (
             <ul className="ride-list">
-              {bookedRides.map(({ ride, bookingDetails, pool }) => (
+              {bookedActive.map(({ ride, bookingDetails, pool }) => (
                 <li key={ride.id} className="ride-list-item">
                   <RideCard
                     ride={ride}
@@ -286,14 +359,12 @@ export default function MyRidesRedirect() {
                     onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                   />
 
-                  {/* ---- Booking Flow widgets ---- */}
+                  {/* Active rides: Booking Flow widgets */}
                   <div className="booking-flow-widgets">
                     {/* Booker: generate/share code */}
                     <IssueCodePanel rideId={ride.id} user={user} />
-
                     {/* Everyone: enter the code to check-in when active */}
                     <CheckInPanel rideId={ride.id} user={user} />
-
                     {/* Booker: confirm booked (trigger reimbursement) */}
                     <ConfirmBookedButton rideId={ride.id} user={user} />
                   </div>
@@ -301,7 +372,26 @@ export default function MyRidesRedirect() {
               ))}
             </ul>
           ) : (
-            <p>No booked rides yet.</p>
+            <p>No active booked rides.</p>
+          )}
+
+          <h3>Past Booked Rides</h3>
+          {bookedPast.length > 0 ? (
+            <ul className="ride-list">
+              {bookedPast.map(({ ride, bookingDetails, pool }) => (
+                <li key={ride.id} className="ride-list-item">
+                  <RideCard
+                    ride={ride}
+                    user={user}
+                    bookingDetails={bookingDetails}
+                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
+                  />
+                  {/* Past rides: no booking flow widgets */}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No past booked rides.</p>
           )}
         </div>
       )}
