@@ -172,18 +172,34 @@ export default function MyRidesRedirect() {
 
   const handleConfirmDelete = async () => {
     if (!rideToDelete) return;
-
     setLoading(true);
-    const { error } = await supabase
-      .from("rides")
-      .delete()
-      .eq("id", rideToDelete);
 
-    if (!error) {
-      setPublishedRides((prev) => prev.filter((r) => r.id !== rideToDelete));
-      toast.success("Ride deleted successfully.");
-    } else {
-      toast.error("Failed to delete ride.");
+    try {
+      // get JWT
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      // call backend
+      const res = await fetch(
+        `${import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "")}/api/rides/${rideToDelete}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        setPublishedRides((prev) => prev.filter((r) => r.id !== rideToDelete));
+        toast.success("Ride deleted successfully.");
+      } else {
+        toast.error(json.error || "Failed to delete ride.");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to delete ride.");
     }
 
     setConfirmOpen(false);

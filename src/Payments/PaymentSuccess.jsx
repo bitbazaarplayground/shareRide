@@ -24,11 +24,19 @@ export default function PaymentSuccess() {
     (async () => {
       try {
         const res = await fetch(
-          `${BACKEND}/api/payments/verify?session_id=${encodeURIComponent(
-            sessionId
-          )}`
+          `${BACKEND}/api/payments/verify?session_id=${encodeURIComponent(sessionId)}`
         );
-        const data = await res.json();
+
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          const text = await res.text();
+          console.error("Non-JSON response:", text);
+          setStatus("❌ Verification failed (unexpected response).");
+          return;
+        }
+
         if (res.ok && data.ok) {
           // Map reason into human text
           let message = "";

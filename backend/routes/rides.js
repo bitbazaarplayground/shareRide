@@ -101,6 +101,66 @@ router.post("/:rideId/create-pool", async (req, res) => {
   }
 });
 
+/* ---------------------- Delete Ride ---------------------- */
+
+router.delete("/:rideId", express.json(), async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: "Missing token" });
+
+    const {
+      data: { user },
+      error: uErr,
+    } = await supabase.auth.getUser(token);
+    if (uErr || !user) return res.status(401).json({ error: "Invalid token" });
+
+    // Load ride + ownership
+    const { data: ride, error: rErr } = await supabase
+      .from("rides")
+      .select("id, user_id")
+      .eq("id", rideId)
+      .single();
+    if (rErr || !ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.user_id !== user.id)
+      return res.status(403).json({ error: "Not your ride" });
+
+    // If a pool exists AND any contribution by someone else exists → block delete
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, status")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (pool) {
+      const { data: others } = await supabase
+        .from("ride_pool_contributions")
+        .select("id")
+        .eq("ride_pool_id", pool.id)
+        .neq("user_id", user.id)
+        .limit(1);
+      if (others && others.length > 0) {
+        return res
+          .status(409)
+          .json({ error: "Cannot delete: another user has joined" });
+      }
+    }
+
+    // Delete (service role client bypasses RLS; FKs handle cascade)
+    const { error: dErr } = await supabase
+      .from("rides")
+      .delete()
+      .eq("id", rideId);
+    if (dErr) return res.status(400).json({ error: dErr.message });
+
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("delete ride error:", e);
+    return res.status(500).json({ error: "Failed to delete ride" });
+  }
+});
+
 /* ---------------------- Booking status (for UI) ---------------------- */
 router.get("/:rideId/booking-status", async (req, res) => {
   try {
