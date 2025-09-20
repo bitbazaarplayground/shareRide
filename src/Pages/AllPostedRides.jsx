@@ -166,17 +166,47 @@ export default function AllPostedRides() {
 
   const handleConfirmDelete = async () => {
     if (!rideToDelete) return;
-    const { error } = await supabase
-      .from("rides")
-      .delete()
-      .eq("id", rideToDelete);
-    if (error) {
-      console.error("Error deleting ride:", error);
-      toast.error("Failed to delete the ride.");
-    } else {
-      setRides((prev) => prev.filter((ride) => ride.id !== rideToDelete));
-      toast.success("Ride deleted successfully.");
+
+    try {
+      // 🔑 get Supabase JWT
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      // call backend
+      const res = await fetch(
+        `${import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "")}/api/rides/${rideToDelete}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json.ok) {
+        setRides((prev) => prev.filter((ride) => ride.id !== rideToDelete));
+        toast.success("Ride deleted successfully.");
+      } else {
+        if (res.status === 409) {
+          toast.error(
+            "This ride cannot be deleted because another rider has already joined."
+          );
+        } else if (res.status === 403) {
+          toast.error("You are not authorized to delete this ride.");
+        } else if (res.status === 404) {
+          toast.error("Ride not found or already deleted.");
+        } else {
+          toast.error(json.error || "Failed to delete ride.");
+        }
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      toast.error(err.message || "Failed to delete ride.");
     }
+
     setConfirmOpen(false);
     setRideToDelete(null);
   };
