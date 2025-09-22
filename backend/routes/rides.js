@@ -160,6 +160,102 @@ router.delete("/:rideId", express.json(), async (req, res) => {
     return res.status(500).json({ error: "Failed to delete ride" });
   }
 });
+/* ---------------------- Cancel Ride (with refunds + email notify) ---------------------- */
+router.post("/:rideId/cancel", express.json(), async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+
+    // 1. Auth
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: "Missing token" });
+
+    const {
+      data: { user },
+      error: uErr,
+    } = await supabase.auth.getUser(token);
+    if (uErr || !user) return res.status(401).json({ error: "Invalid token" });
+
+    // 2. Load ride & ownership
+    const { data: ride, error: rErr } = await supabase
+      .from("rides")
+      .select("id, user_id, from, to, date, time")
+      .eq("id", rideId)
+      .single();
+    if (rErr || !ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.user_id !== user.id)
+      return res.status(403).json({ error: "Not your ride" });
+
+    // 3. Find pool
+    const { data: pool } = await supabase
+      .from("ride_pools")
+      .select("id, status")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (!pool) {
+      // no pool → just delete ride
+      await supabase.from("rides").delete().eq("id", rideId);
+      console.log(`📧 [Notify] Ride ${rideId} canceled by host. (No pool)`);
+      return res.json({ ok: true, note: "No pool found, ride deleted." });
+    }
+
+    // 4. Refund contributions
+    const { data: contribs } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, user_id, payment_intent_id, status, profiles!inner(email)")
+      .eq("ride_pool_id", pool.id);
+
+    const refunded = [];
+    for (const c of contribs || []) {
+      if (["paid", "authorized"].includes(c.status) && c.payment_intent_id) {
+        try {
+          await stripe.refunds.create({
+            payment_intent: c.payment_intent_id,
+          });
+
+          // update DB
+          await supabase
+            .from("ride_pool_contributions")
+            .update({ status: "refunded" })
+            .eq("id", c.id);
+
+          refunded.push(c.id);
+
+          // Placeholder notification
+          console.log(
+            `📧 [Notify Passenger] Sent cancellation email to ${c.profiles?.email}`
+          );
+        } catch (err) {
+          console.error("Refund failed for contrib", c.id, err.message);
+        }
+      }
+    }
+
+    // 5. Mark pool canceled
+    await supabase
+      .from("ride_pools")
+      .update({ status: "canceled" })
+      .eq("id", pool.id);
+
+    // 6. Delete ride
+    await supabase.from("rides").delete().eq("id", rideId);
+
+    // Notify host (future: resend email)
+    console.log(
+      `📧 [Notify Host] You canceled ride from ${ride.from} → ${ride.to} on ${ride.date} ${ride.time}. ${refunded.length} refunds issued.`
+    );
+
+    return res.json({
+      ok: true,
+      refundedCount: refunded.length,
+      poolId: pool.id,
+    });
+  } catch (e) {
+    console.error("cancel ride error:", e);
+    return res.status(500).json({ error: "Failed to cancel ride" });
+  }
+});
 
 /* ---------------------- Booking status (for UI) ---------------------- */
 router.get("/:rideId/booking-status", async (req, res) => {

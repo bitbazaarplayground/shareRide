@@ -366,26 +366,104 @@ export default function MyRidesRedirect() {
           <h3>Active Booked Rides</h3>
           {bookedActive.length > 0 ? (
             <ul className="ride-list">
-              {bookedActive.map(({ ride, bookingDetails, pool }) => (
-                <li key={ride.id} className="ride-list-item">
-                  <RideCard
-                    ride={ride}
-                    user={user}
-                    bookingDetails={bookingDetails}
-                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
-                  />
+              {bookedActive.map(({ ride, bookingDetails, pool }) => {
+                // simple countdown until ride time
+                const rideDateTime = new Date(
+                  `${ride.date}T${ride.time || "00:00"}`
+                );
+                const msLeft = rideDateTime.getTime() - Date.now();
+                const countdown =
+                  msLeft > 0
+                    ? `${Math.floor(msLeft / (1000 * 60 * 60))}h ${Math.floor(
+                        (msLeft / (1000 * 60)) % 60
+                      )}m`
+                    : null;
 
-                  {/* Active rides: Booking Flow widgets */}
-                  <div className="booking-flow-widgets">
-                    {/* Booker: generate/share code */}
-                    <IssueCodePanel rideId={ride.id} user={user} />
-                    {/* Everyone: enter the code to check-in when active */}
-                    <CheckInPanel rideId={ride.id} user={user} />
-                    {/* Booker: confirm booked (trigger reimbursement) */}
-                    <ConfirmBookedButton rideId={ride.id} user={user} />
-                  </div>
-                </li>
-              ))}
+                // progress tracker stage
+                let stage = 1;
+                if (bookingDetails?.paid) stage = 2;
+                if (rideDateTime > Date.now() && bookingDetails?.paid)
+                  stage = 3;
+
+                return (
+                  <li key={ride.id} className="ride-list-item">
+                    <RideCard
+                      ride={ride}
+                      user={user}
+                      bookingDetails={bookingDetails}
+                      onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
+                    />
+
+                    {/* NEW: Booking status note */}
+                    {bookingDetails && !bookingDetails.paid && (
+                      <p className="muted" style={{ marginTop: 8 }}>
+                        Pending — waiting for the host to confirm the ride.
+                      </p>
+                    )}
+                    {bookingDetails && bookingDetails.paid && (
+                      <p className="success" style={{ marginTop: 8 }}>
+                        Confirmed! Ride is scheduled for {ride.date} at{" "}
+                        {ride.time}.
+                        {countdown && (
+                          <span style={{ marginLeft: 6, fontStyle: "italic" }}>
+                            (Starts in {countdown})
+                          </span>
+                        )}
+                      </p>
+                    )}
+
+                    {/* Booking cancelation */}
+                    {bookingDetails && bookingDetails.status === "refunded" && (
+                      <p
+                        className="muted"
+                        style={{ marginTop: 8, color: "red" }}
+                      >
+                        ❌ This ride has been canceled. You have been refunded.
+                      </p>
+                    )}
+                    {bookingDetails && bookingDetails.status === "failed" && (
+                      <p
+                        className="muted"
+                        style={{ marginTop: 8, color: "red" }}
+                      >
+                        ❌ This ride failed — your payment was released back.
+                      </p>
+                    )}
+
+                    {/* Progress tracker */}
+                    <div
+                      className="progress-tracker"
+                      style={{ margin: "12px 0" }}
+                    >
+                      <span className={stage >= 1 ? "done" : ""}>
+                        💳 Payment
+                      </span>
+                      <span style={{ margin: "0 8px" }}>→</span>
+                      <span className={stage >= 2 ? "done" : ""}>
+                        ⏳ Waiting Host
+                      </span>
+                      <span style={{ margin: "0 8px" }}>→</span>
+                      <span className={stage >= 3 ? "done" : ""}>
+                        ✅ Confirmed
+                      </span>
+                      <span
+                        className={
+                          bookingDetails?.status === "refunded" ? "done" : ""
+                        }
+                      >
+                        ❌ Canceled
+                      </span>
+                    </div>
+
+                    {/* Active rides: Booking Flow widgets */}
+                    <div className="booking-flow-widgets">
+                      <IssueCodePanel rideId={ride.id} user={user} />
+                      <CheckInPanel rideId={ride.id} user={user} />
+                      <ConfirmBookedButton rideId={ride.id} user={user} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p>No active booked rides.</p>

@@ -52,6 +52,7 @@ import Recovery from "./Pages/Recovery";
 import Results from "./Pages/Results";
 import SignUp from "./Pages/SignUp";
 import TermsofUse from "./Pages/TermsOfUse";
+import TokenViewer from "./Pages/TokenViewer";
 import UserProfile from "./Pages/UserProfile";
 import PaymentSuccess from "./Payments/PaymentSuccess";
 import SplitRideConfirm from "./Payments/SplitRideConfirm";
@@ -230,7 +231,8 @@ export default function App() {
             path="/help/account/account-security"
             element={<AccountSecurityHelp />}
           />
-
+          {/* DELETE */}
+          <Route path="/token-viewer" element={<TokenViewer />} />
           {/* Redirects */}
           {/* Payments */}
           <Route

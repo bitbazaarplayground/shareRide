@@ -531,4 +531,34 @@ router.post("/create-host-session", express.json(), async (req, res) => {
   }
 });
 
+// ---------------------- Verify Checkout Session ----------------------
+router.get("/verify", async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    if (!session_id)
+      return res.status(400).json({ error: "Missing session_id" });
+
+    const session = await stripe.checkout.sessions.retrieve(session_id, {
+      expand: ["payment_intent"],
+    });
+
+    // Normalize status
+    let reason = session.payment_status;
+    if (session.payment_intent && session.payment_intent.status) {
+      reason = session.payment_intent.status;
+    }
+
+    return res.json({
+      ok: true,
+      reason,
+      amount_total: session.amount_total,
+      currency: session.currency,
+      livemode: session.livemode,
+    });
+  } catch (err) {
+    console.error("verify error:", err);
+    return res.status(500).json({ error: "Verification failed" });
+  }
+});
+
 export default router;

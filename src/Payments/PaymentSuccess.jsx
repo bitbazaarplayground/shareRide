@@ -1,30 +1,31 @@
 // src/Pages/PaymentSuccess.jsx
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 export default function PaymentSuccess() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
   const rideId = params.get("rideId");
+
   const [status, setStatus] = useState("Verifying payment…");
   const [details, setDetails] = useState(null);
+  const [rideInfo, setRideInfo] = useState(null);
 
   useEffect(() => {
     const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
 
-    if (!sessionId) {
-      setStatus("❌ Missing session id.");
-      return;
-    }
-    if (!BACKEND) {
-      setStatus("❌ Backend not configured (VITE_STRIPE_BACKEND).");
+    if (!sessionId || !BACKEND) {
+      setStatus("❌ Something went wrong. Please contact support.");
       return;
     }
 
     (async () => {
       try {
         const res = await fetch(
-          `${BACKEND}/api/payments/verify?session_id=${encodeURIComponent(sessionId)}`
+          `${BACKEND}/api/payments/verify?session_id=${encodeURIComponent(
+            sessionId
+          )}`
         );
 
         let data;
@@ -38,29 +39,14 @@ export default function PaymentSuccess() {
         }
 
         if (res.ok && data.ok) {
-          // Map reason into human text
-          let message = "";
-          if (data.reason === "paid") {
-            message = "✅ Payment captured!";
-          } else if (data.reason === "requires_capture") {
-            message = "✅ Payment authorized";
-          } else if (data.reason === "succeeded") {
-            message = "✅ Payment succeeded.";
-          } else {
-            message = `✅ Payment confirmed (status: ${data.reason})`;
-          }
-
-          setStatus(message);
+          setStatus("✅ Payment received successfully.");
           setDetails({
             amount: (data.amount_total ?? 0) / 100,
             currency: (data.currency || "gbp").toUpperCase(),
-            livemode: !!data.livemode,
           });
         } else {
           setStatus(
-            `❌ Could not verify payment. ${
-              data?.reason ? `Reason: ${data.reason}` : ""
-            }`
+            "⚠️ We could not verify the payment, but don’t worry — if something went wrong you won’t be charged."
           );
         }
       } catch (err) {
@@ -70,32 +56,57 @@ export default function PaymentSuccess() {
     })();
   }, [sessionId]);
 
+  // Fetch ride details (to display friendly info instead of ride ID)
+  useEffect(() => {
+    if (!rideId) return;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("rides")
+        .select("origin, destination, date, time")
+        .eq("id", rideId)
+        .single();
+
+      if (!error && data) {
+        setRideInfo(data);
+      }
+    })();
+  }, [rideId]);
+
   return (
     <div
       className="payment-success-container"
-      style={{ maxWidth: 640, margin: "2rem auto" }}
+      style={{ maxWidth: 640, margin: "2rem auto", textAlign: "center" }}
     >
-      <h2>✅ Payment Successful!</h2>
+      <h2 style={{ color: "#2ecc71" }}>🎉 Payment Successful!</h2>
 
       <p style={{ marginTop: 8 }}>{status}</p>
 
       {details && (
         <p style={{ color: "#555" }}>
-          Amount authorized:{" "}
+          Amount paid:{" "}
           <strong>
             {details.currency} {details.amount.toFixed(2)}
           </strong>
         </p>
       )}
 
-      {rideId && (
-        <p style={{ marginTop: 8 }}>
-          Ride ID: <strong>{rideId}</strong>
+      {rideInfo && (
+        <p style={{ marginTop: 8, fontWeight: "bold" }}>
+          {rideInfo.origin || "Origin"} →{" "}
+          {rideInfo.destination || "Destination"} <br />
+          {rideInfo.date} at {rideInfo.time}
         </p>
       )}
 
       <div
-        style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}
+        style={{
+          display: "flex",
+          gap: 12,
+          marginTop: 16,
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
       >
         <Link className="btn" to="/my-rides?tab=booked">
           View My Ride
@@ -113,12 +124,13 @@ export default function PaymentSuccess() {
         )}
       </div>
 
-      <p style={{ marginTop: 16, color: "#666" }}>
-        Funds are pre-authorized. Final capture will happen once the group is
-        ready and the ride is booked in Uber. Any unused buffer will be
+      <p style={{ marginTop: 24, color: "#666" }}>
+        Your payment has been processed. Your ride host will now be notified to
+        confirm the booking. If the host does not confirm, your payment will be
         automatically refunded.
       </p>
-      <Link className="btn btn-secondary" to="/">
+
+      <Link className="btn btn-secondary" to="/" style={{ marginTop: 20 }}>
         Back to Home
       </Link>
     </div>
