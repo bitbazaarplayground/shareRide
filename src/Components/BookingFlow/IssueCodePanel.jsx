@@ -1,5 +1,6 @@
 // src/Components/BookingFlow/IssueCodePanel.jsx
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import useBookingStatus from "../../hooks/useBookingStatus";
 
 export default function IssueCodePanel({ rideId, user }) {
@@ -13,7 +14,16 @@ export default function IssueCodePanel({ rideId, user }) {
   const [busy, setBusy] = useState(false);
   const [countdown, setCountdown] = useState(null); // seconds
 
-  // ---- Helpful message ----
+  // Booker can issue code only if host & at least one rider are paid
+  const enoughPaid = (status?.paidSeats || 0) >= 2; // host + ≥1 rider
+  const canIssue =
+    !loading &&
+    status?.exists &&
+    status.isBooker &&
+    enoughPaid &&
+    ["bookable", "checking_in"].includes(status.status);
+
+  // Helpful fallback message
   if (!canIssue) {
     if (status?.isBooker && (status?.paidSeats || 0) < 2) {
       return (
@@ -25,16 +35,7 @@ export default function IssueCodePanel({ rideId, user }) {
     }
     return null;
   }
-  // Booker can issue code only if host & at least one rider are paid
-  const enoughPaid = (status?.paidSeats || 0) >= 2; // host + ≥1 rider
-  const canIssue =
-    !loading &&
-    status?.exists &&
-    status.isBooker &&
-    enoughPaid &&
-    ["bookable", "checking_in"].includes(status.status);
 
-  const code = status?.codeActive ? "••••••" : null; // we don’t expose the code value from status; server returns it only when created
   const expiresAt = status?.codeExpiresAt
     ? new Date(status.codeExpiresAt)
     : null;
@@ -57,8 +58,18 @@ export default function IssueCodePanel({ rideId, user }) {
     return () => clearInterval(t);
   }, [expiresAt]);
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast.info("Code copied to clipboard!"))
+      .catch(() => toast.error("Failed to copy code"));
+  };
+
   const onIssue = async () => {
-    if (!BACKEND) return alert("Backend not configured.");
+    if (!BACKEND) {
+      toast.error("Backend not configured.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`${BACKEND}/api/rides/${rideId}/issue-code`, {
@@ -69,18 +80,34 @@ export default function IssueCodePanel({ rideId, user }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to issue code");
 
-      // Show the actual code returned this time
-      alert(`Share this code: ${json.code}\nExpires at: ${json.expiresAt}`);
+      // Custom toast with copy button
+      toast.success(
+        <div>
+          <p>
+            <strong>Check-in code:</strong> {json.code}
+          </p>
+          <p style={{ fontSize: "0.9em", color: "#666" }}>
+            Expires at: {new Date(json.expiresAt).toLocaleTimeString()}
+          </p>
+          <button
+            className="btn btn-small"
+            style={{ marginTop: "0.5rem" }}
+            onClick={() => copyToClipboard(json.code)}
+          >
+            Copy Code
+          </button>
+        </div>,
+        { autoClose: false } // keeps toast until dismissed
+      );
+
       refresh();
     } catch (e) {
       console.error(e);
-      alert(e.message || "Failed to issue code");
+      toast.error(e.message || "Failed to issue code");
     } finally {
       setBusy(false);
     }
   };
-
-  if (!canIssue) return null;
 
   return (
     <div className="issue-code-panel">
