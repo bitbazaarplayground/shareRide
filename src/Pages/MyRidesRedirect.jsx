@@ -427,9 +427,8 @@ export default function MyRidesRedirect() {
 
                 // progress tracker stage
                 let stage = 1;
-                if (bookingDetails?.paid) stage = 2;
-                if (rideDateTime > Date.now() && bookingDetails?.paid)
-                  stage = 3;
+                if (bookingDetails?.status === "pending") stage = 2;
+                if (bookingDetails?.status === "confirmed") stage = 3;
 
                 return (
                   <li key={ride.id} className="ride-list-item">
@@ -440,13 +439,14 @@ export default function MyRidesRedirect() {
                       onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                     />
 
-                    {/* NEW: Booking status note */}
-                    {bookingDetails && !bookingDetails.paid && (
+                    {/* Booking status note */}
+                    {bookingDetails?.status === "pending" && (
                       <p className="muted" style={{ marginTop: 8 }}>
                         Pending — waiting for the host to confirm the ride.
                       </p>
                     )}
-                    {bookingDetails && bookingDetails.paid && (
+
+                    {bookingDetails?.status === "confirmed" && (
                       <p className="success" style={{ marginTop: 8 }}>
                         Confirmed! Ride is scheduled for {ride.date} at{" "}
                         {ride.time}.
@@ -455,6 +455,15 @@ export default function MyRidesRedirect() {
                             (Starts in {countdown})
                           </span>
                         )}
+                      </p>
+                    )}
+
+                    {bookingDetails?.status === "canceled" && (
+                      <p
+                        className="muted"
+                        style={{ marginTop: 8, color: "red" }}
+                      >
+                        ❌ This ride has been canceled. You have been refunded.
                       </p>
                     )}
 
