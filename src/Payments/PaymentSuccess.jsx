@@ -63,7 +63,7 @@ export default function PaymentSuccess() {
     (async () => {
       const { data, error } = await supabase
         .from("rides")
-        .select("origin, destination, date, time")
+        .select("from, to, date, time")
         .eq("id", rideId)
         .single();
 
@@ -93,8 +93,7 @@ export default function PaymentSuccess() {
 
       {rideInfo && (
         <p style={{ marginTop: 8, fontWeight: "bold" }}>
-          {rideInfo.origin || "Origin"} →{" "}
-          {rideInfo.destination || "Destination"} <br />
+          {rideInfo.from || "Origin"} → {rideInfo.to || "Destination"} <br />
           {rideInfo.date} at {rideInfo.time}
         </p>
       )}

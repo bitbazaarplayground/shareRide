@@ -105,12 +105,50 @@ export default function RideCard({
       {/* Core details */}
       <div className="ride-locations">
         <strong>{ride.from}</strong> → <strong>{ride.to}</strong>
+        {/* Tiny status badge */}
+        {bookingDetails?.status === "pending" && (
+          <span
+            style={{
+              fontSize: "0.8rem",
+              color: "#b76e00",
+              fontWeight: "600",
+              marginLeft: "8px",
+            }}
+          >
+            🟠 Pending
+          </span>
+        )}
+        {bookingDetails?.status === "confirmed" && (
+          <span
+            style={{
+              fontSize: "0.8rem",
+              color: "green",
+              fontWeight: "600",
+              marginLeft: "8px",
+            }}
+          >
+            🟢 Confirmed
+          </span>
+        )}
+        {bookingDetails?.status === "canceled" && (
+          <span
+            style={{
+              fontSize: "0.8rem",
+              color: "red",
+              fontWeight: "600",
+              marginLeft: "8px",
+            }}
+          >
+            🔴 Canceled
+          </span>
+        )}
       </div>
 
       <div className="ride-details">
         <p>
           <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
         </p>
+
         <p>
           <strong>Time:</strong> {formatTime(ride.time)}
         </p>

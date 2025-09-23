@@ -200,7 +200,7 @@ router.post("/:rideId/cancel", express.json(), async (req, res) => {
       return res.json({ ok: true, note: "No pool found, ride deleted." });
     }
 
-    // 4. Refund contributions
+    // 4. Refund or cancel PaymentIntent based on status
     const { data: contribs } = await supabase
       .from("ride_pool_contributions")
       .select("id, user_id, payment_intent_id, status, profiles!inner(email)")
@@ -210,15 +210,23 @@ router.post("/:rideId/cancel", express.json(), async (req, res) => {
     for (const c of contribs || []) {
       if (["paid", "authorized"].includes(c.status) && c.payment_intent_id) {
         try {
-          await stripe.refunds.create({
-            payment_intent: c.payment_intent_id,
-          });
-
-          // update DB
-          await supabase
-            .from("ride_pool_contributions")
-            .update({ status: "refunded" })
-            .eq("id", c.id);
+          if (c.status === "authorized") {
+            // Cancel the uncaptured PaymentIntent
+            await stripe.paymentIntents.cancel(c.payment_intent_id);
+            await supabase
+              .from("ride_pool_contributions")
+              .update({ status: "canceled" })
+              .eq("id", c.id);
+          } else if (c.status === "paid") {
+            // Refund the captured payment
+            await stripe.refunds.create({
+              payment_intent: c.payment_intent_id,
+            });
+            await supabase
+              .from("ride_pool_contributions")
+              .update({ status: "refunded" })
+              .eq("id", c.id);
+          }
 
           refunded.push(c.id);
 
@@ -227,7 +235,7 @@ router.post("/:rideId/cancel", express.json(), async (req, res) => {
             `📧 [Notify Passenger] Sent cancellation email to ${c.profiles?.email}`
           );
         } catch (err) {
-          console.error("Refund failed for contrib", c.id, err.message);
+          console.error("Refund/cancel failed for contrib", c.id, err.message);
         }
       }
     }
@@ -241,9 +249,9 @@ router.post("/:rideId/cancel", express.json(), async (req, res) => {
     // 6. Delete ride
     await supabase.from("rides").delete().eq("id", rideId);
 
-    // Notify host (future: resend email)
+    // Notify host
     console.log(
-      `📧 [Notify Host] You canceled ride from ${ride.from} → ${ride.to} on ${ride.date} ${ride.time}. ${refunded.length} refunds issued.`
+      `📧 [Notify Host] You canceled ride from ${ride.from} → ${ride.to} on ${ride.date} ${ride.time}. ${refunded.length} refunds/cancels issued.`
     );
 
     return res.json({
@@ -410,6 +418,19 @@ router.get("/:rideId/booking-status", async (req, res) => {
     const required = pool.min_contributors || 2;
     const quorumMet = checkedInCount >= required;
 
+    let bookingStatus;
+    if (pool.status === "canceled") {
+      bookingStatus = "canceled";
+    } else if (paidSeats >= 2 && pool.host_paid) {
+      // host + ≥1 rider paid
+      bookingStatus = "confirmed";
+    } else if (paidSeats >= 1) {
+      // rider paid but host not yet
+      bookingStatus = "pending";
+    } else {
+      bookingStatus = "unpaid"; // internal only, not shown to users
+    }
+
     res.json({
       exists: true,
       capacity: {
@@ -420,7 +441,6 @@ router.get("/:rideId/booking-status", async (req, res) => {
       remainingSeats,
       estimateMinor,
       perSeatMinor,
-      // Booking code info
       codeActive: !!(
         pool.booking_code &&
         pool.code_expires_at &&
@@ -431,12 +451,44 @@ router.get("/:rideId/booking-status", async (req, res) => {
       checkedInCount,
       required: pool.min_contributors || 2,
       quorumMet,
-      status: pool.status,
+      status: bookingStatus, // <-- send simplified status
       isBooker: userId && pool.booker_user_id === userId,
     });
   } catch (e) {
     console.error("booking-status error:", e);
     res.status(500).json({ error: "Failed to fetch booking status" });
+  }
+});
+// ---------------------- Batch booking status ----------------------
+router.post("/booking-status/batch", async (req, res) => {
+  try {
+    const { rideIds, userId } = req.body;
+    if (!Array.isArray(rideIds) || rideIds.length === 0) {
+      return res.status(400).json({ error: "rideIds required" });
+    }
+
+    const results = {};
+
+    // fetch each ride's status using the existing logic
+    for (const rideId of rideIds) {
+      try {
+        const resp = await fetch(
+          `${process.env.APP_ORIGIN}/api/rides/${rideId}/booking-status?userId=${userId}`
+        );
+        const json = await resp.json();
+        if (resp.ok) {
+          results[rideId] = json.status;
+        }
+      } catch (err) {
+        console.error(`Failed to fetch status for ride ${rideId}:`, err);
+        results[rideId] = null;
+      }
+    }
+
+    res.json(results);
+  } catch (e) {
+    console.error("batch booking-status error:", e);
+    res.status(500).json({ error: "Failed to fetch batch booking status" });
   }
 });
 

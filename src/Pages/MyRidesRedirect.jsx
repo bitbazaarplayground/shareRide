@@ -108,11 +108,29 @@ export default function MyRidesRedirect() {
       const byPoolId = Object.fromEntries((pools || []).map((p) => [p.id, p]));
       const byRideId = Object.fromEntries((rides || []).map((r) => [r.id, r]));
 
+      // 🔑 Batch fetch booking statuses
+      let statuses = {};
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_STRIPE_BACKEND}/api/rides/booking-status/batch`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rideIds, userId: user.id }),
+          }
+        );
+        const json = await res.json();
+        if (res.ok) statuses = json;
+      } catch (err) {
+        console.warn("batch booking-status failed", err);
+      }
+
       const formatted = contribs
         .map((c) => {
           const pool = byPoolId[c.ride_pool_id];
           const ride = byRideId[pool?.ride_id];
           if (!ride) return null;
+
           return {
             ride,
             pool,
@@ -121,6 +139,7 @@ export default function MyRidesRedirect() {
               share: (c.user_share_minor || 0) / 100,
               fee: (c.platform_fee_minor || 0) / 100,
               checkedIn: !!c.checked_in_at,
+              status: statuses[ride.id] || null, // ✅ inject backend status
             },
           };
         })
@@ -255,10 +274,37 @@ export default function MyRidesRedirect() {
                   <RideCard
                     ride={ride}
                     user={user}
+                    bookingDetails={ride.bookingDetails || null}
                     canEdit={true}
                     onEdit={handleEdit}
                     onDelete={() => confirmDelete(ride.id)}
                   />
+                  {/* Booking status badge (only if ride.bookingDetails exists) */}
+                  {ride.bookingDetails?.status === "pending" && (
+                    <p
+                      style={{
+                        marginTop: 6,
+                        color: "#b76e00",
+                        fontWeight: 500,
+                      }}
+                    >
+                      🟠 Pending — waiting on host to confirm
+                    </p>
+                  )}
+
+                  {ride.bookingDetails?.status === "confirmed" && (
+                    <p
+                      style={{ marginTop: 6, color: "green", fontWeight: 500 }}
+                    >
+                      🟢 Confirmed — ride is scheduled
+                    </p>
+                  )}
+
+                  {ride.bookingDetails?.status === "canceled" && (
+                    <p style={{ marginTop: 6, color: "red", fontWeight: 500 }}>
+                      🔴 Canceled — your payment has been refunded
+                    </p>
+                  )}
 
                   {/* Host "Confirm Ride" button */}
                   {ride.user_id === user.id && (
@@ -390,7 +436,7 @@ export default function MyRidesRedirect() {
                     <RideCard
                       ride={ride}
                       user={user}
-                      bookingDetails={bookingDetails}
+                      bookingDetails={bookingDetails} //CHECK HERE
                       onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                     />
 
@@ -477,10 +523,35 @@ export default function MyRidesRedirect() {
                   <RideCard
                     ride={ride}
                     user={user}
-                    bookingDetails={bookingDetails}
+                    bookingDetails={bookingDetails} //CHECK HERE
                     onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                   />
-                  {/* Past rides: no booking flow widgets */}
+                  {/* Booking status badge */}
+                  {bookingDetails?.status === "pending" && (
+                    <p
+                      style={{
+                        marginTop: 6,
+                        color: "#b76e00",
+                        fontWeight: 500,
+                      }}
+                    >
+                      🟠 Pending — waiting on host to confirm
+                    </p>
+                  )}
+
+                  {bookingDetails?.status === "confirmed" && (
+                    <p
+                      style={{ marginTop: 6, color: "green", fontWeight: 500 }}
+                    >
+                      🟢 Confirmed — ride is scheduled
+                    </p>
+                  )}
+
+                  {bookingDetails?.status === "canceled" && (
+                    <p style={{ marginTop: 6, color: "red", fontWeight: 500 }}>
+                      🔴 Canceled — your payment has been refunded
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
