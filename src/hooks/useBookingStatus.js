@@ -11,6 +11,15 @@ export default function useBookingStatus(
   const [loading, setLoading] = useState(Boolean(rideId));
   const [error, setError] = useState(null);
 
+  const normalizeStatus = (raw) => {
+    if (!raw) return "pending";
+    if (["collecting", "bookable"].includes(raw)) return "pending";
+    if (["confirmed", "checking_in", "active"].includes(raw))
+      return "confirmed";
+    if (["canceled", "refunded", "failed"].includes(raw)) return "canceled";
+    return raw; // fallback
+  };
+
   const fetchStatus = useCallback(async () => {
     if (!rideId || !BACKEND) return;
     try {
@@ -20,7 +29,14 @@ export default function useBookingStatus(
         )}`
       );
       const json = await res.json();
-      setData(json);
+
+      // normalize booking status
+      const normalized = {
+        ...json,
+        status: normalizeStatus(json?.status),
+      };
+
+      setData(normalized);
       setError(null);
     } catch (e) {
       setError(e);
