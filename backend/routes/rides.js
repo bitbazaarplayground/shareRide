@@ -1,10 +1,11 @@
 // backend/routes/rides.js
 import express from "express";
-import { getUserFromToken, supabase } from "../helpers/auth.js";
-import { computeBookingStatus } from "../helpers/bookingStatus.js";
+import { getUserFromToken } from "../helpers/auth.js";
+import { cancelRide } from "../helpers/cancelRide.js";
 import { clamp, generateCode6 } from "../helpers/pricing.js";
 import { buildUberDeepLink } from "../helpers/ridePool.js";
 import { stripe } from "../helpers/stripe.js";
+import { supabase } from "../supabaseClient.js";
 
 const router = express.Router();
 
@@ -106,15 +107,8 @@ router.post("/:rideId/create-pool", async (req, res) => {
 router.delete("/:rideId", express.json(), async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Missing token" });
-
-    const {
-      data: { user },
-      error: uErr,
-    } = await supabase.auth.getUser(token);
-    if (uErr || !user) return res.status(401).json({ error: "Invalid token" });
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
 
     // Load ride + ownership
     const { data: ride, error: rErr } = await supabase
@@ -123,6 +117,7 @@ router.delete("/:rideId", express.json(), async (req, res) => {
       .eq("id", rideId)
       .single();
     if (rErr || !ride) return res.status(404).json({ error: "Ride not found" });
+
     if (ride.user_id !== user.id)
       return res.status(403).json({ error: "Not your ride" });
 
@@ -161,145 +156,60 @@ router.delete("/:rideId", express.json(), async (req, res) => {
   }
 });
 /* ---------------------- Cancel Ride (with refunds + email notify) ---------------------- */
+
+// Host cancel
+/* ---------------------- Cancel Ride (with refunds + email notify) ---------------------- */
+
+// Host cancel
 router.post("/:rideId/cancel", express.json(), async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
 
-    // 1. Auth
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Missing token" });
+    // ✅ Auth via helper
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-    const {
-      data: { user },
-      error: uErr,
-    } = await supabase.auth.getUser(token);
-    if (uErr || !user) return res.status(401).json({ error: "Invalid token" });
-
-    // 2. Load ride & ownership
-    const { data: ride, error: rErr } = await supabase
+    // ✅ Load ride from DB
+    const { data: ride, error: rideErr } = await supabase
       .from("rides")
-      .select("id, user_id, from, to, date, time")
+      .select("id, user_id")
       .eq("id", rideId)
       .single();
-    if (rErr || !ride) return res.status(404).json({ error: "Ride not found" });
-    if (ride.user_id !== user.id)
-      return res.status(403).json({ error: "Not your ride" });
 
-    // 3. Find pool
-    const { data: pool } = await supabase
-      .from("ride_pools")
-      .select("id, status")
-      .eq("ride_id", rideId)
-      .maybeSingle();
+    if (rideErr || !ride)
+      return res.status(404).json({ error: "Ride not found" });
 
-    if (!pool) {
-      // no pool → just delete ride
-      await supabase.from("rides").delete().eq("id", rideId);
-      console.log(`📧 [Notify] Ride ${rideId} canceled by host. (No pool)`);
-      return res.json({ ok: true, note: "No pool found, ride deleted." });
+    // 🔎 Normalize IDs before comparing
+    const rideUserId = (ride.user_id || "").toString().trim();
+    const tokenUserId = (user.id || "").toString().trim();
+
+    console.log("===== CANCEL DEBUG =====");
+    console.log("Ride.user_id (raw):", ride.user_id);
+    console.log("Token user.id (raw):", user.id);
+    console.log("🔎 Normalized rideUserId:", JSON.stringify(rideUserId));
+    console.log("🔎 Normalized tokenUserId:", JSON.stringify(tokenUserId));
+    console.log("Equality check:", rideUserId === tokenUserId);
+
+    // ✅ Ensure ownership
+    if (rideUserId !== tokenUserId) {
+      return res.status(403).json({
+        error: "Not your ride",
+        rideUserId,
+        tokenUserId,
+      });
     }
 
-    // 4. Refund or cancel PaymentIntent based on status
-    const { data: contribs } = await supabase
-      .from("ride_pool_contributions")
-      .select("id, user_id, payment_intent_id, status, profiles!inner(email)")
-      .eq("ride_pool_id", pool.id);
-
-    const refunded = [];
-    for (const c of contribs || []) {
-      if (["paid", "authorized"].includes(c.status) && c.payment_intent_id) {
-        try {
-          if (c.status === "authorized") {
-            // Cancel the uncaptured PaymentIntent
-            await stripe.paymentIntents.cancel(c.payment_intent_id);
-            await supabase
-              .from("ride_pool_contributions")
-              .update({ status: "canceled" })
-              .eq("id", c.id);
-          } else if (c.status === "paid") {
-            // Refund the captured payment
-            await stripe.refunds.create({
-              payment_intent: c.payment_intent_id,
-            });
-            await supabase
-              .from("ride_pool_contributions")
-              .update({ status: "refunded" })
-              .eq("id", c.id);
-          }
-
-          refunded.push(c.id);
-
-          // Placeholder notification
-          console.log(
-            `📧 [Notify Passenger] Sent cancellation email to ${c.profiles?.email}`
-          );
-        } catch (err) {
-          console.error("Refund/cancel failed for contrib", c.id, err.message);
-        }
-      }
-    }
-
-    // 5. Mark pool canceled
-    await supabase
-      .from("ride_pools")
-      .update({ status: "canceled" })
-      .eq("id", pool.id);
-
-    // 6. Delete ride
-    await supabase.from("rides").delete().eq("id", rideId);
-
-    // Notify host
-    console.log(
-      `📧 [Notify Host] You canceled ride from ${ride.from} → ${ride.to} on ${ride.date} ${ride.time}. ${refunded.length} refunds/cancels issued.`
-    );
-
-    return res.json({
-      ok: true,
-      refundedCount: refunded.length,
-      poolId: pool.id,
+    // ✅ Call shared cancel helper (refunds + emails handled inside cancelRide.js)
+    const result = await cancelRide(rideId, {
+      isAdmin: false,
+      userId: user.id,
+      canceledBy: user.email,
     });
-  } catch (e) {
-    console.error("cancel ride error:", e);
-    return res.status(500).json({ error: "Failed to cancel ride" });
-  }
-});
 
-router.get("/:rideId/booking-status", async (req, res) => {
-  try {
-    const rideId = Number(req.params.rideId);
-    const userId = req.query.userId || null;
-
-    const result = await computeBookingStatus(rideId, userId);
-    res.json(result);
-  } catch (e) {
-    console.error("booking-status error:", e);
-    res.status(500).json({ error: "Failed to fetch booking status" });
-  }
-});
-
-router.post("/booking-status/batch", async (req, res) => {
-  try {
-    const { rideIds, userId } = req.body;
-    if (!Array.isArray(rideIds) || rideIds.length === 0) {
-      return res.status(400).json({ error: "rideIds required" });
-    }
-
-    const results = {};
-    for (const rideId of rideIds) {
-      try {
-        const result = await computeBookingStatus(rideId, userId);
-        results[rideId] = result.status;
-      } catch (err) {
-        console.error(`Failed to compute status for ride ${rideId}:`, err);
-        results[rideId] = null;
-      }
-    }
-
-    res.json(results);
-  } catch (e) {
-    console.error("batch booking-status error:", e);
-    res.status(500).json({ error: "Failed to fetch batch booking status" });
+    return res.json(result);
+  } catch (err) {
+    console.error("Host cancel error:", err.message);
+    res.status(500).json({ error: "Host cancel failed" });
   }
 });
 

@@ -1,5 +1,5 @@
 // backend/helpers/ridePool.js
-import { supabase } from "./auth.js";
+import { supabase } from "../supabaseClient.js";
 
 export async function recalcAndMaybeMarkBookable(ridePoolId) {
   const { data: contribs, error: cErr } = await supabase

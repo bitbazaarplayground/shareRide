@@ -1,19 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// helpers/auth.js
+import { supabase } from "../supabaseClient.js";
 
 export async function getUserFromToken(authHeader) {
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return null;
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
-  return error ? null : user;
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+  return data.user; // ✅ return Supabase user, not profile
 }

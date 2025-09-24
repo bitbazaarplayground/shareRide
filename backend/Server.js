@@ -7,6 +7,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 // Routes
+
+import adminRoutes from "./admin/index.js";
 import bookingRouter from "./routes/booking.js";
 import paymentsRouter from "./routes/payments.js";
 import ridesRouter from "./routes/rides.js";
@@ -71,7 +73,8 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/payments", paymentsRouter);
 app.use("/api/rides", ridesRouter);
 app.use("/api", bookingRouter); // for /booker/onboarding-link
-
+/* ---------------------- Admin routes ---------------------- */
+app.use("/api/admin", adminRoutes);
 /* ---------------------- Start ---------------------- */
 const APP_ORIGIN = (process.env.APP_ORIGIN || "http://localhost:5173").split(
   ","
