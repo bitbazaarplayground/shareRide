@@ -1,6 +1,7 @@
 // backend/routes/rides.js
 import express from "express";
 import { getUserFromToken } from "../helpers/auth.js";
+import { computeBookingStatus } from "../helpers/bookingStatus.js";
 import { cancelRide } from "../helpers/cancelRide.js";
 import { clamp, generateCode6 } from "../helpers/pricing.js";
 import { buildUberDeepLink } from "../helpers/ridePool.js";
@@ -155,9 +156,47 @@ router.delete("/:rideId", express.json(), async (req, res) => {
     return res.status(500).json({ error: "Failed to delete ride" });
   }
 });
-/* ---------------------- Cancel Ride (with refunds + email notify) ---------------------- */
 
-// Host cancel
+/* ---------------------- Booking Status ---------------------- */
+
+router.get("/:rideId/booking-status", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const userId = req.query.userId || null;
+    console.log("📡 booking-status request", { rideId, userId });
+    const result = await computeBookingStatus(rideId, userId);
+    res.json(result);
+  } catch (e) {
+    console.error("booking-status error:", e.stack || e);
+    res.status(500).json({ error: "Failed to fetch booking status" });
+  }
+});
+
+router.post("/booking-status/batch", async (req, res) => {
+  try {
+    const { rideIds, userId } = req.body;
+    if (!Array.isArray(rideIds) || rideIds.length === 0) {
+      return res.status(400).json({ error: "rideIds required" });
+    }
+
+    const results = {};
+    for (const rideId of rideIds) {
+      try {
+        const result = await computeBookingStatus(rideId, userId);
+        results[rideId] = result.status;
+      } catch (err) {
+        console.error(`Failed to compute status for ride ${rideId}:`, err);
+        results[rideId] = null;
+      }
+    }
+
+    res.json(results);
+  } catch (e) {
+    console.error("batch booking-status error:", e);
+    res.status(500).json({ error: "Failed to fetch batch booking status" });
+  }
+});
+
 /* ---------------------- Cancel Ride (with refunds + email notify) ---------------------- */
 
 // Host cancel

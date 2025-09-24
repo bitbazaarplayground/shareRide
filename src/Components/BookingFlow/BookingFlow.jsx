@@ -200,7 +200,13 @@ export default function BookingFlow({ rideId, userId, isAuthenticated }) {
   };
 
   if (loading) return <div className="bf-box">Loading booking status…</div>;
-  if (error) return <div className="bf-box error">Error: {error}</div>;
+  if (error)
+    return (
+      <div className="bf-box error">
+        Error: {error.message || String(error)}
+      </div>
+    );
+
   if (!data?.exists) return <div className="bf-box">No pool yet.</div>;
 
   return (
