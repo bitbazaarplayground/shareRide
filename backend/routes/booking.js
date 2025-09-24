@@ -1,6 +1,7 @@
 // backend/routes/booking.js
 import express from "express";
-import { supabase } from "../helpers/auth.js";
+import { supabase } from "../supabaseClient.js";
+
 import { stripe } from "../helpers/stripe.js";
 
 const router = express.Router();

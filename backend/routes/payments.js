@@ -1,6 +1,7 @@
 // backend/routes/payments.js
 import express from "express";
-import { supabase } from "../helpers/auth.js";
+import { supabase } from "../supabaseClient.js";
+
 import { getVehicleCapacity } from "../helpers/capacity.js";
 import { sendEmail } from "../helpers/email.js";
 import { clamp, toMinor } from "../helpers/pricing.js";

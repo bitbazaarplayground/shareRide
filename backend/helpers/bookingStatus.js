@@ -1,5 +1,6 @@
 // backend/helpers/bookingStatus.js
-import { supabase } from "./auth.js";
+import { supabase } from "../supabaseClient.js";
+
 import { getVehicleCapacity } from "./capacity.js";
 import { toMinor } from "./pricing.js";
 
