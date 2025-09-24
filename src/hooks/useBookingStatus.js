@@ -23,11 +23,17 @@ export default function useBookingStatus(
   const fetchStatus = useCallback(async () => {
     if (!rideId || !BACKEND) return;
     try {
-      const res = await fetch(
-        `${BACKEND}/api/rides/${rideId}/booking-status?userId=${encodeURIComponent(
-          userId || ""
-        )}`
-      );
+      // build URL properly
+      let url = `${BACKEND}/api/rides/${rideId}/booking-status`;
+      if (userId) {
+        url += `?userId=${encodeURIComponent(userId)}`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch booking status`);
+      }
+
       const json = await res.json();
 
       // normalize booking status
