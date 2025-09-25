@@ -1,0 +1,137 @@
+{
+  "info": {
+    "name": "TabFair Test Suite",
+    "_postman_id": "e2b9c9c5-4c34-42b6-9c77-a8d3e1a98c00",
+    "description": "Automated test flow for TabFair backend (Steps 1-8)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Step 1 - Create Ride (User A)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userA_token}}",
+            "type": "text"
+          },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{backend_url}}/api/rides",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"from\": \"Valencia\",\n  \"to\": \"Madrid\",\n  \"date\": \"2025-10-01\",\n  \"time\": \"10:00:00\",\n  \"vehicle_type\": \"car\",\n  \"seats\": 1,\n  \"backpack_count\": 0,\n  \"small_suitcase_count\": 0,\n  \"large_suitcase_count\": 0,\n  \"estimated_fare\": 50\n}"
+        }
+      }
+    },
+    {
+      "name": "Step 2 - Get Booking Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{backend_url}}/api/rides/{{rideId}}/booking-status?userId={{userA_id}}",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides", "{{rideId}}", "booking-status"],
+          "query": [{ "key": "userId", "value": "{{userA_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Step 3 - Lock Seat (User B)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userB_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{backend_url}}/api/rides/{{rideId}}/lock-seat",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides", "{{rideId}}", "lock-seat"]
+        }
+      }
+    },
+    {
+      "name": "Step 4 - Check Booking Status After Lock",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{backend_url}}/api/rides/{{rideId}}/booking-status?userId={{userB_id}}",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides", "{{rideId}}", "booking-status"],
+          "query": [{ "key": "userId", "value": "{{userB_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Step 5 - Mark Contribution as Paid (SQL manual step)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "NOTE: Run SQL manually in Supabase → update ride_pool_contributions set status = 'paid', seats_reserved = 1, user_share_minor = 2500 where id = <contributionId>;",
+          "host": []
+        }
+      }
+    },
+    {
+      "name": "Step 6 - Check Booking Status After Payment",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{backend_url}}/api/rides/{{rideId}}/booking-status?userId={{userB_id}}",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides", "{{rideId}}", "booking-status"],
+          "query": [{ "key": "userId", "value": "{{userB_id}}" }]
+        }
+      }
+    },
+    {
+      "name": "Step 7 - Host Cancel Ride (User A)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userA_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{backend_url}}/api/rides/{{rideId}}/cancel",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "rides", "{{rideId}}", "cancel"]
+        }
+      }
+    },
+    {
+      "name": "Step 8 - Admin Cancel Ride (Admin User)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{backend_url}}/api/admin/rides/{{rideId}}/cancel",
+          "host": ["{{backend_url}}"],
+          "path": ["api", "admin", "rides", "{{rideId}}", "cancel"]
+        }
+      }
+    }
+  ]
+}
