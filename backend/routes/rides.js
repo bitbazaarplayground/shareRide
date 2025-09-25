@@ -163,7 +163,7 @@ router.get("/:rideId/booking-status", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
     const userId = req.query.userId || null;
-    console.log("📡 booking-status request", { rideId, userId });
+    // console.log("📡 booking-status request", { rideId, userId });
     const result = await computeBookingStatus(rideId, userId);
     res.json(result);
   } catch (e) {
@@ -582,5 +582,49 @@ router.post("/:rideId/confirm-booked", async (req, res) => {
     res.status(500).json({ error: "Failed to transfer funds" });
   }
 });
+/* ---------------------- Postman testing ---------------------- */
+router.post("/", express.json(), async (req, res) => {
+  try {
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+    const {
+      from,
+      to,
+      date,
+      time,
+      vehicle_type,
+      seats,
+      backpack_count,
+      small_suitcase_count,
+      large_suitcase_count,
+      estimated_fare,
+    } = req.body;
+
+    const { data, error } = await supabase
+      .from("rides")
+      .insert({
+        user_id: user.id,
+        from,
+        to,
+        date,
+        time,
+        vehicle_type,
+        seats,
+        backpack_count,
+        small_suitcase_count,
+        large_suitcase_count,
+        estimated_fare,
+      })
+      .select("id")
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ ok: true, rideId: data.id });
+  } catch (err) {
+    console.error("Create ride error:", err);
+    res.status(500).json({ error: "Failed to create ride" });
+  }
+});
 export default router;
