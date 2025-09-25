@@ -1,33 +1,35 @@
 // backend/admin/middleware.js
+import { getUserFromToken } from "../helpers/auth.js";
 import { supabase } from "../supabaseClient.js";
 
 export async function requireAdmin(req, res, next) {
   try {
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Missing token" });
+    const user = await getUserFromToken(req.headers.authorization);
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
-    if (error || !user) return res.status(401).json({ error: "Invalid token" });
-
-    // Lookup profile for is_admin flag
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return res.status(403).json({ error: "Not an admin" });
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    req.adminUser = user;
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("id, email, is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Admin check DB error:", error.message);
+      return res.status(500).json({ error: "DB error during admin check" });
+    }
+
+    if (!profile?.is_admin) {
+      return res.status(403).json({ error: "Forbidden: admin only" });
+    }
+
+    // Attach for downstream routes
+    req.user = { id: user.id, email: user.email };
     next();
-  } catch (e) {
-    console.error("requireAdmin error:", e);
+  } catch (err) {
+    console.error("requireAdmin error:", err.message);
     res.status(500).json({ error: "Admin check failed" });
   }
 }
