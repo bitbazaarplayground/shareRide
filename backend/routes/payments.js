@@ -568,7 +568,7 @@ router.get("/manual-webhook-test", async (req, res) => {
   console.log("🧪 Manual webhook trigger");
   try {
     await sendEmail(
-      "n.traver@hotmail..com", // 👈 replace with your real test email
+      "n.traver@hotmail.com", // 👈 replace with your real test email
       "✅ Manual test · Payment confirmed",
       `<h2>It works!</h2><p>This is a manual webhook test from TabFair.</p>`,
       "It works — manual webhook test from TabFair."
