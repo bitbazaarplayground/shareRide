@@ -31,6 +31,15 @@ function getAppOrigin() {
   return ORIGINS.find((o) => o.includes("localhost")) || ORIGINS[0];
 }
 
+// TEMP: Check env on Render
+router.get("/check-env", (req, res) => {
+  res.json({
+    brevoUser: process.env.BREVO_USER,
+    brevoFrom: process.env.BREVO_FROM,
+    brevoKeyLoaded: !!process.env.BREVO_API_KEY,
+  });
+});
+
 /* ---------------------- Stripe Webhook ---------------------- */
 router.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -354,7 +363,9 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
         price_data: {
           currency,
           product_data: {
-            name: `Seats x${seatsReserved} @ ${(perSeatMinor / 100).toFixed(2)} each`,
+            name: `Seats x${seatsReserved} @ ${(perSeatMinor / 100).toFixed(
+              2
+            )} each`,
           },
           unit_amount: userShareMinor,
         },
