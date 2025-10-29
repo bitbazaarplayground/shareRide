@@ -579,5 +579,16 @@ router.get("/manual-webhook-test", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// TEMP: check Brevo key prefix
+router.get("/check-brevo", (req, res) => {
+  const key = process.env.BREVO_API_KEY || "";
+  const prefix = key.slice(0, 7);
+  res.json({
+    prefix,
+    hasKey: !!key,
+    from: process.env.BREVO_FROM,
+    usingEnv: process.env.NODE_ENV || "unknown",
+  });
+});
 
 export default router;
