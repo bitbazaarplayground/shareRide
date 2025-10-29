@@ -354,7 +354,9 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
         price_data: {
           currency,
           product_data: {
-            name: `Seats x${seatsReserved} @ ${(perSeatMinor / 100).toFixed(2)} each`,
+            name: `Seats x${seatsReserved} @ ${(perSeatMinor / 100).toFixed(
+              2
+            )} each`,
           },
           unit_amount: userShareMinor,
         },
@@ -559,6 +561,22 @@ router.get("/verify", async (req, res) => {
   } catch (err) {
     console.error("verify error:", err);
     return res.status(500).json({ error: "Verification failed" });
+  }
+});
+// --- Manual webhook test route ---
+router.get("/manual-webhook-test", async (req, res) => {
+  console.log("🧪 Manual webhook trigger");
+  try {
+    await sendEmail(
+      "n.traver@hotmail..com", // 👈 replace with your real test email
+      "✅ Manual test · Payment confirmed",
+      `<h2>It works!</h2><p>This is a manual webhook test from TabFair.</p>`,
+      "It works — manual webhook test from TabFair."
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("💥 Manual webhook test failed:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
