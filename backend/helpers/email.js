@@ -1,44 +1,51 @@
 // backend/helpers/email.js
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
 dotenv.config({ path: "./backend/.env" });
 
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  auth: {
-    user: process.env.BREVO_USER,
-    pass: process.env.BREVO_API_KEY,
-  },
-});
-
-const FROM = process.env.BREVO_FROM || "TabFair <support@tabfair.com>";
+const BREVO_KEY = process.env.BREVO_API_KEY;
+const FROM = process.env.BREVO_FROM || "TabFair <hello@tabfair.com>";
 
 /**
- * Send an email via Brevo (SMTP)
+ * Send an email via Brevo (HTTP API)
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
  * @param {string} html - HTML body
  * @param {string} [text] - Optional plain text fallback
  */
 export async function sendEmail(to, subject, html, text = "") {
-  if (!process.env.BREVO_API_KEY) {
+  if (!BREVO_KEY) {
     console.warn("⚠️ Brevo API key not set. Email skipped.");
     return null;
   }
 
   try {
-    const info = await transporter.sendMail({
-      from: FROM,
-      to,
-      subject,
-      html,
-      text,
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": BREVO_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: "TabFair", email: FROM.match(/<(.+)>/)?.[1] || FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+      }),
     });
-    console.log("📧 Email sent successfully:", info.messageId || info.response);
-    return info;
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Email send failed:", response.status, errorText);
+      throw new Error(`Brevo API error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("📧 Brevo email sent:", data.messageId || data);
+    return data;
   } catch (err) {
-    console.error("❌ Email send failed:", err.message);
+    console.error("💥 Email send failed:", err.message);
     throw err;
   }
 }
