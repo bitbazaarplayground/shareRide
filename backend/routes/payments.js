@@ -563,32 +563,5 @@ router.get("/verify", async (req, res) => {
     return res.status(500).json({ error: "Verification failed" });
   }
 });
-// --- Manual webhook test route ---
-router.get("/manual-webhook-test", async (req, res) => {
-  console.log("🧪 Manual webhook trigger");
-  try {
-    await sendEmail(
-      "n.traver@hotmail.com", // 👈 replace with your real test email
-      "✅ Manual test · Payment confirmed",
-      `<h2>It works!</h2><p>This is a manual webhook test from TabFair.</p>`,
-      "It works — manual webhook test from TabFair."
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("💥 Manual webhook test failed:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-// TEMP: check Brevo key prefix
-router.get("/check-brevo", (req, res) => {
-  const key = process.env.BREVO_API_KEY || "";
-  const prefix = key.slice(0, 7);
-  res.json({
-    prefix,
-    hasKey: !!key,
-    from: process.env.BREVO_FROM,
-    usingEnv: process.env.NODE_ENV || "unknown",
-  });
-});
 
 export default router;
