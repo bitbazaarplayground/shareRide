@@ -42,6 +42,9 @@ router.get("/check-env", (req, res) => {
 
 /* ---------------------- Stripe Webhook ---------------------- */
 router.post("/webhook", async (req, res) => {
+  console.log("🪙 Incoming webhook hit");
+  console.log("Headers:", req.headers);
+
   const sig = req.headers["stripe-signature"];
   const secret = getWebhookSecret();
   let event;
@@ -162,6 +165,7 @@ router.post("/webhook", async (req, res) => {
           `Ride host: ${poster}`,
           `Amount charged: ${amount} ${currency}`,
         ].join("\n");
+        console.log("💌 Sending email to:", customerEmail);
 
         await sendEmail(
           customerEmail,
