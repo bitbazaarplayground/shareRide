@@ -576,5 +576,21 @@ router.get("/verify", async (req, res) => {
     return res.status(500).json({ error: "Verification failed" });
   }
 });
+// ---------------------- Manual webhook test ----------------------
+router.get("/manual-webhook-test", async (req, res) => {
+  console.log("🧪 Manual webhook trigger");
+  try {
+    await sendEmail(
+      "n.traver@hotmail.com",
+      "✅ Manual test · Payment confirmed",
+      `<h2>It works!</h2><p>This is a manual webhook test from TabFair.</p>`,
+      "It works — manual webhook test from TabFair."
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("💥 Manual webhook test failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;
