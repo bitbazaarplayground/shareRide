@@ -5,7 +5,9 @@
   "homepage": "/",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n VITE,HELP \"vite\" \"npm:dev:help-index:watch\"",
+    "frontend": "vite",
+    "backend": "nodemon backend/Server.js",
+    "dev": "concurrently -k -n FRONTEND,BACKEND -c cyan,green \"npm run frontend\" \"npm run backend\"",
     "start": "vite",
     "build": "vite build",
     "deploy": "gh-pages -d dist",
@@ -16,7 +18,8 @@
     "type-check": "tsc --noEmit",
     "type-check:node": "tsc --noEmit -p tsconfig.node.json",
     "backfill:coords": "node scripts/backfill-ride-coords.mjs",
-    "prebuild": "npm run build:help-index"
+    "prebuild": "npm run build:help-index",
+    "stripe": "stripe listen --forward-to localhost:3000/api/payments/webhook"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -30,6 +33,7 @@
     "emoji-picker-react": "^4.12.2",
     "express": "^5.1.0",
     "i18next": "^25.2.1",
+    "nodemailer": "^7.0.10",
     "react": "^18.3.1",
     "react-datepicker": "^8.4.0",
     "react-dom": "^18.3.1",
@@ -40,7 +44,6 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.2",
     "react-toastify": "^11.0.5",
-    "resend": "^4.6.0",
     "stripe": "^18.2.1",
     "use-places-autocomplete": "^4.0.1",
     "uuid": "^11.1.0"
@@ -54,13 +57,14 @@
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "chokidar-cli": "^3.0.0",
-    "concurrently": "^9.2.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "gh-pages": "^6.3.0",
     "globals": "^16.0.0",
     "json5": "^2.2.3",
+    "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7",
     "typescript": "^5.9.2",
