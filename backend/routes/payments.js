@@ -1,9 +1,9 @@
 // backend/routes/payments.js
 import express from "express";
+import { sendEmail, templates } from "../helpers/email.js";
 import { supabase } from "../supabaseClient.js";
 
 import { getVehicleCapacity } from "../helpers/capacity.js";
-import { sendEmail } from "../helpers/email.js";
 import { clamp, toMinor } from "../helpers/pricing.js";
 import { recalcAndMaybeMarkBookable } from "../helpers/ridePool.js";
 import { stripe } from "../helpers/stripe.js";
@@ -125,10 +125,18 @@ router.post("/webhook", async (req, res) => {
         }
       } catch {}
 
-      if (customerEmail) {
+      if (customerEmail && rideIdMeta) {
         const amount = ((session.amount_total ?? 0) / 100).toFixed(2);
         const currency = String(session.currency || "gbp").toUpperCase();
 
+        // Fetch host info
+        const { data: hostProfile } = await supabase
+          .from("profiles")
+          .select("email, nickname")
+          .eq("id", rideRow.user_id)
+          .single();
+
+        // === Email to passenger ===
         const html = `
           <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
             <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
@@ -138,19 +146,29 @@ router.post("/webhook", async (req, res) => {
               <div><strong>To:</strong> ${toLoc}</div>
               <div><strong>Date:</strong> ${date}</div>
               <div><strong>Time:</strong> ${time}</div>
-              <div><strong>Ride host:</strong> ${poster}</div>
+              <div><strong>Ride host:</strong> ${
+                hostProfile?.nickname || "the ride host"
+              }</div>
               <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
             </div>
             <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
           </div>
+          <div>
+            <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+            <p style="font-size:13px;color:#777;">
+              This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+              © 2025 TabFair Ltd. All rights reserved.
+            </p>
+          </div>
         `;
+
         const text = [
           "Payment confirmed on TabFair",
           `From: ${fromLoc}`,
           `To: ${toLoc}`,
           `Date: ${date}`,
           `Time: ${time}`,
-          `Ride host: ${poster}`,
+          `Ride host: ${hostProfile?.nickname || "the ride host"}`,
           `Amount charged: ${amount} ${currency}`,
         ].join("\n");
 
@@ -160,10 +178,25 @@ router.post("/webhook", async (req, res) => {
           html,
           text
         );
-      }
-    }
 
-    return res.json({ received: true });
+        // === Email to host ===
+        if (hostProfile?.email) {
+          const t2 = templates.hostNotified({
+            from: fromLoc,
+            to: toLoc,
+            date,
+            time,
+            passenger:
+              session.customer_details?.name ||
+              session.customer_email ||
+              "a passenger",
+          });
+          await sendEmail(hostProfile.email, t2.subject, t2.html, t2.text);
+        }
+      }
+
+      return res.json({ received: true });
+    }
   } catch (e) {
     console.error("💥 Webhook handler error:", e);
     return res.status(500).json({ error: "Internal error" });
