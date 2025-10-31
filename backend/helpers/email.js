@@ -1,9 +1,15 @@
-// backend/helpers/email.js
 import dotenv from "dotenv";
 dotenv.config({ path: "./backend/.env" });
 
 const BREVO_KEY = process.env.BREVO_API_KEY;
 const FROM = process.env.BREVO_FROM || "TabFair <hello@tabfair.com>";
+
+// ✅ Automatically pick frontend URL
+const APP_ORIGIN =
+  process.env.APP_ORIGIN ||
+  (process.env.NODE_ENV === "production"
+    ? "https://jade-rolypoly-5d4274.netlify.app"
+    : "http://localhost:5173");
 
 /**
  * Send an email via Brevo (HTTP API)
@@ -51,55 +57,185 @@ export async function sendEmail(to, subject, html, text = "") {
 }
 
 /* --------------------------------------------------------
- * Email Templates
+ * Email Templates (TabFair branded)
  * -------------------------------------------------------- */
 export const templates = {
-  passengerBooked: ({ from, to, date, time, host, amount, currency }) => ({
-    subject: "Thanks for booking your ride on TabFair",
-    html: `
-      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;">
-        <h2>Thanks for booking your ride!</h2>
-        <p>We're waiting for <strong>${host}</strong> to confirm the ride.</p>
-        <div style="margin:16px 0;padding:12px;border:1px solid #eee;border-radius:10px;">
-          <div><strong>From:</strong> ${from}</div>
-          <div><strong>To:</strong> ${to}</div>
-          <div><strong>Date:</strong> ${date}</div>
-          <div><strong>Time:</strong> ${time}</div>
-          <div><strong>Amount:</strong> £${amount} ${currency || ""}</div>
-        </div>
-      </div>`,
-    text: `Thanks for booking your ride from ${from} to ${to} on ${date} at ${time}. Waiting for ${host} to confirm.`,
-  }),
+  // 1️⃣ Passenger — after booking a ride
+  passengerBooked: ({
+    from,
+    to,
+    date,
+    time,
+    host,
+    amount,
+    currency,
+    rideId,
+  }) => {
+    const rideLink = `http://localhost:5173/my-rides${
+      rideId ? `#ride-${rideId}` : ""
+    }`;
 
-  hostNotified: ({ from, to, date, time, passenger }) => ({
-    subject: " A passenger joined your ride",
-    html: `
-      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;">
-        <h2>New passenger joined!</h2>
-        <p>${passenger} has joined your ride. Please confirm to continue.</p>
-        <div style="margin:16px 0;padding:12px;border:1px solid #eee;border-radius:10px;">
-          <div><strong>From:</strong> ${from}</div>
-          <div><strong>To:</strong> ${to}</div>
-          <div><strong>Date:</strong> ${date}</div>
-          <div><strong>Time:</strong> ${time}</div>
-        </div>
-      </div>`,
-    text: `${passenger} joined your ride from ${from} to ${to}.`,
-  }),
+    return {
+      subject: "🚗 Thanks for booking your ride on TabFair",
+      html: `
+        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+          <h2 style="color:#0a84ff;margin-bottom:12px;">Your ride booking is confirmed!</h2>
+          <p>Thanks for booking your shared ride on <strong>TabFair</strong>. We’ve notified <strong>${host}</strong> to confirm your trip.</p>
 
-  rideConfirmed: ({ from, to, date, time }) => ({
-    subject: "Your ride is confirmed!",
-    html: `
-      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;">
-        <h2>Your ride is confirmed!</h2>
-        <p>Your group is ready to go.</p>
-        <div style="margin:16px 0;padding:12px;border:1px solid #eee;border-radius:10px;">
-          <div><strong>From:</strong> ${from}</div>
-          <div><strong>To:</strong> ${to}</div>
-          <div><strong>Date:</strong> ${date}</div>
-          <div><strong>Time:</strong> ${time}</div>
+          <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+            <div><strong>From:</strong> ${from}</div>
+            <div><strong>To:</strong> ${to}</div>
+            <div><strong>Date:</strong> ${date}</div>
+            <div><strong>Time:</strong> ${time}</div>
+            <div><strong>Amount paid:</strong> £${amount} ${
+        currency || ""
+      }</div>
+          </div>
+
+          <p style="margin:20px 0;">
+            <a href="${rideLink}"
+               style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
+              View Ride
+            </a>
+          </p>
+
+          <p style="font-size:14px;color:#555;">
+            You’ll receive an update once your ride host confirms the trip. 
+            You can view or manage all your rides from your account.
+          </p>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+          <p style="font-size:13px;color:#777;">
+            This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+            © 2025 TabFair Ltd. All rights reserved.
+          </p>
         </div>
-      </div>`,
-    text: `Your ride from ${from} to ${to} on ${date} at ${time} is confirmed.`,
-  }),
+      `,
+      text: `Your ride booking is confirmed!
+
+From: ${from}
+To: ${to}
+Date: ${date}
+Time: ${time}
+Amount paid: £${amount} ${currency || ""}
+Host: ${host}
+
+View ride: ${rideLink}
+You’ll receive an update once your host confirms the trip.`,
+    };
+  },
+
+  // 2️⃣ Host — notified that a passenger joined
+  hostNotified: ({ from, to, date, time, nickname, rideId }) => {
+    const rideLink = `http://localhost:5173/my-rides${
+      rideId ? `#ride-${rideId}` : ""
+    }`;
+
+    return {
+      subject: "👋 A passenger joined your ride on TabFair",
+      html: `
+        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+          <h2 style="color:#0a84ff;margin-bottom:12px;">New passenger joined your ride</h2>
+          <p><strong>${nickname}</strong> has joined your ride. Please log in to confirm the trip details and secure your spot.</p>
+
+          <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+            <div><strong>From:</strong> ${from}</div>
+            <div><strong>To:</strong> ${to}</div>
+            <div><strong>Date:</strong> ${date}</div>
+            <div><strong>Time:</strong> ${time}</div>
+          </div>
+
+          <p style="margin:20px 0;">
+            <a href="${rideLink}"
+               style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
+              View Ride
+            </a>
+          </p>
+
+          <p style="font-size:14px;color:#555;">
+            Confirming the ride allows your passenger(s) to prepare and proceed with payment.
+            Log in anytime to manage your rides.
+          </p>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+          <p style="font-size:13px;color:#777;">
+            This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+            © 2025 TabFair Ltd. All rights reserved.
+          </p>
+        </div>
+      `,
+      text: `${nickname} joined your ride from ${from} to ${to} on ${date} at ${time}.
+Please confirm: ${rideLink}`,
+    };
+  },
+
+  // 3️⃣ Ride confirmed — sent to both passenger & host
+  rideConfirmed: ({ from, to, date, time, rideId }) => {
+    const rideLink = `http://localhost:5173/my-rides${
+      rideId ? `#ride-${rideId}` : ""
+    }`;
+
+    return {
+      subject: "✅ Your ride is confirmed on TabFair",
+      html: `
+        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+          <h2 style="color:#0a84ff;margin-bottom:12px;">Your ride is confirmed!</h2>
+          <p>Your group is ready to go. You can review details or manage this ride from your account.</p>
+
+          <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+            <div><strong>From:</strong> ${from}</div>
+            <div><strong>To:</strong> ${to}</div>
+            <div><strong>Date:</strong> ${date}</div>
+            <div><strong>Time:</strong> ${time}</div>
+          </div>
+
+          <p style="margin:20px 0;">
+            <a href="${rideLink}"
+               style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
+              View Ride
+            </a>
+          </p>
+
+          <p style="font-size:14px;color:#555;">
+            You’ll receive a reminder closer to departure time. 
+            Have a safe trip and thank you for sharing your ride with TabFair!
+          </p>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+          <p style="font-size:13px;color:#777;">
+            This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+            © 2025 TabFair Ltd. All rights reserved.
+          </p>
+        </div>
+      `,
+      text: `Your ride from ${from} to ${to} on ${date} at ${time} is confirmed.
+View ride: ${rideLink}`,
+    };
+  },
 };
+
+// === Email to passenger ===
+//    const html = `
+//    <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
+//      <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
+//      <p>Thanks for splitting your ride on <strong>TabFair</strong>!</p>
+//      <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
+//        <div><strong>From:</strong> ${fromLoc}</div>
+//        <div><strong>To:</strong> ${toLoc}</div>
+//        <div><strong>Date:</strong> ${date}</div>
+//        <div><strong>Time:</strong> ${time}</div>
+//        <div><strong>Ride host:</strong> ${
+//          hostProfile?.nickname || "the ride host"
+//        }</div>
+//        <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
+//      </div>
+//      <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
+//    </div>
+//    <div>
+//      <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+//      <p style="font-size:13px;color:#777;">
+//        This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+//        © 2025 TabFair Ltd. All rights reserved.
+//      </p>
+//    </div>
+//  `;
