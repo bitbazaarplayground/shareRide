@@ -81,7 +81,7 @@ export const templates = {
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
           <h2 style="color:#0a84ff;margin-bottom:12px;">Your ride booking is confirmed!</h2>
           <p>Thanks for booking your shared ride on <strong>TabFair</strong>. We’ve notified <strong>${host}</strong> to confirm your trip.</p>
-
+    
           <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
             <div><strong>From:</strong> ${from}</div>
             <div><strong>To:</strong> ${to}</div>
@@ -91,19 +91,27 @@ export const templates = {
         currency || ""
       }</div>
           </div>
-
+    
           <p style="margin:20px 0;">
             <a href="${rideLink}"
                style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
               View Ride
             </a>
           </p>
-
-          <p style="font-size:14px;color:#555;">
-            You’ll receive an update once your ride host confirms the trip. 
-            You can view or manage all your rides from your account.
+    
+          <p style="font-size:15px;color:#333;margin-bottom:10px;">
+            <strong>What happens next?</strong><br>
+            You’re now waiting for <strong>${host}</strong> to confirm the ride. Once they confirm, the ride will be ready for everyone to proceed.
           </p>
-
+    
+          <p style="font-size:14px;color:#555;">
+            If your host doesn’t confirm or no other passengers join, your payment will be <strong>automatically refunded in full</strong> — no action needed.
+          </p>
+    
+          <p style="font-size:14px;color:#555;margin-top:12px;">
+            You can view or manage all your rides anytime from your account.
+          </p>
+    
           <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
           <p style="font-size:13px;color:#777;">
             This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
@@ -112,16 +120,20 @@ export const templates = {
         </div>
       `,
       text: `Your ride booking is confirmed!
-
-From: ${from}
-To: ${to}
-Date: ${date}
-Time: ${time}
-Amount paid: £${amount} ${currency || ""}
-Host: ${host}
-
-View ride: ${rideLink}
-You’ll receive an update once your host confirms the trip.`,
+    
+    From: ${from}
+    To: ${to}
+    Date: ${date}
+    Time: ${time}
+    Amount paid: £${amount} ${currency || ""}
+    Host: ${host}
+    
+    What happens next:
+    You’re waiting for ${host} to confirm the ride. Once they do, the trip will proceed.
+    If they don’t confirm or no other passengers join, you’ll be automatically refunded in full.
+    
+    View your ride: ${rideLink}
+    `,
     };
   },
 
@@ -135,28 +147,35 @@ You’ll receive an update once your host confirms the trip.`,
       subject: "👋 A passenger joined your ride on TabFair",
       html: `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
-          <h2 style="color:#0a84ff;margin-bottom:12px;">New passenger joined your ride</h2>
-          <p><strong>${nickname}</strong> has joined your ride. Please log in to confirm the trip details and secure your spot.</p>
-
+          <h2 style="color:#0a84ff;margin-bottom:12px;">A new passenger joined your ride!</h2>
+          <p>
+            <strong>${nickname}</strong> just booked a seat on your shared ride. 
+            Please <strong>review and confirm the trip</strong> to secure your group and allow the booking to proceed.
+          </p>
+    
           <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
             <div><strong>From:</strong> ${from}</div>
             <div><strong>To:</strong> ${to}</div>
             <div><strong>Date:</strong> ${date}</div>
             <div><strong>Time:</strong> ${time}</div>
           </div>
-
+    
           <p style="margin:20px 0;">
             <a href="${rideLink}"
                style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
-              View Ride
+              Review & Confirm Ride
             </a>
           </p>
-
+    
           <p style="font-size:14px;color:#555;">
-            Confirming the ride allows your passenger(s) to prepare and proceed with payment.
-            Log in anytime to manage your rides.
+            Once you confirm, your passenger(s) will be notified and the ride will be marked as active.  
+            If you don’t confirm, the booking will expire automatically and the passenger will be refunded in full.
           </p>
-
+    
+          <p style="font-size:14px;color:#555;margin-top:12px;">
+            You can manage all your rides anytime from your account.
+          </p>
+    
           <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
           <p style="font-size:13px;color:#777;">
             This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
@@ -164,8 +183,19 @@ You’ll receive an update once your host confirms the trip.`,
           </p>
         </div>
       `,
-      text: `${nickname} joined your ride from ${from} to ${to} on ${date} at ${time}.
-Please confirm: ${rideLink}`,
+      text: `${nickname} just joined your ride.
+    
+    From: ${from}
+    To: ${to}
+    Date: ${date}
+    Time: ${time}
+    
+    Please review and confirm the trip to secure your passenger(s):
+    ${rideLink}
+    
+    Once confirmed, the ride becomes active.
+    If not confirmed, the booking will expire and the passenger will be refunded in full.
+    `,
     };
   },
 
@@ -179,28 +209,35 @@ Please confirm: ${rideLink}`,
       subject: "✅ Your ride is confirmed on TabFair",
       html: `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
-          <h2 style="color:#0a84ff;margin-bottom:12px;">Your ride is confirmed!</h2>
-          <p>Your group is ready to go. You can review details or manage this ride from your account.</p>
-
+          <h2 style="color:#0a84ff;margin-bottom:12px;">Your ride is confirmed 🎉</h2>
+          <p>
+            Great news — your shared ride is now confirmed! Your group is set and ready to go.  
+            You can view all ride details, message your host or passengers, and get updates directly in the app or on our website.
+          </p>
+    
           <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
             <div><strong>From:</strong> ${from}</div>
             <div><strong>To:</strong> ${to}</div>
             <div><strong>Date:</strong> ${date}</div>
             <div><strong>Time:</strong> ${time}</div>
           </div>
-
+    
           <p style="margin:20px 0;">
             <a href="${rideLink}"
                style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
-              View Ride
+              View Ride Details
             </a>
           </p>
-
+    
           <p style="font-size:14px;color:#555;">
-            You’ll receive a reminder closer to departure time. 
-            Have a safe trip and thank you for sharing your ride with TabFair!
+            You can access this ride anytime from your <strong>TabFair</strong> account — on the web or in the app — to check updates, share with others, or prepare for your trip.
           </p>
-
+    
+          <p style="font-size:14px;color:#555;margin-top:8px;">
+            We’ll also send you a friendly reminder closer to your departure time.  
+            Have a safe and enjoyable journey!
+          </p>
+    
           <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
           <p style="font-size:13px;color:#777;">
             This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
@@ -208,34 +245,15 @@ Please confirm: ${rideLink}`,
           </p>
         </div>
       `,
-      text: `Your ride from ${from} to ${to} on ${date} at ${time} is confirmed.
-View ride: ${rideLink}`,
+      text: `Your ride from ${from} to ${to} on ${date} at ${time} is confirmed! 🎉
+    
+    You can view all details, message your group, and get updates directly in your TabFair account.
+    
+    View ride details: ${rideLink}
+    
+    We’ll remind you closer to your departure time.
+    Have a safe and enjoyable journey!
+    `,
     };
   },
 };
-
-// === Email to passenger ===
-//    const html = `
-//    <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
-//      <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
-//      <p>Thanks for splitting your ride on <strong>TabFair</strong>!</p>
-//      <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
-//        <div><strong>From:</strong> ${fromLoc}</div>
-//        <div><strong>To:</strong> ${toLoc}</div>
-//        <div><strong>Date:</strong> ${date}</div>
-//        <div><strong>Time:</strong> ${time}</div>
-//        <div><strong>Ride host:</strong> ${
-//          hostProfile?.nickname || "the ride host"
-//        }</div>
-//        <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
-//      </div>
-//      <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
-//    </div>
-//    <div>
-//      <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-//      <p style="font-size:13px;color:#777;">
-//        This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
-//        © 2025 TabFair Ltd. All rights reserved.
-//      </p>
-//    </div>
-//  `;

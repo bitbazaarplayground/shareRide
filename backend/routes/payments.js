@@ -78,35 +78,53 @@ router.post("/webhook", async (req, res) => {
       await recalcAndMaybeMarkBookable(ridePoolId);
 
       // 3️⃣ Load context data for emails
-      const { data: ridePool } = await supabase
+      // first: get the pool (this table does NOT have from/to/date/time)
+      const { data: ridePool, error: poolErr } = await supabase
         .from("ride_pools")
-        .select("id, ride_id, from, to, date, time")
+        .select("id, ride_id, status, min_contributors")
         .eq("id", ridePoolId)
         .single();
 
-      if (!ridePool) {
-        console.warn("⚠️ No ride_pool found for ID:", ridePoolId);
+      if (poolErr || !ridePool) {
+        console.warn(
+          "⚠️ Could not load ride_pools row for",
+          ridePoolId,
+          poolErr?.message
+        );
         return res.json({ received: true });
       }
 
-      const { data: ride } = await supabase
+      // now: get the actual ride info (this DOES have from/to/date/time)
+      const { data: rideRow, error: rideErr } = await supabase
         .from("rides")
-        .select("user_id")
+        .select("from, to, date, time, user_id")
         .eq("id", ridePool.ride_id)
         .single();
 
+      if (rideErr || !rideRow) {
+        console.warn(
+          "⚠️ Could not load rides row for",
+          ridePool.ride_id,
+          rideErr?.message
+        );
+        return res.json({ received: true });
+      }
+
+      // also get paid members (to email them later)
       const { data: members } = await supabase
         .from("ride_pool_contributions")
         .select("user_id, is_host, status, profiles(email, nickname)")
         .eq("ride_pool_id", ridePoolId)
         .eq("status", "paid");
 
+      // build a clean object we can pass to templates
       const rideInfo = {
-        from: ridePool.from || "—",
-        to: ridePool.to || "—",
-        date: ridePool.date || "—",
-        time: ridePool.time || "—",
+        from: rideRow.from || "—",
+        to: rideRow.to || "—",
+        date: rideRow.date || "—",
+        time: rideRow.time || "—",
         rideId: ridePool.ride_id,
+        hostUserId: rideRow.user_id,
       };
 
       // 4️⃣ Determine payer email
@@ -128,47 +146,79 @@ router.post("/webhook", async (req, res) => {
         // Find host and passenger
         const host = members.find((m) => m.is_host);
         const passenger = members.find((m) => m.user_id === payerId);
-        const passengerName = passenger?.profiles?.nickname || "a passenger";
+        const passengerName =
+          passenger?.profiles?.nickname ||
+          session.customer_details?.name ||
+          "a passenger";
 
-        // a) Passenger email
+        // ✅ Ensure we always have host email and nickname
+        let hostEmail = host?.profiles?.email || null;
+        let hostNickname = host?.profiles?.nickname || "the ride host";
+
+        if (!hostEmail && rideInfo.hostUserId) {
+          const { data: hostProf } = await supabase
+            .from("profiles")
+            .select("email, nickname")
+            .eq("id", rideInfo.hostUserId)
+            .single();
+
+          if (hostProf) {
+            hostEmail = hostProf.email;
+            hostNickname = hostProf.nickname || hostNickname;
+          }
+        }
+
+        // a) Passenger email: confirmation of their booking
         const emailP = templates.passengerBooked({
           ...rideInfo,
-          host: host?.profiles?.nickname || "the ride host",
+          host: hostNickname,
           amount: ((session.amount_total ?? 0) / 100).toFixed(2),
           currency: String(session.currency || "gbp").toUpperCase(),
         });
-        if (payerEmail)
-          await sendEmail(payerEmail, emailP.subject, emailP.html, emailP.text);
 
-        // b) Host email
-        if (host?.profiles?.email) {
+        if (payerEmail) {
+          await sendEmail(payerEmail, emailP.subject, emailP.html, emailP.text);
+          console.log(`📧 Passenger email sent to ${payerEmail}`);
+        }
+
+        // b) Host email: notification that someone joined their ride
+        if (hostEmail) {
+          const rideLink = `http://localhost:5173/my-rides/${rideInfo.rideId}`;
           const emailH = templates.hostNotified({
             ...rideInfo,
             nickname: passengerName,
+            rideLink, // optional link for future UI
           });
-          await sendEmail(
-            host.profiles.email,
-            emailH.subject,
-            emailH.html,
-            emailH.text
-          );
+
+          await sendEmail(hostEmail, emailH.subject, emailH.html, emailH.text);
+          console.log(`📧 Host email sent to ${hostEmail}`);
+        } else {
+          console.warn("⚠️ No host email found — host not notified.");
         }
 
         console.log("📧 Passenger + host notified successfully");
       } else {
         console.log("👑 Host confirmed ride (paid)");
 
-        // Notify all members (host + passengers)
-        for (const m of members) {
+        await supabase
+          .from("ride_pools")
+          .update({ status: "confirmed" })
+          .eq("id", ridePoolId);
+
+        const { data: paidMembers } = await supabase
+          .from("ride_pool_contributions")
+          .select("profiles(email)")
+          .eq("ride_pool_id", ridePoolId)
+          .eq("status", "paid");
+
+        const emailT = templates.rideConfirmed(rideInfo);
+
+        for (const m of paidMembers || []) {
           const email = m.profiles?.email;
-          if (!email) continue;
-          const emailData = templates.rideConfirmed(rideInfo);
-          await sendEmail(
-            email,
-            emailData.subject,
-            emailData.html,
-            emailData.text
-          );
+          if (email) {
+            await sendEmail(email, emailT.subject, emailT.html, emailT.text);
+            console.log(`📧 Ride confirmed email sent to ${email}`);
+          }
         }
 
         console.log("📧 Ride confirmed emails sent to all participants");
