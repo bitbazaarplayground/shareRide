@@ -51,8 +51,8 @@ router.post("/webhook", async (req, res) => {
       const contributionId = Number(session.metadata?.contribution_id || 0);
       if (!contributionId) return res.json({ received: true });
 
-      // 1) Mark contribution as paid (idempotent)
-      const { data: updated } = await supabase
+      // 1️⃣ Mark contribution as paid (idempotent)
+      const { data: updated, error: uErr } = await supabase
         .from("ride_pool_contributions")
         .update({
           status: "paid",
@@ -62,141 +62,123 @@ router.post("/webhook", async (req, res) => {
         })
         .eq("id", contributionId)
         .in("status", ["pending"])
-        .select("id, ride_pool_id, is_host")
+        .select("id, ride_pool_id, is_host, user_id")
         .single();
 
-      let ridePoolId = updated?.ride_pool_id;
-      if (!ridePoolId) {
-        const { data: lookup } = await supabase
-          .from("ride_pool_contributions")
-          .select("ride_pool_id")
-          .eq("id", contributionId)
-          .single();
-        ridePoolId = lookup?.ride_pool_id || null;
+      if (uErr || !updated) {
+        console.error("❌ Contribution update failed:", uErr?.message);
+        return res.json({ received: true });
       }
 
-      if (ridePoolId) {
-        await recalcAndMaybeMarkBookable(ridePoolId);
+      const ridePoolId = updated.ride_pool_id;
+      const isHost = updated.is_host;
+      const payerId = updated.user_id;
+
+      // 2️⃣ Recalculate totals and update ride pool status
+      await recalcAndMaybeMarkBookable(ridePoolId);
+
+      // 3️⃣ Load context data for emails
+      const { data: ridePool } = await supabase
+        .from("ride_pools")
+        .select("id, ride_id, from, to, date, time")
+        .eq("id", ridePoolId)
+        .single();
+
+      if (!ridePool) {
+        console.warn("⚠️ No ride_pool found for ID:", ridePoolId);
+        return res.json({ received: true });
       }
 
-      // 2) Email receipt (best-effort)
-      let customerEmail =
+      const { data: ride } = await supabase
+        .from("rides")
+        .select("user_id")
+        .eq("id", ridePool.ride_id)
+        .single();
+
+      const { data: members } = await supabase
+        .from("ride_pool_contributions")
+        .select("user_id, is_host, status, profiles(email, nickname)")
+        .eq("ride_pool_id", ridePoolId)
+        .eq("status", "paid");
+
+      const rideInfo = {
+        from: ridePool.from || "—",
+        to: ridePool.to || "—",
+        date: ridePool.date || "—",
+        time: ridePool.time || "—",
+        rideId: ridePool.ride_id,
+      };
+
+      // 4️⃣ Determine payer email
+      let payerEmail =
         session.customer_details?.email || session.customer_email || null;
-
-      if (!customerEmail && session?.metadata?.user_id) {
-        try {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("email")
-            .eq("id", session.metadata.user_id)
-            .single();
-          if (prof?.email) customerEmail = prof.email;
-        } catch {}
+      if (!payerEmail && session?.metadata?.user_id) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", session.metadata.user_id)
+          .single();
+        payerEmail = prof?.email || null;
       }
 
-      // ride details for email
-      let fromLoc = "—",
-        toLoc = "—",
-        date = "—",
-        time = "—",
-        poster = "Host";
-      try {
-        const rideIdMeta = Number(session.metadata?.ride_id || 0);
-        if (rideIdMeta) {
-          const { data: rideRow } = await supabase
-            .from("rides")
-            .select("from, to, date, time, user_id")
-            .eq("id", rideIdMeta)
-            .single();
-          if (rideRow) {
-            fromLoc = rideRow.from ?? "—";
-            toLoc = rideRow.to ?? "—";
-            date = rideRow.date ?? "—";
-            time = rideRow.time ?? "—";
-            if (rideRow.user_id) {
-              const { data: prof2 } = await supabase
-                .from("profiles")
-                .select("nickname")
-                .eq("id", rideRow.user_id)
-                .single();
-              poster = prof2?.nickname || "Host";
-            }
-          }
-        }
-      } catch {}
+      // 5️⃣ Logic split: passenger vs host
+      if (!isHost) {
+        console.log("🚗 Passenger booked a ride");
 
-      if (customerEmail && rideIdMeta) {
-        const amount = ((session.amount_total ?? 0) / 100).toFixed(2);
-        const currency = String(session.currency || "gbp").toUpperCase();
+        // Find host and passenger
+        const host = members.find((m) => m.is_host);
+        const passenger = members.find((m) => m.user_id === payerId);
+        const passengerName = passenger?.profiles?.nickname || "a passenger";
 
-        // Fetch host info
-        const { data: hostProfile } = await supabase
-          .from("profiles")
-          .select("email, nickname")
-          .eq("id", rideRow.user_id)
-          .single();
+        // a) Passenger email
+        const emailP = templates.passengerBooked({
+          ...rideInfo,
+          host: host?.profiles?.nickname || "the ride host",
+          amount: ((session.amount_total ?? 0) / 100).toFixed(2),
+          currency: String(session.currency || "gbp").toUpperCase(),
+        });
+        if (payerEmail)
+          await sendEmail(payerEmail, emailP.subject, emailP.html, emailP.text);
 
-        // === Email to passenger ===
-        const html = `
-          <div style="font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111; line-height:1.5;">
-            <h2 style="margin:0 0 12px">✅ Payment confirmed</h2>
-            <p>Thanks for splitting your ride on <strong>TabFair</strong>!</p>
-            <div style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:10px;">
-              <div><strong>From:</strong> ${fromLoc}</div>
-              <div><strong>To:</strong> ${toLoc}</div>
-              <div><strong>Date:</strong> ${date}</div>
-              <div><strong>Time:</strong> ${time}</div>
-              <div><strong>Ride host:</strong> ${
-                hostProfile?.nickname || "the ride host"
-              }</div>
-              <div><strong>Amount charged:</strong> ${amount} ${currency}</div>
-            </div>
-            <p>We’ll notify you when your group is ready. The booker can then open Uber and complete the booking.</p>
-          </div>
-          <div>
-            <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-            <p style="font-size:13px;color:#777;">
-              This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
-              © 2025 TabFair Ltd. All rights reserved.
-            </p>
-          </div>
-        `;
-
-        const text = [
-          "Payment confirmed on TabFair",
-          `From: ${fromLoc}`,
-          `To: ${toLoc}`,
-          `Date: ${date}`,
-          `Time: ${time}`,
-          `Ride host: ${hostProfile?.nickname || "the ride host"}`,
-          `Amount charged: ${amount} ${currency}`,
-        ].join("\n");
-
-        await sendEmail(
-          customerEmail,
-          "✅ TabFair · Payment confirmed",
-          html,
-          text
-        );
-
-        // === Email to host ===
-        if (hostProfile?.email) {
-          const t2 = templates.hostNotified({
-            from: fromLoc,
-            to: toLoc,
-            date,
-            time,
-            passenger:
-              session.customer_details?.name ||
-              session.customer_email ||
-              "a passenger",
+        // b) Host email
+        if (host?.profiles?.email) {
+          const emailH = templates.hostNotified({
+            ...rideInfo,
+            nickname: passengerName,
           });
-          await sendEmail(hostProfile.email, t2.subject, t2.html, t2.text);
+          await sendEmail(
+            host.profiles.email,
+            emailH.subject,
+            emailH.html,
+            emailH.text
+          );
         }
+
+        console.log("📧 Passenger + host notified successfully");
+      } else {
+        console.log("👑 Host confirmed ride (paid)");
+
+        // Notify all members (host + passengers)
+        for (const m of members) {
+          const email = m.profiles?.email;
+          if (!email) continue;
+          const emailData = templates.rideConfirmed(rideInfo);
+          await sendEmail(
+            email,
+            emailData.subject,
+            emailData.html,
+            emailData.text
+          );
+        }
+
+        console.log("📧 Ride confirmed emails sent to all participants");
       }
 
       return res.json({ received: true });
     }
+
+    // other event types if needed
+    res.json({ received: true });
   } catch (e) {
     console.error("💥 Webhook handler error:", e);
     return res.status(500).json({ error: "Internal error" });
