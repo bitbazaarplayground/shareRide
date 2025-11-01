@@ -76,6 +76,73 @@ router.post("/webhook", async (req, res) => {
 
       // 2️⃣ Recalculate totals and update ride pool status
       await recalcAndMaybeMarkBookable(ridePoolId);
+      // Auto-close ride when seats are full
+      try {
+        const { data: poolData, error: poolDataErr } = await supabase
+          .from("ride_pools")
+          .select("id, ride_id")
+          .eq("id", ridePoolId)
+          .single();
+
+        if (poolDataErr) {
+          console.warn(
+            "⚠️ Auto-close check: failed to load ride_pool",
+            poolDataErr.message
+          );
+        } else if (poolData?.ride_id) {
+          // Fetch total seat capacity from rides
+          const { data: rideData, error: rideErr } = await supabase
+            .from("rides")
+            .select("seats, vehicle_type")
+            .eq("id", poolData.ride_id)
+            .single();
+
+          if (rideErr) {
+            console.warn(
+              "⚠️ Auto-close check: failed to load ride",
+              rideErr.message
+            );
+          } else if (rideData) {
+            const { seat: seatCap } = getVehicleCapacity(rideData.vehicle_type);
+
+            // Count all paid passenger seats
+            const { data: seatRows, error: seatErr } = await supabase
+              .from("ride_pool_contributions")
+              .select("seats_reserved, is_host, status")
+              .eq("ride_pool_id", ridePoolId)
+              .in("status", ["paid"]);
+
+            if (seatErr) {
+              console.warn(
+                "⚠️ Auto-close check: failed to count seats",
+                seatErr.message
+              );
+            } else {
+              const totalSeats = (seatRows || []).reduce(
+                (sum, r) => sum + (Number(r.seats_reserved) || 0),
+                0
+              );
+
+              // Include host baseline (ride creator's seats)
+              const hostSeats = Number(rideData?.seats ?? 1);
+              const totalTaken = totalSeats + hostSeats;
+
+              // Close pool if full
+              if (totalTaken >= seatCap) {
+                await supabase
+                  .from("ride_pools")
+                  .update({ status: "closed" })
+                  .eq("id", ridePoolId);
+                console.log(
+                  `🚫 Ride pool ${ridePoolId} now closed (seats full)`
+                );
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Auto-close seat check failed:", err.message);
+      }
 
       // 3️⃣ Load context data for emails
       // first: get the pool (this table does NOT have from/to/date/time)
@@ -272,9 +339,15 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
       .select("id, status, currency")
       .eq("ride_id", rideId)
       .maybeSingle();
+
     if (!pool) return res.status(404).json({ error: "Pool not found" });
-    if (pool.status !== "collecting")
-      return res.status(400).json({ error: "Pool not collecting" });
+
+    // ✅ Allow booking if the pool is open or confirmed (still has seats)
+    if (!["collecting", "bookable", "confirmed"].includes(pool.status)) {
+      return res
+        .status(400)
+        .json({ error: "This ride is no longer accepting bookings" });
+    }
 
     // ===== Contribution (must already exist for host, pending for riders) =====
     const { data: contrib } = await supabase
@@ -460,7 +533,7 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
       )}`,
       cancel_url: `${APP_ORIGIN}/splitride-confirm/${encodeURIComponent(
         String(rideId)
-      )}`,
+      )}?canceled=true`,
     });
 
     return res.json({ url: session.url });

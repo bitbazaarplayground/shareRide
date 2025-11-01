@@ -29,6 +29,35 @@ export default function SplitRideConfirm() {
   const [lockRemaining, setLockRemaining] = useState(null);
 
   const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
+  // 🧹 Auto-release seat if returning from Stripe cancel
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const canceled = urlParams.get("canceled");
+
+    if (canceled === "true" && rideId && BACKEND) {
+      (async () => {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (!token) return;
+
+          await fetch(`${BACKEND}/api/rides/${rideId}/unlock-seat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          console.log("🔓 Seat auto-released after Stripe cancel");
+        } catch (err) {
+          console.warn("Failed to auto-release seat:", err.message);
+        }
+      })();
+    }
+  }, [rideId, BACKEND]);
 
   // Load ride details (for preview only)
   useEffect(() => {
@@ -61,51 +90,51 @@ export default function SplitRideConfirm() {
   }, []);
 
   // 🔒 Request a booking lock immediately on arrival
-  useEffect(() => {
-    if (!rideId || !userId || !BACKEND) return;
+  // useEffect(() => {
+  //   if (!rideId || !userId || !BACKEND) return;
 
-    let interval;
-    (async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (!token) {
-          console.warn("No Supabase token, cannot lock seat");
-          return;
-        }
+  //   let interval;
+  //   (async () => {
+  //     try {
+  //       const {
+  //         data: { session },
+  //       } = await supabase.auth.getSession();
+  //       const token = session?.access_token;
+  //       if (!token) {
+  //         console.warn("No Supabase token, cannot lock seat");
+  //         return;
+  //       }
 
-        const resp = await fetch(`${BACKEND}/api/rides/${rideId}/lock-seat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  //       const resp = await fetch(`${BACKEND}/api/rides/${rideId}/lock-seat`, {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       });
 
-        const json = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          console.error("Lock-seat error:", json);
-          return;
-        }
+  //       const json = await resp.json().catch(() => ({}));
+  //       if (!resp.ok) {
+  //         console.error("Lock-seat error:", json);
+  //         return;
+  //       }
 
-        if (json.expiresAt) {
-          const expiry = new Date(json.expiresAt).getTime();
-          const update = () => {
-            const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
-            setLockRemaining(diff);
-          };
-          update(); // start immediately
-          interval = setInterval(update, 1000);
-        }
-      } catch (e) {
-        console.error("Lock-seat fetch failed:", e);
-      }
-    })();
+  //       if (json.expiresAt) {
+  //         const expiry = new Date(json.expiresAt).getTime();
+  //         const update = () => {
+  //           const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+  //           setLockRemaining(diff);
+  //         };
+  //         update(); // start immediately
+  //         interval = setInterval(update, 1000);
+  //       }
+  //     } catch (e) {
+  //       console.error("Lock-seat fetch failed:", e);
+  //     }
+  //   })();
 
-    return () => clearInterval(interval);
-  }, [rideId, userId, BACKEND]);
+  //   return () => clearInterval(interval);
+  // }, [rideId, userId, BACKEND]);
 
   const safeFormat = (val) =>
     Number.isFinite(val) ? (val / 100).toFixed(2) : "0.00";
@@ -286,17 +315,59 @@ export default function SplitRideConfirm() {
         body.totalItems = totalItems;
       }
 
+      // 🔒 Lock seat just before payment
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert("You must be logged in to book this ride.");
+        setIsPaying(false);
+        return;
+      }
 
+      try {
+        const lockResp = await fetch(
+          `${BACKEND}/api/rides/${ride.id}/lock-seat`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (!lockResp.ok) {
+          const lockJson = await lockResp.json().catch(() => ({}));
+          console.error("Lock-seat failed:", lockJson);
+          alert("Sorry, this ride is no longer available.");
+          setIsPaying(false);
+          return;
+        }
+
+        const lockData = await lockResp.json().catch(() => ({}));
+        if (lockData.expiresAt) {
+          const expiry = new Date(lockData.expiresAt).getTime();
+          const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+          setLockRemaining(diff);
+        }
+
+        console.log("✅ Seat locked just-in-time before checkout");
+      } catch (err) {
+        console.error("Lock-seat request failed:", err);
+        alert("Could not secure seat before payment.");
+        setIsPaying(false);
+        return;
+      }
+
+      /*  create the Stripe session */
       const response = await fetch(
         `${BACKEND}/api/payments/create-checkout-session`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`, // ✅ Required
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify(body),
         }
@@ -551,8 +622,8 @@ export default function SplitRideConfirm() {
         {hasPaid
           ? "Already Paid"
           : isPaying
-            ? "Processing..."
-            : "Proceed to Payment"}
+          ? "Processing..."
+          : "Proceed to Payment"}
       </button>
 
       <p className="after-payment-note">
