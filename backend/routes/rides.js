@@ -259,17 +259,23 @@ router.post("/:rideId/lock-seat", async (req, res) => {
     const user = await getUserFromToken(req.headers.authorization);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-    // Ensure pool exists
+    // ===== Ensure pool exists =====
     const { data: pool } = await supabase
       .from("ride_pools")
       .select("id, currency, status")
       .eq("ride_id", rideId)
       .maybeSingle();
-    if (!pool) return res.status(404).json({ error: "Ride pool not found" });
-    if (pool.status !== "collecting")
-      return res.status(400).json({ error: "Pool not collecting" });
 
-    // Upsert: either create new "pending" contribution or refresh existing one
+    if (!pool) return res.status(404).json({ error: "Ride pool not found" });
+
+    // ✅ Allow locking seats if pool is still open or confirmed
+    if (!["collecting", "bookable", "confirmed"].includes(pool.status)) {
+      return res
+        .status(400)
+        .json({ error: "This ride is no longer accepting new bookings" });
+    }
+
+    // ===== Upsert or refresh contribution lock =====
     const { data: contrib, error: contribErr } = await supabase
       .from("ride_pool_contributions")
       .upsert(
@@ -285,7 +291,7 @@ router.post("/:rideId/lock-seat", async (req, res) => {
           large_reserved: 0,
           status: "pending",
           is_host: false,
-          created_at: new Date().toISOString(), // reset lock
+          created_at: new Date().toISOString(), // reset lock timer
         },
         { onConflict: "ride_pool_id,user_id" }
       )
@@ -297,7 +303,7 @@ router.post("/:rideId/lock-seat", async (req, res) => {
       return res.status(500).json({ error: "Could not create contribution" });
     }
 
-    // Expire after 5 minutes
+    // ===== 5-minute expiry =====
     const EXP_MS = 5 * 60 * 1000;
     const expiresAt = new Date(
       new Date(contrib.created_at).getTime() + EXP_MS
@@ -307,6 +313,34 @@ router.post("/:rideId/lock-seat", async (req, res) => {
   } catch (err) {
     console.error("❌ lock-seat error (full):", err);
     return res.status(500).json({ error: "Failed to lock seat" });
+  }
+});
+/* ---------------------- Cleanup Expired Seat Locks ---------------------- */
+router.post("/cleanup-expired-locks", async (req, res) => {
+  try {
+    // 🔒 Verify secret
+    const authHeader = req.headers.authorization || "";
+    const providedSecret = authHeader.replace("Bearer ", "").trim();
+
+    if (!providedSecret || providedSecret !== process.env.CRON_SECRET) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // Delete any expired seat locks
+    const { error: delErr, count } = await supabase
+      .from("ride_locks")
+      .delete({ count: "exact" })
+      .lt("expires_at", nowIso);
+
+    if (delErr) throw delErr;
+
+    console.log(`🧹 Released ${count || 0} expired seat locks`);
+    return res.json({ released: count || 0 });
+  } catch (err) {
+    console.error("cleanup-expired-locks failed:", err);
+    return res.status(500).json({ error: "Failed to clean up expired locks" });
   }
 });
 
