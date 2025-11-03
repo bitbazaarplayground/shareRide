@@ -32,25 +32,27 @@ router.post("/:rideId/create-pool", async (req, res) => {
       return res.status(400).json({ error: "rideId and userId are required" });
     }
 
-    // Get ride details (including host’s declared usage)
+    // 1️⃣ Get ride details (including host’s declared usage)
     const { data: ride, error: rideErr } = await supabase
       .from("rides")
       .select(
-        "id, user_id, status, seats, backpack_count, small_suitcase_count, large_suitcase_count"
+        "id, user_id, status, seats, backpack_count, small_suitcase_count, large_suitcase_count, date, time"
       )
       .eq("id", rideId)
       .single();
+
     if (rideErr || !ride)
       return res.status(404).json({ error: "Ride not found" });
     if (ride.status !== "active")
       return res.status(400).json({ error: "Ride is not active" });
 
-    // Check if pool already exists
+    // 2️⃣ Check if pool already exists
     const { data: existingPool } = await supabase
       .from("ride_pools")
       .select("id")
       .eq("ride_id", rideId)
       .maybeSingle();
+
     if (existingPool) {
       return res.json({
         message: "✅ Ride pool already exists",
@@ -58,7 +60,30 @@ router.post("/:rideId/create-pool", async (req, res) => {
       });
     }
 
-    // Create new pool
+    // 3️⃣ Calculate dynamic confirm_by time
+    const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+    const now = new Date();
+    const diffHours = (rideDateTime - now) / (1000 * 60 * 60);
+    //Delete console log
+    console.log("🧠 Ride time difference (hours):", diffHours.toFixed(2));
+
+    let confirmBy;
+    if (diffHours > 24)
+      confirmBy = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    else if (diffHours > 12)
+      confirmBy = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
+    else if (diffHours > 4)
+      confirmBy = new Date(now.getTime() + 1 * 60 * 60 * 1000);
+    else confirmBy = new Date(now.getTime() + 30 * 60 * 1000);
+
+    console.log(
+      `⏰ confirm_by set for ${confirmBy.toISOString()} (${(
+        (confirmBy - now) /
+        (1000 * 60)
+      ).toFixed(0)} minutes from now)`
+    ); //DELETE
+
+    // 4️⃣ Create new pool (with confirm_by)
     const { data: newPool, error: poolErr } = await supabase
       .from("ride_pools")
       .insert({
@@ -66,13 +91,15 @@ router.post("/:rideId/create-pool", async (req, res) => {
         currency: "gbp",
         booker_user_id: ride.user_id || userId,
         status: "collecting",
+        confirm_by: confirmBy.toISOString(),
       })
       .select("id")
       .single();
+
     if (poolErr)
       return res.status(500).json({ error: "Failed to create ride pool" });
-
-    // Insert host contribution (baseline reservation)
+    console.log(`✅ New ride pool ${newPool.id} created for ride ${rideId}`); //delete
+    // 5️⃣ Insert host contribution (baseline reservation)
     const { error: contribErr } = await supabase
       .from("ride_pool_contributions")
       .insert({
@@ -88,6 +115,7 @@ router.post("/:rideId/create-pool", async (req, res) => {
         status: "pending", // host has not paid yet
         is_host: true,
       });
+
     if (contribErr) {
       console.error("❌ Failed to insert host contribution:", contribErr);
       // Don’t fail the request, just warn
@@ -96,6 +124,7 @@ router.post("/:rideId/create-pool", async (req, res) => {
     return res.json({
       message: "✅ Ride pool + host baseline created",
       poolId: newPool.id,
+      confirmBy,
     });
   } catch (err) {
     console.error("❌ create-pool error:", err);

@@ -12,4 +12,5 @@ jobs:
     steps:
       - name: Call TabFair backend to auto-promote rides
         run: |
-          curl -X POST https://shareride-backend.onrender.com/api/payments/cleanup-auto-promote
+          curl -X POST https://shareride-backend.onrender.com/api/payments/cleanup-auto-promote \
+            -H "Authorization: Bearer ${{ secrets.JOB_SECRET }}"
