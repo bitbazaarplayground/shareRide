@@ -1,0 +1,15 @@
+name: Auto-Promote Fallback Host
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # allow manual trigger for testing
+
+jobs:
+  run-auto-promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call TabFair backend to auto-promote rides
+        run: |
+          curl -X POST https://shareride-backend.onrender.com/api/payments/cleanup-auto-promote
