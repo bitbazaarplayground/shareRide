@@ -267,11 +267,55 @@ router.post("/webhook", async (req, res) => {
       } else {
         console.log("👑 Host confirmed ride (paid)");
 
+        // 1️⃣ Mark pool as confirmed
         await supabase
           .from("ride_pools")
           .update({ status: "confirmed" })
           .eq("id", ridePoolId);
 
+        // 2️⃣ Count all paid contributions to freeze totals
+        const { data: paidContribs, error: countErr } = await supabase
+          .from("ride_pool_contributions")
+          .select(
+            "seats_reserved, backpacks_reserved, small_reserved, large_reserved"
+          )
+          .eq("ride_pool_id", ridePoolId)
+          .eq("status", "paid");
+
+        if (countErr) {
+          console.warn(
+            "⚠️ Could not count paid contributions:",
+            countErr.message
+          );
+        } else {
+          const totals = (paidContribs || []).reduce(
+            (acc, c) => {
+              acc.seats += Number(c.seats_reserved || 0);
+              acc.backpacks += Number(c.backpacks_reserved || 0);
+              acc.small += Number(c.small_reserved || 0);
+              acc.large += Number(c.large_reserved || 0);
+              return acc;
+            },
+            { seats: 0, backpacks: 0, small: 0, large: 0 }
+          );
+
+          // 3️⃣ Store aggregated totals in ride_pools
+          await supabase
+            .from("ride_pools")
+            .update({
+              total_reserved_seats: totals.seats,
+              total_reserved_backpacks: totals.backpacks,
+              total_reserved_small: totals.small,
+              total_reserved_large: totals.large,
+            })
+            .eq("id", ridePoolId);
+
+          console.log(
+            `📊 Ride pool ${ridePoolId} frozen with totals: ${totals.seats} seats, ${totals.backpacks}/${totals.small}/${totals.large} luggage.`
+          );
+        }
+
+        // 4️⃣ Notify all paid members
         const { data: paidMembers } = await supabase
           .from("ride_pool_contributions")
           .select("profiles(email)")
@@ -342,11 +386,12 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
 
     if (!pool) return res.status(404).json({ error: "Pool not found" });
 
-    // ✅ Allow booking if the pool is open or confirmed (still has seats)
-    if (!["collecting", "bookable", "confirmed"].includes(pool.status)) {
-      return res
-        .status(400)
-        .json({ error: "This ride is no longer accepting bookings" });
+    // ✅ Allow booking while pool is still collecting or bookable
+    if (pool.status === "confirmed") {
+      return res.status(400).json({ error: "Ride already confirmed by host" });
+    }
+    if (pool.status === "canceled") {
+      return res.status(400).json({ error: "Ride canceled" });
     }
 
     // ===== Contribution (must already exist for host, pending for riders) =====
@@ -699,6 +744,109 @@ router.get("/verify", async (req, res) => {
   } catch (err) {
     console.error("verify error:", err);
     return res.status(500).json({ error: "Verification failed" });
+  }
+});
+/* ---------------------- Auto-Promote Fallback Host ---------------------- */
+router.post("/cleanup-auto-promote", async (req, res) => {
+  try {
+    const nowIso = new Date().toISOString();
+
+    // Find pools that expired and are still collecting
+    const { data: expiredPools, error: poolsErr } = await supabase
+      .from("ride_pools")
+      .select("id")
+      .lt("confirm_by", nowIso)
+      .eq("status", "collecting");
+
+    if (poolsErr) throw poolsErr;
+
+    let promoted = 0;
+
+    for (const pool of expiredPools || []) {
+      // Find first paid passenger (earliest)
+      const { data: firstPaid, error: paidErr } = await supabase
+        .from("ride_pool_contributions")
+        .select("user_id")
+        .eq("ride_pool_id", pool.id)
+        .eq("status", "paid")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (paidErr || !firstPaid) continue;
+
+      // Promote to host
+      const { error: promoteErr } = await supabase
+        .from("ride_pool_contributions")
+        .update({ is_host: true })
+        .eq("ride_pool_id", pool.id)
+        .eq("user_id", firstPaid.user_id);
+
+      if (!promoteErr) {
+        // Mark ride pool as confirmed
+        await supabase
+          .from("ride_pools")
+          .update({ status: "confirmed" })
+          .eq("id", pool.id);
+
+        console.log(
+          `👑 Auto-promoted user ${firstPaid.user_id} for pool ${pool.id}`
+        );
+        promoted++;
+      }
+    }
+
+    res.json({ promoted });
+  } catch (err) {
+    console.error("auto-promote failed:", err);
+    res.status(500).json({ error: "Auto-promote failed" });
+  }
+});
+
+// ---------------------- Simulate Host Confirm (for testing) ----------------------
+
+// ⚠️ TEMPORARY TEST ENDPOINT – simulate host payment webhook
+router.post("/test/simulate-host-confirm", async (req, res) => {
+  const { ridePoolId } = req.body;
+  try {
+    console.log("🧪 Simulating host confirmation for pool", ridePoolId);
+
+    // Same logic as webhook's host-confirm block
+    const { data: paidContribs } = await supabase
+      .from("ride_pool_contributions")
+      .select(
+        "seats_reserved, backpacks_reserved, small_reserved, large_reserved"
+      )
+      .eq("ride_pool_id", ridePoolId)
+      .eq("status", "paid");
+
+    const totals = (paidContribs || []).reduce(
+      (acc, c) => {
+        acc.seats += Number(c.seats_reserved || 0);
+        acc.backpacks += Number(c.backpacks_reserved || 0);
+        acc.small += Number(c.small_reserved || 0);
+        acc.large += Number(c.large_reserved || 0);
+        return acc;
+      },
+      { seats: 0, backpacks: 0, small: 0, large: 0 }
+    );
+
+    await supabase
+      .from("ride_pools")
+      .update({
+        status: "confirmed",
+        total_reserved_seats: totals.seats,
+        total_reserved_backpacks: totals.backpacks,
+        total_reserved_small: totals.small,
+        total_reserved_large: totals.large,
+      })
+      .eq("id", ridePoolId);
+
+    console.log("✅ Pool confirmed and totals frozen:", totals);
+    return res.json({ ok: true, totals });
+  } catch (err) {
+    console.error("simulate-host-confirm failed:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
