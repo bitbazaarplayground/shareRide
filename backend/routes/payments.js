@@ -749,6 +749,20 @@ router.get("/verify", async (req, res) => {
 /* ---------------------- Auto-Promote Fallback Host ---------------------- */
 router.post("/cleanup-auto-promote", async (req, res) => {
   try {
+    // 🔒 Verify authorization
+    const authHeader = req.headers.authorization;
+    const JOB_SECRET = process.env.JOB_SECRET;
+
+    if (!JOB_SECRET) {
+      console.warn("⚠️ JOB_SECRET missing in environment!");
+      return res.status(500).json({ error: "Server misconfigured" });
+    }
+
+    if (authHeader !== `Bearer ${JOB_SECRET}`) {
+      console.warn("🚫 Unauthorized cleanup-auto-promote attempt");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const nowIso = new Date().toISOString();
 
     // 1️⃣ Find expired pools still collecting
