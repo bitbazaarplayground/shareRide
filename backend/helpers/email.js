@@ -256,4 +256,49 @@ export const templates = {
     `,
     };
   },
+  newHostPromotion: ({ from, to, date, time, rideLink }) => ({
+    subject: "👑 You’ve been promoted to ride host on TabFair",
+    html: `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+        <h2 style="color:#e66000;">You’re now the ride host</h2>
+        <p>Since the original host didn’t confirm in time, you’ve been automatically promoted as the new ride host.</p>
+        <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+          <div><strong>From:</strong> ${from}</div>
+          <div><strong>To:</strong> ${to}</div>
+          <div><strong>Date:</strong> ${date}</div>
+          <div><strong>Time:</strong> ${time}</div>
+        </div>
+        <p>
+          <a href="${rideLink}" style="background-color:#e66000;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">View Ride</a>
+        </p>
+        <p style="font-size:14px;color:#555;">You can now manage this ride, confirm details, or cancel if needed. Thank you for keeping the trip on track!</p>
+        <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+        <p style="font-size:13px;color:#777;">Sent by <strong>TabFair</strong> · hello@tabfair.com</p>
+      </div>
+    `,
+    text: `You’ve been promoted to ride host for your trip from ${from} to ${to} on ${date} at ${time}. View your ride: ${rideLink}`,
+  }),
+
+  hostAutoPromoted: ({ from, to, date, time, rideLink }) => ({
+    subject: "Your ride has been confirmed on TabFair",
+    html: `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+        <h2 style="color:#e66000;">Your ride is now confirmed</h2>
+        <p>The ride you joined is now confirmed, and a new host has been automatically assigned. Thank you for your patience!</p>
+        <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+          <div><strong>From:</strong> ${from}</div>
+          <div><strong>To:</strong> ${to}</div>
+          <div><strong>Date:</strong> ${date}</div>
+          <div><strong>Time:</strong> ${time}</div>
+        </div>
+        <p>
+          <a href="${rideLink}" style="background-color:#e66000;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">View Ride</a>
+        </p>
+        <p style="font-size:14px;color:#555;">You can check ride details and message your new host from your account.</p>
+        <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+        <p style="font-size:13px;color:#777;">Sent by <strong>TabFair</strong> · hello@tabfair.com</p>
+      </div>
+    `,
+    text: `Your ride from ${from} to ${to} on ${date} at ${time} is confirmed with a new host. View your ride: ${rideLink}`,
+  }),
 };

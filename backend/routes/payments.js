@@ -751,10 +751,10 @@ router.post("/cleanup-auto-promote", async (req, res) => {
   try {
     const nowIso = new Date().toISOString();
 
-    // Find pools that expired and are still collecting
+    // 1️⃣ Find expired pools still collecting
     const { data: expiredPools, error: poolsErr } = await supabase
       .from("ride_pools")
-      .select("id")
+      .select("id, ride_id")
       .lt("confirm_by", nowIso)
       .eq("status", "collecting");
 
@@ -763,7 +763,7 @@ router.post("/cleanup-auto-promote", async (req, res) => {
     let promoted = 0;
 
     for (const pool of expiredPools || []) {
-      // Find first paid passenger (earliest)
+      // 2️⃣ Find first paid passenger
       const { data: firstPaid, error: paidErr } = await supabase
         .from("ride_pool_contributions")
         .select("user_id")
@@ -775,25 +775,80 @@ router.post("/cleanup-auto-promote", async (req, res) => {
 
       if (paidErr || !firstPaid) continue;
 
-      // Promote to host
+      // 3️⃣ Promote them to host
       const { error: promoteErr } = await supabase
         .from("ride_pool_contributions")
         .update({ is_host: true })
         .eq("ride_pool_id", pool.id)
         .eq("user_id", firstPaid.user_id);
 
-      if (!promoteErr) {
-        // Mark ride pool as confirmed
-        await supabase
-          .from("ride_pools")
-          .update({ status: "confirmed" })
-          .eq("id", pool.id);
+      if (promoteErr) continue;
 
-        console.log(
-          `👑 Auto-promoted user ${firstPaid.user_id} for pool ${pool.id}`
+      // 4️⃣ Mark pool as confirmed
+      await supabase
+        .from("ride_pools")
+        .update({ status: "confirmed" })
+        .eq("id", pool.id);
+
+      // 5️⃣ Get ride info (for email)
+      const { data: ride } = await supabase
+        .from("rides")
+        .select("from, to, date, time")
+        .eq("id", pool.ride_id)
+        .single();
+
+      // 6️⃣ Fetch all paid members
+      const { data: members } = await supabase
+        .from("ride_pool_contributions")
+        .select("profiles(email, nickname), user_id, is_host")
+        .eq("ride_pool_id", pool.id)
+        .eq("status", "paid");
+
+      const newHost = members.find((m) => m.user_id === firstPaid.user_id);
+      const others = members.filter((m) => m.user_id !== firstPaid.user_id);
+
+      const rideLink = `https://www.tabfair.com/my-rides/${pool.ride_id}`;
+
+      // 7️⃣ Email new host
+      if (newHost?.profiles?.email) {
+        const emailH = templates.newHostPromotion({
+          from: ride.from,
+          to: ride.to,
+          date: ride.date,
+          time: ride.time,
+          rideLink,
+        });
+        await sendEmail(
+          newHost.profiles.email,
+          emailH.subject,
+          emailH.html,
+          emailH.text
         );
-        promoted++;
+        console.log(`📧 Notified new host ${newHost.profiles.email}`);
       }
+
+      // 8️⃣ Email others politely
+      for (const m of others) {
+        if (!m.profiles?.email) continue;
+        const emailP = templates.hostAutoPromoted({
+          from: ride.from,
+          to: ride.to,
+          date: ride.date,
+          time: ride.time,
+          rideLink,
+        });
+        await sendEmail(
+          m.profiles.email,
+          emailP.subject,
+          emailP.html,
+          emailP.text
+        );
+      }
+
+      console.log(
+        `👑 Auto-promoted user ${firstPaid.user_id} for pool ${pool.id}`
+      );
+      promoted++;
     }
 
     res.json({ promoted });
