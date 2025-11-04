@@ -64,24 +64,23 @@ router.post("/:rideId/create-pool", async (req, res) => {
     const rideDateTime = new Date(`${ride.date}T${ride.time}`);
     const now = new Date();
     const diffHours = (rideDateTime - now) / (1000 * 60 * 60);
-    //Delete console log
-    console.log("🧠 Ride time difference (hours):", diffHours.toFixed(2));
 
     let confirmBy;
-    if (diffHours > 24)
-      confirmBy = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    else if (diffHours > 12)
-      confirmBy = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
-    else if (diffHours > 4)
-      confirmBy = new Date(now.getTime() + 1 * 60 * 60 * 1000);
-    else confirmBy = new Date(now.getTime() + 30 * 60 * 1000);
 
-    console.log(
-      `⏰ confirm_by set for ${confirmBy.toISOString()} (${(
-        (confirmBy - now) /
-        (1000 * 60)
-      ).toFixed(0)} minutes from now)`
-    ); //DELETE
+    // 🧭 Dynamic time window based on how soon the ride starts
+    if (diffHours > 24) {
+      confirmBy = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours
+    } else if (diffHours > 12) {
+      confirmBy = new Date(now.getTime() + 2.5 * 60 * 60 * 1000); // 2.5 hours
+    } else if (diffHours > 4) {
+      confirmBy = new Date(now.getTime() + 1 * 60 * 60 * 1000); // 1 hour
+    } else {
+      confirmBy = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
+    }
+
+    // 🛡️ Safety fallback — never allow confirm_by beyond the ride time
+    if (confirmBy > rideDateTime)
+      confirmBy = new Date(rideDateTime.getTime() - 10 * 60 * 1000);
 
     // 4️⃣ Create new pool (with confirm_by)
     const { data: newPool, error: poolErr } = await supabase
@@ -96,9 +95,18 @@ router.post("/:rideId/create-pool", async (req, res) => {
       .select("id")
       .single();
 
-    if (poolErr)
+    if (poolErr) {
+      console.error("❌ Failed to create ride pool:", poolErr);
       return res.status(500).json({ error: "Failed to create ride pool" });
-    console.log(`✅ New ride pool ${newPool.id} created for ride ${rideId}`); //delete
+    }
+
+    // console.log(
+    //   `✅ New ride pool ${newPool.id} created for ride ${rideId}. Host must confirm by ${confirmBy.toISOString()} (${(
+    //     (confirmBy - now) /
+    //     (1000 * 60)
+    //   ).toFixed(0)} min from now)`
+    // );
+
     // 5️⃣ Insert host contribution (baseline reservation)
     const { error: contribErr } = await supabase
       .from("ride_pool_contributions")

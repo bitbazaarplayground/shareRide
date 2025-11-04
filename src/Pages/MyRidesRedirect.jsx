@@ -57,8 +57,9 @@ export default function MyRidesRedirect() {
       const { data: contribs, error: cErr } = await supabase
         .from("ride_pool_contributions")
         .select(
-          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status"
+          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status, is_host"
         )
+
         .eq("user_id", user.id)
         .eq("status", "paid");
 
@@ -112,7 +113,9 @@ export default function MyRidesRedirect() {
       let statuses = {};
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_STRIPE_BACKEND}/api/rides/booking-status/batch`,
+          `${
+            import.meta.env.VITE_STRIPE_BACKEND
+          }/api/rides/booking-status/batch`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -140,6 +143,7 @@ export default function MyRidesRedirect() {
               fee: (c.platform_fee_minor || 0) / 100,
               checkedIn: !!c.checked_in_at,
               status: statuses[ride.id] || null, // ✅ inject backend status
+              isHost: c.is_host,
             },
           };
         })
@@ -203,7 +207,10 @@ export default function MyRidesRedirect() {
 
       // call backend
       const res = await fetch(
-        `${import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "")}/api/rides/${rideToDelete}`,
+        `${import.meta.env.VITE_STRIPE_BACKEND.replace(
+          /\/$/,
+          ""
+        )}/api/rides/${rideToDelete}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -326,7 +333,9 @@ export default function MyRidesRedirect() {
                           }
 
                           const res = await fetch(
-                            `${import.meta.env.VITE_STRIPE_BACKEND}/api/payments/create-host-session`,
+                            `${
+                              import.meta.env.VITE_STRIPE_BACKEND
+                            }/api/payments/create-host-session`,
                             {
                               method: "POST",
                               headers: {
@@ -438,6 +447,17 @@ export default function MyRidesRedirect() {
                       bookingDetails={bookingDetails} //CHECK HERE
                       onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                     />
+                    {bookingDetails?.isHost && (
+                      <p
+                        style={{
+                          marginTop: 8,
+                          color: "#007bff",
+                          fontWeight: 600,
+                        }}
+                      >
+                        👑 You are now the host of this ride.
+                      </p>
+                    )}
 
                     {/* Booking status note */}
                     {bookingDetails?.status === "pending" && (
