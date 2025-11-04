@@ -851,6 +851,7 @@ router.post("/cleanup-auto-promote", async (req, res) => {
           time: ride.time,
           rideLink,
         });
+
         await sendEmail(
           m.profiles.email,
           emailP.subject,
