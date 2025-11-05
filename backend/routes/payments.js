@@ -875,6 +875,8 @@ router.post("/cleanup-auto-promote", async (req, res) => {
 
 /* ---------------------- Cleanup No-Show Riders ---------------------- */
 router.post("/cleanup-no-show", async (req, res) => {
+  console.log("🕒 cleanup-no-show called OK");
+
   try {
     // Verify GitHub cron secret
     const authHeader = req.headers.authorization || "";
