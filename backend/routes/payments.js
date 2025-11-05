@@ -7,8 +7,11 @@ import { getVehicleCapacity } from "../helpers/capacity.js";
 import { clamp, toMinor } from "../helpers/pricing.js";
 import { recalcAndMaybeMarkBookable } from "../helpers/ridePool.js";
 import { stripe } from "../helpers/stripe.js";
+console.log("✅ payments.js router loaded");
 
 const router = express.Router();
+console.log("✅ payments.js router loaded");
+router.get("/ping", (req, res) => res.json({ ok: true, route: "payments" }));
 
 /* ---------------------- Pick correct webhook secret ---------------------- */
 function getWebhookSecret() {
