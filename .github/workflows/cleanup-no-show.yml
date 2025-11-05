@@ -1,0 +1,18 @@
+name: Cleanup No-Show Rides
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # Runs every 10 minutes
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cleanup-no-show endpoint
+        run: |
+          echo "🚀 Triggering cleanup-no-show job..."
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET_NOSHOW }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.API_BASE_URL }}/api/payments/cleanup-no-show"

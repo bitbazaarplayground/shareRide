@@ -873,6 +873,78 @@ router.post("/cleanup-auto-promote", async (req, res) => {
   }
 });
 
+/* ---------------------- Cleanup No-Show Riders ---------------------- */
+router.post("/cleanup-no-show", async (req, res) => {
+  try {
+    // Verify GitHub cron secret
+    const authHeader = req.headers.authorization || "";
+    const providedSecret = authHeader.replace("Bearer ", "").trim();
+    if (!providedSecret || providedSecret !== process.env.CRON_SECRET_NOSHOW) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const now = new Date();
+
+    // 1️⃣ Find rides in check-in stage past their start time + 10min
+    const { data: latePools } = await supabase
+      .from("ride_pools")
+      .select(
+        "id, ride_id, booker_user_id, status, code_issued_at, code_expires_at"
+      )
+      .eq("status", "checking_in")
+      .lt("code_expires_at", now.toISOString());
+
+    let promotedCount = 0;
+    let canceledCount = 0;
+
+    for (const pool of latePools || []) {
+      // Fetch contributions
+      const { data: contribs } = await supabase
+        .from("ride_pool_contributions")
+        .select("user_id, is_host, checked_in_at, status")
+        .eq("ride_pool_id", pool.id);
+
+      const paid = contribs.filter((c) => c.status === "paid");
+      const checkedIn = paid.filter((c) => !!c.checked_in_at);
+      const host = contribs.find((c) => c.is_host);
+
+      // Host missing but passengers checked in → promote one
+      if (!host?.checked_in_at && checkedIn.length > 0) {
+        const newHost = checkedIn[0]; // promote first
+        await supabase
+          .from("ride_pool_contributions")
+          .update({ is_host: true })
+          .eq("ride_pool_id", pool.id)
+          .eq("user_id", newHost.user_id);
+
+        await supabase
+          .from("ride_pools")
+          .update({ booker_user_id: newHost.user_id, status: "ready_to_book" })
+          .eq("id", pool.id);
+
+        promotedCount++;
+        console.log(`👑 Auto-promoted ${newHost.user_id} in pool ${pool.id}`);
+        continue;
+      }
+
+      // No one checked in → cancel
+      if (checkedIn.length === 0) {
+        await supabase
+          .from("ride_pools")
+          .update({ status: "canceled" })
+          .eq("id", pool.id);
+        canceledCount++;
+        console.log(`❌ Ride pool ${pool.id} canceled (no one checked in)`);
+      }
+    }
+
+    return res.json({ promoted: promotedCount, canceled: canceledCount });
+  } catch (e) {
+    console.error("cleanup-no-show error:", e);
+    res.status(500).json({ error: "Failed to cleanup no-shows" });
+  }
+});
+
 // ---------------------- Simulate Host Confirm (for testing) ----------------------
 
 // ⚠️ TEMPORARY TEST ENDPOINT – simulate host payment webhook
