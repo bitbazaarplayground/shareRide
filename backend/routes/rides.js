@@ -546,6 +546,66 @@ router.post("/:rideId/claim-booker", async (req, res) => {
   }
 });
 
+/* ---------------------- Check-in with code ---------------------- */
+router.post("/:rideId/check-in", express.json(), async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { userId, code, lat = null, lng = null } = req.body;
+
+    if (!userId || !code) {
+      return res.status(400).json({ error: "Missing userId or code" });
+    }
+
+    // Load pool and verify code
+    const { data: pool, error: poolErr } = await supabase
+      .from("ride_pools")
+      .select("id, booking_code, code_expires_at, status")
+      .eq("ride_id", rideId)
+      .single();
+
+    if (poolErr || !pool)
+      return res.status(404).json({ error: "Ride pool not found" });
+
+    if (pool.booking_code !== code)
+      return res.status(400).json({ error: "Invalid code" });
+
+    if (new Date() > new Date(pool.code_expires_at))
+      return res.status(400).json({ error: "Code expired" });
+
+    // Mark user as checked in
+    const { error: updErr } = await supabase
+      .from("ride_pool_contributions")
+      .update({
+        checked_in_at: new Date().toISOString(),
+        checkin_lat: lat,
+        checkin_lng: lng,
+      })
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", userId)
+      .eq("status", "paid");
+
+    if (updErr) {
+      console.error("check-in update error:", updErr);
+      return res.status(500).json({ error: "Failed to mark check-in" });
+    }
+
+    // Optional: count how many have checked in
+    const { data: contribs } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, checked_in_at, status")
+      .eq("ride_pool_id", pool.id);
+
+    const checkedInCount = (contribs || []).filter(
+      (c) => c.status === "paid" && !!c.checked_in_at
+    ).length;
+
+    return res.json({ ok: true, checkedInCount, required: 2 });
+  } catch (e) {
+    console.error("check-in error:", e);
+    res.status(500).json({ error: "Failed to check in" });
+  }
+});
+
 /* ---------------------- Booker: get Uber deep link ---------------------- */
 router.get("/:rideId/uber-link", async (req, res) => {
   try {
