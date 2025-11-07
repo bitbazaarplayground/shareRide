@@ -35,6 +35,359 @@ function getAppOrigin() {
 }
 
 /* ---------------------- Stripe Webhook ---------------------- */
+// router.post("/webhook", async (req, res) => {
+//   const sig = req.headers["stripe-signature"];
+//   const secret = getWebhookSecret();
+//   let event;
+
+//   try {
+//     event = stripe.webhooks.constructEvent(req.body, sig, secret);
+//     console.log("🔔 Stripe event:", event.type);
+//   } catch (err) {
+//     console.error("❌ Stripe signature verification failed:", err.message);
+//     return res.status(400).send(`Webhook Error: ${err.message}`);
+//   }
+
+//   try {
+//     if (event.type === "checkout.session.completed") {
+//       const session = event.data.object;
+//       const contributionId = Number(session.metadata?.contribution_id || 0);
+//       if (!contributionId) return res.json({ received: true });
+
+//       // 1️⃣ Mark contribution as paid (idempotent)
+//       const { data: updated, error: uErr } = await supabase
+//         .from("ride_pool_contributions")
+//         .update({
+//           status: "paid",
+//           stripe_session_id: session.id,
+//           payment_intent_id: session.payment_intent,
+//           amount_total_minor: session.amount_total ?? null,
+//         })
+//         .eq("id", contributionId)
+//         .in("status", ["pending"])
+//         .select("id, ride_pool_id, is_host, user_id")
+//         .single();
+
+//       if (uErr || !updated) {
+//         console.error("❌ Contribution update failed:", uErr?.message);
+//         return res.json({ received: true });
+//       }
+
+//       const ridePoolId = updated.ride_pool_id;
+//       const isHost = updated.is_host;
+//       const payerId = updated.user_id;
+
+//       // 2️⃣ Recalculate totals and update ride pool status
+//       await recalcAndMaybeMarkBookable(ridePoolId);
+//       // Auto-close ride when seats are full
+//       try {
+//         const { data: poolData, error: poolDataErr } = await supabase
+//           .from("ride_pools")
+//           .select("id, ride_id")
+//           .eq("id", ridePoolId)
+//           .single();
+
+//         if (poolDataErr) {
+//           console.warn(
+//             "⚠️ Auto-close check: failed to load ride_pool",
+//             poolDataErr.message
+//           );
+//         } else if (poolData?.ride_id) {
+//           // Fetch total seat capacity from rides
+//           const { data: rideData, error: rideErr } = await supabase
+//             .from("rides")
+//             .select("seats, vehicle_type")
+//             .eq("id", poolData.ride_id)
+//             .single();
+
+//           if (rideErr) {
+//             console.warn(
+//               "⚠️ Auto-close check: failed to load ride",
+//               rideErr.message
+//             );
+//           } else if (rideData) {
+//             const { seat: seatCap } = getVehicleCapacity(rideData.vehicle_type);
+
+//             // Count all paid passenger seats
+//             const { data: seatRows, error: seatErr } = await supabase
+//               .from("ride_pool_contributions")
+//               .select("seats_reserved, is_host, status")
+//               .eq("ride_pool_id", ridePoolId)
+//               .in("status", ["paid"]);
+
+//             if (seatErr) {
+//               console.warn(
+//                 "⚠️ Auto-close check: failed to count seats",
+//                 seatErr.message
+//               );
+//             } else {
+//               const totalSeats = (seatRows || []).reduce(
+//                 (sum, r) => sum + (Number(r.seats_reserved) || 0),
+//                 0
+//               );
+
+//               // Include host baseline (ride creator's seats)
+//               const hostSeats = Number(rideData?.seats ?? 1);
+//               const totalTaken = totalSeats + hostSeats;
+
+//               // Close pool if full
+//               if (totalTaken >= seatCap) {
+//                 await supabase
+//                   .from("ride_pools")
+//                   .update({ status: "closed" })
+//                   .eq("id", ridePoolId);
+//                 console.log(
+//                   `🚫 Ride pool ${ridePoolId} now closed (seats full)`
+//                 );
+//               }
+//             }
+//           }
+//         }
+//       } catch (err) {
+//         console.warn("⚠️ Auto-close seat check failed:", err.message);
+//       }
+
+//       // 3️⃣ Load context data for emails
+//       // first: get the pool (this table does NOT have from/to/date/time)
+//       const { data: ridePool, error: poolErr } = await supabase
+//         .from("ride_pools")
+//         .select("id, ride_id, status, min_contributors")
+//         .eq("id", ridePoolId)
+//         .single();
+
+//       if (poolErr || !ridePool) {
+//         console.warn(
+//           "⚠️ Could not load ride_pools row for",
+//           ridePoolId,
+//           poolErr?.message
+//         );
+//         return res.json({ received: true });
+//       }
+
+//       // now: get the actual ride info (this DOES have from/to/date/time)
+//       const { data: rideRow, error: rideErr } = await supabase
+//         .from("rides")
+//         .select("from, to, date, time, user_id")
+//         .eq("id", ridePool.ride_id)
+//         .single();
+
+//       if (rideErr || !rideRow) {
+//         console.warn(
+//           "⚠️ Could not load rides row for",
+//           ridePool.ride_id,
+//           rideErr?.message
+//         );
+//         return res.json({ received: true });
+//       }
+
+//       // also get paid members (to email them later)
+//       const { data: members } = await supabase
+//         .from("ride_pool_contributions")
+//         .select("user_id, is_host, status, profiles(email, nickname)")
+//         .eq("ride_pool_id", ridePoolId)
+//         .eq("status", "paid");
+
+//       // build a clean object we can pass to templates
+//       const rideInfo = {
+//         from: rideRow.from || "—",
+//         to: rideRow.to || "—",
+//         date: rideRow.date || "—",
+//         time: rideRow.time || "—",
+//         rideId: ridePool.ride_id,
+//         hostUserId: rideRow.user_id,
+//       };
+
+//       // 4️⃣ Determine payer email
+//       let payerEmail =
+//         session.customer_details?.email || session.customer_email || null;
+//       if (!payerEmail && session?.metadata?.user_id) {
+//         const { data: prof } = await supabase
+//           .from("profiles")
+//           .select("email")
+//           .eq("id", session.metadata.user_id)
+//           .single();
+//         payerEmail = prof?.email || null;
+//       }
+
+//       // 5️⃣ Logic split: passenger vs host
+//       if (!isHost) {
+//         console.log("🚗 Passenger booked a ride");
+
+//         // Find host and passenger
+//         const host = members.find((m) => m.is_host);
+//         const passenger = members.find((m) => m.user_id === payerId);
+//         const passengerName =
+//           passenger?.profiles?.nickname ||
+//           session.customer_details?.name ||
+//           "a passenger";
+
+//         // ✅ Ensure we always have host email and nickname
+//         let hostEmail = host?.profiles?.email || null;
+//         let hostNickname = host?.profiles?.nickname || "the ride host";
+
+//         if (!hostEmail && rideInfo.hostUserId) {
+//           const { data: hostProf } = await supabase
+//             .from("profiles")
+//             .select("email, nickname")
+//             .eq("id", rideInfo.hostUserId)
+//             .single();
+
+//           if (hostProf) {
+//             hostEmail = hostProf.email;
+//             hostNickname = hostProf.nickname || hostNickname;
+//           }
+//         }
+
+//         // a) Passenger email: confirmation of their booking
+//         const emailP = templates.passengerBooked({
+//           ...rideInfo,
+//           host: hostNickname,
+//           amount: ((session.amount_total ?? 0) / 100).toFixed(2),
+//           currency: String(session.currency || "gbp").toUpperCase(),
+//         });
+
+//         if (payerEmail) {
+//           await sendEmail(payerEmail, emailP.subject, emailP.html, emailP.text);
+//           console.log(`📧 Passenger email sent to ${payerEmail}`);
+//         }
+
+//         // b) Host email: notification that someone joined their ride
+//         if (hostEmail) {
+//           const rideLink = `http://localhost:5173/my-rides/${rideInfo.rideId}`;
+//           const emailH = templates.hostNotified({
+//             ...rideInfo,
+//             nickname: passengerName,
+//             rideLink, // optional link for future UI
+//           });
+
+//           await sendEmail(hostEmail, emailH.subject, emailH.html, emailH.text);
+//           console.log(`📧 Host email sent to ${hostEmail}`);
+//         } else {
+//           console.warn("⚠️ No host email found — host not notified.");
+//         }
+
+//         console.log("📧 Passenger + host notified successfully");
+//       } else {
+//         console.log("👑 Host confirmed ride (paid)");
+
+//         // 1️⃣ Mark pool as confirmed
+//         await supabase
+//           .from("ride_pools")
+//           .update({ status: "confirmed" })
+//           .eq("id", ridePoolId);
+//         // 3️⃣ Immediately generate and store booking code
+//         try {
+//           const code = generateCode6();
+//           const issuedAt = new Date();
+
+//           // Fetch ride info to compute expiration
+//           const { data: rideData, error: rideFetchErr } = await supabase
+//             .from("rides")
+//             .select("date, time")
+//             .eq("id", rideInfo?.rideId || poolData.ride_id)
+//             .single();
+
+//           if (rideFetchErr || !rideData) {
+//             console.warn(
+//               "⚠️ Could not fetch ride info for booking code:",
+//               rideFetchErr?.message
+//             );
+//           } else {
+//             const rideStart = new Date(`${rideData.date}T${rideData.time}`);
+//             const expiresAt = new Date(
+//               rideStart.getTime() + 10 * 60 * 1000
+//             ).toISOString();
+
+//             await supabase
+//               .from("ride_pools")
+//               .update({
+//                 booking_code: code,
+//                 code_issued_at: issuedAt.toISOString(),
+//                 code_expires_at: expiresAt,
+//               })
+//               .eq("id", ridePoolId);
+
+//             console.log(
+//               `🎟️ Booking code ${code} issued for ride ${rideInfo.rideId}`
+//             );
+//           }
+//         } catch (err) {
+//           console.error("❌ Failed to issue booking code:", err.message);
+//         }
+
+//         // 2️⃣ Count all paid contributions to freeze totals
+//         const { data: paidContribs, error: countErr } = await supabase
+//           .from("ride_pool_contributions")
+//           .select(
+//             "seats_reserved, backpacks_reserved, small_reserved, large_reserved"
+//           )
+//           .eq("ride_pool_id", ridePoolId)
+//           .eq("status", "paid");
+
+//         if (countErr) {
+//           console.warn(
+//             "⚠️ Could not count paid contributions:",
+//             countErr.message
+//           );
+//         } else {
+//           const totals = (paidContribs || []).reduce(
+//             (acc, c) => {
+//               acc.seats += Number(c.seats_reserved || 0);
+//               acc.backpacks += Number(c.backpacks_reserved || 0);
+//               acc.small += Number(c.small_reserved || 0);
+//               acc.large += Number(c.large_reserved || 0);
+//               return acc;
+//             },
+//             { seats: 0, backpacks: 0, small: 0, large: 0 }
+//           );
+
+//           // 3️⃣ Store aggregated totals in ride_pools
+//           await supabase
+//             .from("ride_pools")
+//             .update({
+//               total_reserved_seats: totals.seats,
+//               total_reserved_backpacks: totals.backpacks,
+//               total_reserved_small: totals.small,
+//               total_reserved_large: totals.large,
+//             })
+//             .eq("id", ridePoolId);
+
+//           console.log(
+//             `📊 Ride pool ${ridePoolId} frozen with totals: ${totals.seats} seats, ${totals.backpacks}/${totals.small}/${totals.large} luggage.`
+//           );
+//         }
+
+//         // 4️⃣ Notify all paid members
+//         const { data: paidMembers } = await supabase
+//           .from("ride_pool_contributions")
+//           .select("profiles(email)")
+//           .eq("ride_pool_id", ridePoolId)
+//           .eq("status", "paid");
+
+//         const emailT = templates.rideConfirmed(rideInfo);
+
+//         for (const m of paidMembers || []) {
+//           const email = m.profiles?.email;
+//           if (email) {
+//             await sendEmail(email, emailT.subject, emailT.html, emailT.text);
+//             console.log(`📧 Ride confirmed email sent to ${email}`);
+//           }
+//         }
+
+//         console.log("📧 Ride confirmed emails sent to all participants");
+//       }
+
+//       return res.json({ received: true });
+//     }
+
+//     // other event types if needed
+//     res.json({ received: true });
+//   } catch (e) {
+//     console.error("💥 Webhook handler error:", e);
+//     return res.status(500).json({ error: "Internal error" });
+//   }
+// });
+/* ---------------------- Stripe Webhook ---------------------- */
 router.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const secret = getWebhookSecret();
@@ -79,7 +432,8 @@ router.post("/webhook", async (req, res) => {
 
       // 2️⃣ Recalculate totals and update ride pool status
       await recalcAndMaybeMarkBookable(ridePoolId);
-      // Auto-close ride when seats are full
+
+      // --- SEAT CAPACITY AUTO-CLOSE (same as before) ---
       try {
         const { data: poolData, error: poolDataErr } = await supabase
           .from("ride_pools")
@@ -87,197 +441,149 @@ router.post("/webhook", async (req, res) => {
           .eq("id", ridePoolId)
           .single();
 
-        if (poolDataErr) {
-          console.warn(
-            "⚠️ Auto-close check: failed to load ride_pool",
-            poolDataErr.message
-          );
-        } else if (poolData?.ride_id) {
-          // Fetch total seat capacity from rides
-          const { data: rideData, error: rideErr } = await supabase
+        if (!poolDataErr && poolData?.ride_id) {
+          const { data: rideData } = await supabase
             .from("rides")
             .select("seats, vehicle_type")
             .eq("id", poolData.ride_id)
             .single();
 
-          if (rideErr) {
-            console.warn(
-              "⚠️ Auto-close check: failed to load ride",
-              rideErr.message
-            );
-          } else if (rideData) {
-            const { seat: seatCap } = getVehicleCapacity(rideData.vehicle_type);
+          const { seat: seatCap } = getVehicleCapacity(rideData.vehicle_type);
+          const { data: seatRows } = await supabase
+            .from("ride_pool_contributions")
+            .select("seats_reserved, status")
+            .eq("ride_pool_id", ridePoolId)
+            .eq("status", "paid");
 
-            // Count all paid passenger seats
-            const { data: seatRows, error: seatErr } = await supabase
-              .from("ride_pool_contributions")
-              .select("seats_reserved, is_host, status")
-              .eq("ride_pool_id", ridePoolId)
-              .in("status", ["paid"]);
+          const totalSeats = (seatRows || []).reduce(
+            (sum, r) => sum + (Number(r.seats_reserved) || 0),
+            0
+          );
 
-            if (seatErr) {
-              console.warn(
-                "⚠️ Auto-close check: failed to count seats",
-                seatErr.message
-              );
-            } else {
-              const totalSeats = (seatRows || []).reduce(
-                (sum, r) => sum + (Number(r.seats_reserved) || 0),
-                0
-              );
-
-              // Include host baseline (ride creator's seats)
-              const hostSeats = Number(rideData?.seats ?? 1);
-              const totalTaken = totalSeats + hostSeats;
-
-              // Close pool if full
-              if (totalTaken >= seatCap) {
-                await supabase
-                  .from("ride_pools")
-                  .update({ status: "closed" })
-                  .eq("id", ridePoolId);
-                console.log(
-                  `🚫 Ride pool ${ridePoolId} now closed (seats full)`
-                );
-              }
-            }
+          if (totalSeats >= seatCap) {
+            await supabase
+              .from("ride_pools")
+              .update({ status: "closed" })
+              .eq("id", ridePoolId);
+            console.log(`🚫 Ride pool ${ridePoolId} closed (seats full)`);
           }
         }
       } catch (err) {
         console.warn("⚠️ Auto-close seat check failed:", err.message);
       }
 
-      // 3️⃣ Load context data for emails
-      // first: get the pool (this table does NOT have from/to/date/time)
+      // 3️⃣ Load pool + ride data for emails and code generation
       const { data: ridePool, error: poolErr } = await supabase
         .from("ride_pools")
         .select("id, ride_id, status, min_contributors")
         .eq("id", ridePoolId)
         .single();
 
-      if (poolErr || !ridePool) {
-        console.warn(
-          "⚠️ Could not load ride_pools row for",
-          ridePoolId,
-          poolErr?.message
-        );
-        return res.json({ received: true });
-      }
+      if (poolErr || !ridePool) return res.json({ received: true });
 
-      // now: get the actual ride info (this DOES have from/to/date/time)
-      const { data: rideRow, error: rideErr } = await supabase
+      const { data: rideRow } = await supabase
         .from("rides")
         .select("from, to, date, time, user_id")
         .eq("id", ridePool.ride_id)
         .single();
 
-      if (rideErr || !rideRow) {
-        console.warn(
-          "⚠️ Could not load rides row for",
-          ridePool.ride_id,
-          rideErr?.message
-        );
-        return res.json({ received: true });
-      }
-
-      // also get paid members (to email them later)
       const { data: members } = await supabase
         .from("ride_pool_contributions")
         .select("user_id, is_host, status, profiles(email, nickname)")
         .eq("ride_pool_id", ridePoolId)
         .eq("status", "paid");
 
-      // build a clean object we can pass to templates
       const rideInfo = {
-        from: rideRow.from || "—",
-        to: rideRow.to || "—",
-        date: rideRow.date || "—",
-        time: rideRow.time || "—",
+        from: rideRow.from,
+        to: rideRow.to,
+        date: rideRow.date,
+        time: rideRow.time,
         rideId: ridePool.ride_id,
         hostUserId: rideRow.user_id,
       };
 
-      // 4️⃣ Determine payer email
-      let payerEmail =
-        session.customer_details?.email || session.customer_email || null;
-      if (!payerEmail && session?.metadata?.user_id) {
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", session.metadata.user_id)
-          .single();
-        payerEmail = prof?.email || null;
-      }
-
-      // 5️⃣ Logic split: passenger vs host
+      // 4️⃣ Handle host vs passenger logic
       if (!isHost) {
         console.log("🚗 Passenger booked a ride");
-
-        // Find host and passenger
         const host = members.find((m) => m.is_host);
         const passenger = members.find((m) => m.user_id === payerId);
-        const passengerName =
-          passenger?.profiles?.nickname ||
-          session.customer_details?.name ||
-          "a passenger";
 
-        // ✅ Ensure we always have host email and nickname
-        let hostEmail = host?.profiles?.email || null;
-        let hostNickname = host?.profiles?.nickname || "the ride host";
+        const hostEmail = host?.profiles?.email || null;
+        const hostNickname = host?.profiles?.nickname || "the ride host";
+        const passengerEmail =
+          session.customer_details?.email || passenger?.profiles?.email;
 
-        if (!hostEmail && rideInfo.hostUserId) {
-          const { data: hostProf } = await supabase
-            .from("profiles")
-            .select("email, nickname")
-            .eq("id", rideInfo.hostUserId)
-            .single();
-
-          if (hostProf) {
-            hostEmail = hostProf.email;
-            hostNickname = hostProf.nickname || hostNickname;
-          }
+        // Send passenger + host notifications
+        if (passengerEmail) {
+          const emailP = templates.passengerBooked({
+            ...rideInfo,
+            host: hostNickname,
+            amount: ((session.amount_total ?? 0) / 100).toFixed(2),
+            currency: String(session.currency || "gbp").toUpperCase(),
+          });
+          await sendEmail(
+            passengerEmail,
+            emailP.subject,
+            emailP.html,
+            emailP.text
+          );
+          console.log(`📧 Passenger email sent to ${passengerEmail}`);
         }
 
-        // a) Passenger email: confirmation of their booking
-        const emailP = templates.passengerBooked({
-          ...rideInfo,
-          host: hostNickname,
-          amount: ((session.amount_total ?? 0) / 100).toFixed(2),
-          currency: String(session.currency || "gbp").toUpperCase(),
-        });
-
-        if (payerEmail) {
-          await sendEmail(payerEmail, emailP.subject, emailP.html, emailP.text);
-          console.log(`📧 Passenger email sent to ${payerEmail}`);
-        }
-
-        // b) Host email: notification that someone joined their ride
         if (hostEmail) {
-          const rideLink = `http://localhost:5173/my-rides/${rideInfo.rideId}`;
+          const rideLink = `https://tabfair.netlify.app/my-rides/${rideInfo.rideId}`;
           const emailH = templates.hostNotified({
             ...rideInfo,
-            nickname: passengerName,
-            rideLink, // optional link for future UI
+            nickname: passenger?.profiles?.nickname || "a passenger",
+            rideLink,
           });
-
           await sendEmail(hostEmail, emailH.subject, emailH.html, emailH.text);
           console.log(`📧 Host email sent to ${hostEmail}`);
-        } else {
-          console.warn("⚠️ No host email found — host not notified.");
         }
-
-        console.log("📧 Passenger + host notified successfully");
       } else {
         console.log("👑 Host confirmed ride (paid)");
 
-        // 1️⃣ Mark pool as confirmed
+        // ✅ Mark pool as confirmed
         await supabase
           .from("ride_pools")
           .update({ status: "confirmed" })
           .eq("id", ridePoolId);
 
-        // 2️⃣ Count all paid contributions to freeze totals
-        const { data: paidContribs, error: countErr } = await supabase
+        // ✅ Generate unique code for each paid member (NEW)
+        const { data: rideData, error: rideFetchErr } = await supabase
+          .from("rides")
+          .select("date, time")
+          .eq("id", rideInfo.rideId)
+          .single();
+
+        if (!rideFetchErr && rideData) {
+          const rideStart = new Date(`${rideData.date}T${rideData.time}`);
+          const expiresAtDefault = new Date(
+            rideStart.getTime() + 10 * 60 * 1000
+          ).toISOString();
+
+          for (const m of members || []) {
+            const code = generateCode6();
+            const issuedAt = new Date();
+
+            await supabase
+              .from("ride_pool_contributions")
+              .update({
+                booking_code: code,
+                code_issued_at: issuedAt.toISOString(),
+                code_expires_at: expiresAtDefault,
+              })
+              .eq("ride_pool_id", ridePoolId)
+              .eq("user_id", m.user_id);
+
+            console.log(
+              `🎟️ Code ${code} issued to user ${m.user_id} for ride ${rideInfo.rideId}`
+            );
+          }
+        }
+
+        // ✅ Freeze totals
+        const { data: paidContribs } = await supabase
           .from("ride_pool_contributions")
           .select(
             "seats_reserved, backpacks_reserved, small_reserved, large_reserved"
@@ -285,63 +591,46 @@ router.post("/webhook", async (req, res) => {
           .eq("ride_pool_id", ridePoolId)
           .eq("status", "paid");
 
-        if (countErr) {
-          console.warn(
-            "⚠️ Could not count paid contributions:",
-            countErr.message
-          );
-        } else {
-          const totals = (paidContribs || []).reduce(
-            (acc, c) => {
-              acc.seats += Number(c.seats_reserved || 0);
-              acc.backpacks += Number(c.backpacks_reserved || 0);
-              acc.small += Number(c.small_reserved || 0);
-              acc.large += Number(c.large_reserved || 0);
-              return acc;
-            },
-            { seats: 0, backpacks: 0, small: 0, large: 0 }
-          );
+        const totals = (paidContribs || []).reduce(
+          (acc, c) => {
+            acc.seats += Number(c.seats_reserved || 0);
+            acc.backpacks += Number(c.backpacks_reserved || 0);
+            acc.small += Number(c.small_reserved || 0);
+            acc.large += Number(c.large_reserved || 0);
+            return acc;
+          },
+          { seats: 0, backpacks: 0, small: 0, large: 0 }
+        );
 
-          // 3️⃣ Store aggregated totals in ride_pools
-          await supabase
-            .from("ride_pools")
-            .update({
-              total_reserved_seats: totals.seats,
-              total_reserved_backpacks: totals.backpacks,
-              total_reserved_small: totals.small,
-              total_reserved_large: totals.large,
-            })
-            .eq("id", ridePoolId);
+        await supabase
+          .from("ride_pools")
+          .update({
+            total_reserved_seats: totals.seats,
+            total_reserved_backpacks: totals.backpacks,
+            total_reserved_small: totals.small,
+            total_reserved_large: totals.large,
+          })
+          .eq("id", ridePoolId);
 
-          console.log(
-            `📊 Ride pool ${ridePoolId} frozen with totals: ${totals.seats} seats, ${totals.backpacks}/${totals.small}/${totals.large} luggage.`
-          );
-        }
+        console.log(
+          `📊 Ride pool ${ridePoolId} totals frozen: ${totals.seats} seats.`
+        );
 
-        // 4️⃣ Notify all paid members
-        const { data: paidMembers } = await supabase
-          .from("ride_pool_contributions")
-          .select("profiles(email)")
-          .eq("ride_pool_id", ridePoolId)
-          .eq("status", "paid");
-
+        // ✅ Notify all paid members
         const emailT = templates.rideConfirmed(rideInfo);
-
-        for (const m of paidMembers || []) {
+        for (const m of members || []) {
           const email = m.profiles?.email;
           if (email) {
             await sendEmail(email, emailT.subject, emailT.html, emailT.text);
             console.log(`📧 Ride confirmed email sent to ${email}`);
           }
         }
-
-        console.log("📧 Ride confirmed emails sent to all participants");
       }
 
       return res.json({ received: true });
     }
 
-    // other event types if needed
+    // other event types
     res.json({ received: true });
   } catch (e) {
     console.error("💥 Webhook handler error:", e);

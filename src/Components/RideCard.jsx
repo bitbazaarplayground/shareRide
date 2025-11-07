@@ -160,6 +160,17 @@ export default function RideCard({
             ride.max_passengers ??
             "—"}
         </p>
+        {/* Booking Code */}
+        {bookingDetails?.booking_code && (
+          <p>
+            <strong>Your Code:</strong> {bookingDetails.booking_code}
+            <br />
+            <small className="muted">
+              Share this code once you meet your host. Do not share this code
+              before meeting.
+            </small>
+          </p>
+        )}
 
         {/* Optional: legacy "booked" details (payments table) */}
         {bookingDetails &&
@@ -267,6 +278,14 @@ export default function RideCard({
 
       {/* Slot for extra UI (e.g., IssueCodePanel / CheckInPanel / ConfirmBookedButton) */}
       {children ? <div className="ride-card-extra">{children}</div> : null}
+      {/* Host-only section */}
+      {user && ride.profiles?.id === user.id && (
+        <div className="host-section">
+          <h4>Group Status</h4>
+          <p>Group is ready?</p>
+          <CheckInPanel rideId={ride.id} user={user} />
+        </div>
+      )}
 
       <hr />
     </div>

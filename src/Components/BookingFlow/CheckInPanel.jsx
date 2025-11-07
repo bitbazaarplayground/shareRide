@@ -1,5 +1,5 @@
-// src/Components/BookingFlow/CheckInPanel.jsx
 import { useState } from "react";
+import { toast } from "react-toastify";
 import useBookingStatus from "../../hooks/useBookingStatus";
 
 export default function CheckInPanel({ rideId, user }) {
@@ -12,6 +12,7 @@ export default function CheckInPanel({ rideId, user }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [checkedInMessage, setCheckedInMessage] = useState(""); // ✅ success feedback message
 
   const show =
     !loading &&
@@ -19,8 +20,10 @@ export default function CheckInPanel({ rideId, user }) {
     (status.codeActive || status.status === "checking_in");
 
   const onCheckIn = async () => {
-    if (!BACKEND) return alert("Backend not configured.");
-    if (!code.trim()) return alert("Enter the code you received.");
+    if (!BACKEND) return toast.error("Backend not configured.");
+    if (!code.trim())
+      return toast.warning("Please enter your 6-character code.");
+
     setBusy(true);
     try {
       const res = await fetch(`${BACKEND}/api/rides/${rideId}/check-in`, {
@@ -29,20 +32,38 @@ export default function CheckInPanel({ rideId, user }) {
         body: JSON.stringify({ userId, code: code.trim() }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Check-in failed");
-      alert(`✅ Checked in. (${json.checkedInCount}/${json.required})`);
+
+      if (!res.ok) {
+        if (json.error?.toLowerCase().includes("invalid"))
+          toast.error("❌ Invalid code. Please check and try again.");
+        else if (json.error?.toLowerCase().includes("expired"))
+          toast.error("⏰ This code has expired. Ask your host to reissue it.");
+        else if (json.error?.toLowerCase().includes("already"))
+          toast.info("✅ You’re already checked in.");
+        else toast.error(json.error || "Check-in failed.");
+        return;
+      }
+
+      toast.success(
+        `✅ Checked in successfully (${json.checkedInCount}/${json.required} riders present)`
+      );
+
+      // ✅ Show success message visually under button
+      setCheckedInMessage("✅ You’re checked in!");
+      setTimeout(() => setCheckedInMessage(""), 5000); // auto-hide after 5s
+
       setCode("");
       refresh();
     } catch (e) {
       console.error(e);
-      alert(e.message || "Failed to check in.");
+      toast.error(e.message || "Failed to check in.");
     } finally {
       setBusy(false);
     }
   };
 
   const onClaimHost = async () => {
-    if (!BACKEND) return alert("Backend not configured.");
+    if (!BACKEND) return toast.error("Backend not configured.");
     setClaiming(true);
     try {
       const res = await fetch(`${BACKEND}/api/rides/${rideId}/claim-booker`, {
@@ -52,13 +73,12 @@ export default function CheckInPanel({ rideId, user }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to claim host");
-      alert(
-        "✅ You are now the host! You can generate codes and confirm booking."
-      );
+
+      toast.success("👑 You are now the host! You can generate new codes.");
       refresh();
     } catch (e) {
       console.error(e);
-      alert(e.message || "Failed to claim host.");
+      toast.error(e.message || "Failed to claim host.");
     } finally {
       setClaiming(false);
     }
@@ -67,13 +87,12 @@ export default function CheckInPanel({ rideId, user }) {
   if (!show) return null;
 
   const canClaimHost =
-    status?.status === "checking_in" || status?.status === "ready_to_book"; // server enforces grace + quorum
+    status?.status === "checking_in" || status?.status === "ready_to_book";
 
   return (
     <div className="checkin-panel">
-      <h4>Enter check-in code</h4>
+      <h4>Enter your check-in code</h4>
 
-      {/* Host badge */}
       {status?.isBooker && (
         <span
           style={{
@@ -90,26 +109,51 @@ export default function CheckInPanel({ rideId, user }) {
         </span>
       )}
 
-      <div className="checkin-row">
+      <div className="checkin-row" style={{ display: "flex", gap: "0.5rem" }}>
         <input
           type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
+          inputMode="text"
+          pattern="[A-Z0-9]*"
           maxLength={6}
-          placeholder="6-digit code"
+          placeholder="Enter 6-character code"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
           aria-label="Check-in code"
+          style={{
+            flex: 1,
+            padding: "0.4rem",
+            borderRadius: "6px",
+            border: "1px solid #ccc",
+          }}
         />
-        <button className="btn" onClick={onCheckIn} disabled={busy}>
+        <button
+          className="btn"
+          onClick={onCheckIn}
+          disabled={busy}
+          style={{ minWidth: "110px" }}
+        >
           {busy ? "Checking in…" : "Check in"}
         </button>
       </div>
+
+      {/* ✅ Success message (fades after 5s) */}
+      {checkedInMessage && (
+        <p
+          style={{
+            color: "green",
+            fontWeight: 600,
+            marginTop: "0.4rem",
+            transition: "opacity 0.4s ease",
+          }}
+        >
+          {checkedInMessage}
+        </p>
+      )}
+
       <p className="muted">
-        This confirms you’re present with the group and unlocks booking.
+        Enter the code you received after meeting your host.
       </p>
 
-      {/* Claim host UI */}
       {canClaimHost && !status?.isBooker && (
         <div style={{ marginTop: "0.75rem" }}>
           <button
@@ -120,9 +164,8 @@ export default function CheckInPanel({ rideId, user }) {
             {claiming ? "Claiming…" : "Claim Host"}
           </button>
           <p className="muted" style={{ marginTop: "0.25rem" }}>
-            Waiting for the host to confirm. If the host cannot continue,
-            another rider may be assigned as the new host to keep the ride
-            moving.
+            If the host doesn’t show up, you can claim host status after the
+            grace period to continue the ride.
           </p>
         </div>
       )}

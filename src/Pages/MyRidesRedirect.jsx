@@ -57,9 +57,8 @@ export default function MyRidesRedirect() {
       const { data: contribs, error: cErr } = await supabase
         .from("ride_pool_contributions")
         .select(
-          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status, is_host"
+          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status, is_host, booking_code"
         )
-
         .eq("user_id", user.id)
         .eq("status", "paid");
 
@@ -96,7 +95,13 @@ export default function MyRidesRedirect() {
       }
       const { data: rides, error: rErr } = await supabase
         .from("rides")
-        .select("*, profiles(*)")
+        .select(
+          `
+    *,
+    profiles(*),
+    ride_pools(booking_code)
+  `
+        )
         .in("id", rideIds);
 
       if (rErr) {
@@ -133,6 +138,7 @@ export default function MyRidesRedirect() {
           const pool = byPoolId[c.ride_pool_id];
           const ride = byRideId[pool?.ride_id];
           if (!ride) return null;
+          // ride.booking_code = ride.ride_pools?.booking_code || null;
 
           return {
             ride,
@@ -144,6 +150,7 @@ export default function MyRidesRedirect() {
               checkedIn: !!c.checked_in_at,
               status: statuses[ride.id] || null, // ✅ inject backend status
               isHost: c.is_host,
+              booking_code: c.booking_code || null,
             },
           };
         })
