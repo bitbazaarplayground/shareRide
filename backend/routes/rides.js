@@ -381,12 +381,11 @@ router.post("/cleanup-expired-locks", async (req, res) => {
   }
 });
 
-/* ---------------------- Issue check-in code (booker only) ---------------------- */
+/* ---------------------- Issue check-in codes (booker only) ---------------------- */
 router.post("/:rideId/issue-code", express.json(), async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
 
-    // Validate body
     if (!req.body || typeof req.body !== "object") {
       return res.status(400).json({ error: "Missing or invalid JSON body" });
     }
@@ -396,7 +395,7 @@ router.post("/:rideId/issue-code", express.json(), async (req, res) => {
       return res.status(400).json({ error: "Missing userId in request body" });
     }
 
-    // Load pool
+    // 1️⃣ Load pool
     const { data: pool, error: poolErr } = await supabase
       .from("ride_pools")
       .select("id, booker_user_id, status")
@@ -411,43 +410,78 @@ router.post("/:rideId/issue-code", express.json(), async (req, res) => {
     }
     if (!pool) return res.status(404).json({ error: "Pool not found" });
 
-    // Must be the booker
+    // 2️⃣ Verify the user is the booker
     if (pool.booker_user_id !== userId) {
-      return res.status(403).json({ error: "Only the booker can issue code" });
+      return res.status(403).json({ error: "Only the booker can issue codes" });
     }
 
-    // Pool must be in the right state
+    // 3️⃣ Ensure the pool is in the correct state
     if (!["bookable", "checking_in"].includes(pool.status)) {
       return res
         .status(400)
         .json({ error: `Pool not ready for check-in (status=${pool.status})` });
     }
 
-    // Generate code & expiry
-    const code = generateCode6();
-    const ttl = clamp(Number(ttlSeconds), 120, 1800); // 2–30 min
+    // 4️⃣ Prepare timestamps
+    const ttl = Math.max(120, Math.min(Number(ttlSeconds), 1800)); // clamp 2–30 min
     const issuedAt = new Date();
     const expiresAt = new Date(issuedAt.getTime() + ttl * 1000).toISOString();
 
-    const { error: updErr } = await supabase
+    // 5️⃣ Update pool (window info)
+    const { error: updPoolErr } = await supabase
       .from("ride_pools")
       .update({
-        booking_code: code,
-        code_expires_at: expiresAt,
         code_issued_at: issuedAt.toISOString(),
+        code_expires_at: expiresAt,
         status: "checking_in",
       })
       .eq("id", pool.id);
 
-    if (updErr) {
-      console.error("Supabase update error:", updErr.message);
-      return res.status(500).json({ error: "Failed to update pool with code" });
+    if (updPoolErr) {
+      console.error("Supabase pool update error:", updPoolErr.message);
+      return res.status(500).json({ error: "Failed to update pool state" });
     }
 
-    return res.json({ code, expiresAt });
+    // 6️⃣ Fetch all paid contributors
+    const { data: contribs, error: contribErr } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, booking_code, status")
+      .eq("ride_pool_id", pool.id)
+      .eq("status", "paid");
+
+    if (contribErr) {
+      console.error("Supabase contrib error:", contribErr.message);
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch ride contributions" });
+    }
+
+    // 7️⃣ Assign unique codes for each contributor (if they don’t have one)
+    for (const c of contribs) {
+      // ⛔️ Skip if user already has a valid (non-expired) code
+      if (c.booking_code && c.code_expires_at > new Date().toISOString())
+        continue;
+
+      const newCode = generateCode6();
+
+      await supabase
+        .from("ride_pool_contributions")
+        .update({
+          booking_code: newCode,
+          code_expires_at: expiresAt,
+          code_issued_at: issuedAt.toISOString(),
+        })
+        .eq("id", c.id);
+    }
+
+    console.log(
+      `🎟️ Issued personal booking codes for ${contribs.length} passengers (ride ${rideId})`
+    );
+
+    return res.json({ expiresAt, ok: true });
   } catch (e) {
     console.error("issue-code error:", e);
-    res.status(500).json({ error: "Failed to issue code" });
+    res.status(500).json({ error: "Failed to issue booking codes" });
   }
 });
 
@@ -547,62 +581,149 @@ router.post("/:rideId/claim-booker", async (req, res) => {
 });
 
 /* ---------------------- Check-in with code ---------------------- */
+// router.post("/:rideId/check-in", express.json(), async (req, res) => {
+//   try {
+//     const rideId = Number(req.params.rideId);
+//     const { userId, code, lat = null, lng = null } = req.body;
+
+//     if (!userId || !code) {
+//       return res.status(400).json({ error: "Missing userId or code" });
+//     }
+
+//     // Load pool and verify code
+//     const { data: pool, error: poolErr } = await supabase
+//       .from("ride_pools")
+//       .select("id, booking_code, code_expires_at, status")
+//       .eq("ride_id", rideId)
+//       .single();
+
+//     if (poolErr || !pool)
+//       return res.status(404).json({ error: "Ride pool not found" });
+
+//     if (pool.booking_code !== code)
+//       return res.status(400).json({ error: "Invalid code" });
+
+//     if (new Date() > new Date(pool.code_expires_at))
+//       return res.status(400).json({ error: "Code expired" });
+
+//     // Mark user as checked in
+//     const { error: updErr } = await supabase
+//       .from("ride_pool_contributions")
+//       .update({
+//         checked_in_at: new Date().toISOString(),
+//         checkin_lat: lat,
+//         checkin_lng: lng,
+//       })
+//       .eq("ride_pool_id", pool.id)
+//       .eq("user_id", userId)
+//       .eq("status", "paid");
+
+//     if (updErr) {
+//       console.error("check-in update error:", updErr);
+//       return res.status(500).json({ error: "Failed to mark check-in" });
+//     }
+
+//     // Optional: count how many have checked in
+//     const { data: contribs } = await supabase
+//       .from("ride_pool_contributions")
+//       .select("id, checked_in_at, status")
+//       .eq("ride_pool_id", pool.id);
+
+//     const checkedInCount = (contribs || []).filter(
+//       (c) => c.status === "paid" && !!c.checked_in_at
+//     ).length;
+
+//     return res.json({ ok: true, checkedInCount, required: 2 });
+//   } catch (e) {
+//     console.error("check-in error:", e);
+//     res.status(500).json({ error: "Failed to check in" });
+//   }
+// });
+/* ---------------------- Check-in with code (riders) ---------------------- */
 router.post("/:rideId/check-in", express.json(), async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
-    const { userId, code, lat = null, lng = null } = req.body;
+    const { userId, code } = req.body;
 
     if (!userId || !code) {
       return res.status(400).json({ error: "Missing userId or code" });
     }
 
-    // Load pool and verify code
+    // 1️⃣ Get the pool
     const { data: pool, error: poolErr } = await supabase
       .from("ride_pools")
-      .select("id, booking_code, code_expires_at, status")
+      .select("id, status, code_expires_at")
       .eq("ride_id", rideId)
-      .single();
+      .maybeSingle();
 
     if (poolErr || !pool)
-      return res.status(404).json({ error: "Ride pool not found" });
+      return res.status(404).json({ error: "Pool not found" });
 
-    if (pool.booking_code !== code)
-      return res.status(400).json({ error: "Invalid code" });
+    // 2️⃣ Check if code window expired
+    const nowIso = new Date().toISOString();
+    if (pool.code_expires_at && pool.code_expires_at < nowIso) {
+      return res
+        .status(400)
+        .json({ error: "Code expired, ask host to reissue" });
+    }
 
-    if (new Date() > new Date(pool.code_expires_at))
-      return res.status(400).json({ error: "Code expired" });
-
-    // Mark user as checked in
-    const { error: updErr } = await supabase
+    // 3️⃣ Verify that the user’s contribution has the matching code
+    const { data: contrib, error: contribErr } = await supabase
       .from("ride_pool_contributions")
-      .update({
-        checked_in_at: new Date().toISOString(),
-        checkin_lat: lat,
-        checkin_lng: lng,
-      })
+      .select("id, checked_in_at, booking_code, code_expires_at")
       .eq("ride_pool_id", pool.id)
       .eq("user_id", userId)
-      .eq("status", "paid");
+      .maybeSingle();
+
+    if (contribErr || !contrib) {
+      return res.status(404).json({ error: "No active contribution found" });
+    }
+
+    // 4️⃣ Validate the code
+    if (
+      !contrib.booking_code ||
+      contrib.booking_code.trim().toUpperCase() !== code.trim().toUpperCase()
+    ) {
+      return res.status(400).json({ error: "Invalid code" });
+    }
+
+    // 5️⃣ Check if their personal code expired (extra safety)
+    if (contrib.code_expires_at && contrib.code_expires_at < nowIso) {
+      return res.status(400).json({ error: "This code has expired" });
+    }
+
+    // 6️⃣ Mark as checked in
+    const { error: updErr } = await supabase
+      .from("ride_pool_contributions")
+      .update({ checked_in_at: new Date().toISOString() })
+      .eq("id", contrib.id);
 
     if (updErr) {
-      console.error("check-in update error:", updErr);
+      console.error("Check-in update error:", updErr.message);
       return res.status(500).json({ error: "Failed to mark check-in" });
     }
 
-    // Optional: count how many have checked in
-    const { data: contribs } = await supabase
+    // 7️⃣ Count how many have checked in
+    const { count: checkedInCount } = await supabase
       .from("ride_pool_contributions")
-      .select("id, checked_in_at, status")
-      .eq("ride_pool_id", pool.id);
+      .select("*", { count: "exact", head: true })
+      .eq("ride_pool_id", pool.id)
+      .not("checked_in_at", "is", null);
 
-    const checkedInCount = (contribs || []).filter(
-      (c) => c.status === "paid" && !!c.checked_in_at
-    ).length;
+    const { count: totalCount } = await supabase
+      .from("ride_pool_contributions")
+      .select("*", { count: "exact", head: true })
+      .eq("ride_pool_id", pool.id)
+      .eq("status", "paid");
 
-    return res.json({ ok: true, checkedInCount, required: 2 });
+    return res.json({
+      ok: true,
+      checkedInCount: checkedInCount || 0,
+      required: totalCount || 0,
+    });
   } catch (e) {
     console.error("check-in error:", e);
-    res.status(500).json({ error: "Failed to check in" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

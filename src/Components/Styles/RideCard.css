@@ -8,9 +8,7 @@
   margin-bottom: 1.5rem;
   background-color: #fff;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ride-card:hover {
@@ -146,4 +144,9 @@
 
 .separator {
   display: none;
+}
+/* Booking code */
+.muted {
+  color: #666;
+  font-size: 0.85rem;
 }
