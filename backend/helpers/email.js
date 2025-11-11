@@ -5,7 +5,7 @@ const BREVO_KEY = process.env.BREVO_API_KEY;
 const FROM = process.env.BREVO_FROM || "TabFair <hello@tabfair.com>";
 
 // ✅ Automatically pick frontend URL
-const APP_ORIGIN =
+export const APP_ORIGIN =
   process.env.APP_ORIGIN ||
   (process.env.NODE_ENV === "production"
     ? "https://jade-rolypoly-5d4274.netlify.app"
@@ -71,7 +71,7 @@ export const templates = {
     currency,
     rideId,
   }) => {
-    const rideLink = `http://localhost:5173/my-rides${
+    const rideLink = `${APP_ORIGIN.replace(/\/$/, "")}/my-rides${
       rideId ? `#ride-${rideId}` : ""
     }`;
 
@@ -138,70 +138,65 @@ export const templates = {
   },
 
   // 2️⃣ Host — notified that a passenger joined
-  hostNotified: ({ from, to, date, time, nickname, rideId }) => {
-    const rideLink = `http://localhost:5173/my-rides${
-      rideId ? `#ride-${rideId}` : ""
-    }`;
+  hostNotified: ({ from, to, date, time, nickname, rideLink }) => {
+    // ✅ Accept prebuilt link from backend, fallback to live domain
+    const link = rideLink || `${APP_ORIGIN.replace(/\/$/, "")}/my-rides`;
 
     return {
       subject: "👋 A passenger joined your ride on TabFair",
       html: `
-        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
-          <h2 style="color:#0a84ff;margin-bottom:12px;">A new passenger joined your ride!</h2>
-          <p>
-            <strong>${nickname}</strong> just booked a seat on your shared ride. 
-            Please <strong>review and confirm the trip</strong> to secure your group and allow the booking to proceed.
-          </p>
-    
-          <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
-            <div><strong>From:</strong> ${from}</div>
-            <div><strong>To:</strong> ${to}</div>
-            <div><strong>Date:</strong> ${date}</div>
-            <div><strong>Time:</strong> ${time}</div>
-          </div>
-    
-          <p style="margin:20px 0;">
-            <a href="${rideLink}"
-               style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
-              Review & Confirm Ride
-            </a>
-          </p>
-    
-          <p style="font-size:14px;color:#555;">
-            Once you confirm, your passenger(s) will be notified and the ride will be marked as active.  
-            If you don’t confirm, the booking will expire automatically and the passenger will be refunded in full.
-          </p>
-    
-          <p style="font-size:14px;color:#555;margin-top:12px;">
-            You can manage all your rides anytime from your account.
-          </p>
-    
-          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-          <p style="font-size:13px;color:#777;">
-            This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
-            © 2025 TabFair Ltd. All rights reserved.
-          </p>
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;line-height:1.5;max-width:600px;margin:auto;padding:20px;">
+        <h2 style="color:#0a84ff;margin-bottom:12px;">A new passenger joined your ride!</h2>
+        <p>
+          <strong>${nickname}</strong> just booked a seat on your shared ride. 
+          Please <strong>review and confirm the trip</strong> to secure your group and allow the booking to proceed.
+        </p>
+
+        <div style="margin:16px 0;padding:16px;border:1px solid #eee;border-radius:10px;background:#fafafa;">
+          <div><strong>From:</strong> ${from}</div>
+          <div><strong>To:</strong> ${to}</div>
+          <div><strong>Date:</strong> ${date}</div>
+          <div><strong>Time:</strong> ${time}</div>
         </div>
-      `,
-      text: `${nickname} just joined your ride.
-    
-    From: ${from}
-    To: ${to}
-    Date: ${date}
-    Time: ${time}
-    
-    Please review and confirm the trip to secure your passenger(s):
-    ${rideLink}
-    
-    Once confirmed, the ride becomes active.
-    If not confirmed, the booking will expire and the passenger will be refunded in full.
+
+        <p style="margin:20px 0;">
+          <a href="${link}"
+             style="background-color:#0a84ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;font-weight:600;">
+            Review & Confirm Ride
+          </a>
+        </p>
+
+        <p style="font-size:14px;color:#555;">
+          Once you confirm, your passenger(s) will be notified and the ride will be marked as active.  
+          If you don’t confirm, the booking will expire automatically and the passenger will be refunded in full.
+        </p>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+        <p style="font-size:13px;color:#777;">
+          This email was sent by <strong>TabFair</strong> · hello@tabfair.com<br>
+          © 2025 TabFair Ltd. All rights reserved.
+        </p>
+      </div>
     `,
+      text: `${nickname} just joined your ride.
+
+From: ${from}
+To: ${to}
+Date: ${date}
+Time: ${time}
+
+Please review and confirm the trip to secure your passenger(s):
+${link}
+
+Once confirmed, the ride becomes active.
+If not confirmed, the booking will expire and the passenger will be refunded in full.
+`,
     };
   },
 
   // 3️⃣ Ride confirmed — sent to both passenger & host
   rideConfirmed: ({ from, to, date, time, rideId }) => {
-    const rideLink = `http://localhost:5173/my-rides${
+    const rideLink = `${APP_ORIGIN.replace(/\/$/, "")}/my-rides${
       rideId ? `#ride-${rideId}` : ""
     }`;
 

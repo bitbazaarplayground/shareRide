@@ -1,6 +1,7 @@
 // src/Components/RideCard.jsx
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import CheckInPanel from "./BookingFlow/CheckInPanel";
 
 export default function RideCard({
   ride,

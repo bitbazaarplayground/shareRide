@@ -288,7 +288,6 @@ router.post("/:rideId/cancel", express.json(), async (req, res) => {
     res.status(500).json({ error: "Host cancel failed" });
   }
 });
-
 /* ---------------------- Lock seat ---------------------- */
 router.post("/:rideId/lock-seat", async (req, res) => {
   try {
@@ -312,7 +311,30 @@ router.post("/:rideId/lock-seat", async (req, res) => {
         .json({ error: "This ride is no longer accepting new bookings" });
     }
 
-    // ===== Upsert or refresh contribution lock =====
+    const EXP_MS = 5 * 60 * 1000; // 5-minute lock
+    const now = Date.now();
+
+    // ===== Check for existing valid contribution =====
+    const { data: existing } = await supabase
+      .from("ride_pool_contributions")
+      .select("id, created_at")
+      .eq("ride_pool_id", pool.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existing) {
+      const expiry = new Date(existing.created_at).getTime() + EXP_MS;
+      if (expiry > now) {
+        // 🕒 Reuse valid lock (don’t reset timer)
+        return res.json({
+          contributionId: existing.id,
+          expiresAt: new Date(expiry).toISOString(),
+          reused: true,
+        });
+      }
+    }
+
+    // ===== Create or refresh contribution lock =====
     const { data: contrib, error: contribErr } = await supabase
       .from("ride_pool_contributions")
       .upsert(
@@ -328,7 +350,7 @@ router.post("/:rideId/lock-seat", async (req, res) => {
           large_reserved: 0,
           status: "pending",
           is_host: false,
-          created_at: new Date().toISOString(), // reset lock timer
+          created_at: new Date().toISOString(), // new timer start
         },
         { onConflict: "ride_pool_id,user_id" }
       )
@@ -340,18 +362,18 @@ router.post("/:rideId/lock-seat", async (req, res) => {
       return res.status(500).json({ error: "Could not create contribution" });
     }
 
-    // ===== 5-minute expiry =====
-    const EXP_MS = 5 * 60 * 1000;
+    // ===== Calculate expiry =====
     const expiresAt = new Date(
       new Date(contrib.created_at).getTime() + EXP_MS
     ).toISOString();
 
-    return res.json({ contributionId: contrib.id, expiresAt });
+    return res.json({ contributionId: contrib.id, expiresAt, reused: false });
   } catch (err) {
     console.error("❌ lock-seat error (full):", err);
     return res.status(500).json({ error: "Failed to lock seat" });
   }
 });
+
 /* ---------------------- Cleanup Expired Seat Locks ---------------------- */
 router.post("/cleanup-expired-locks", async (req, res) => {
   try {

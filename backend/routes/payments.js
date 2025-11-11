@@ -1,17 +1,14 @@
 // backend/routes/payments.js
 import express from "express";
-import { sendEmail, templates } from "../helpers/email.js";
+import { APP_ORIGIN, sendEmail, templates } from "../helpers/email.js";
 import { supabase } from "../supabaseClient.js";
 
 import { getVehicleCapacity } from "../helpers/capacity.js";
 import { clamp, toMinor } from "../helpers/pricing.js";
 import { recalcAndMaybeMarkBookable } from "../helpers/ridePool.js";
 import { stripe } from "../helpers/stripe.js";
-console.log("✅ payments.js router loaded");
 
 const router = express.Router();
-console.log("✅ payments.js router loaded");
-router.get("/ping", (req, res) => res.json({ ok: true, route: "payments" }));
 
 /* ---------------------- Pick correct webhook secret ---------------------- */
 function getWebhookSecret() {
@@ -531,12 +528,16 @@ router.post("/webhook", async (req, res) => {
         }
 
         if (hostEmail) {
-          const rideLink = `https://tabfair.netlify.app/my-rides/${rideInfo.rideId}`;
+          const rideLink = `${APP_ORIGIN.replace(/\/$/, "")}/my-rides/${
+            rideInfo.rideId
+          }`;
+
           const emailH = templates.hostNotified({
             ...rideInfo,
             nickname: passenger?.profiles?.nickname || "a passenger",
             rideLink,
           });
+
           await sendEmail(hostEmail, emailH.subject, emailH.html, emailH.text);
           console.log(`📧 Host email sent to ${hostEmail}`);
         }
@@ -1113,7 +1114,9 @@ router.post("/cleanup-auto-promote", async (req, res) => {
       const newHost = members.find((m) => m.user_id === firstPaid.user_id);
       const others = members.filter((m) => m.user_id !== firstPaid.user_id);
 
-      const rideLink = `https://www.tabfair.com/my-rides/${pool.ride_id}`;
+      const rideLink = `${APP_ORIGIN.replace(/\/$/, "")}/my-rides/${
+        pool.ride_id
+      }`;
 
       // 7️⃣ Email new host
       if (newHost?.profiles?.email) {
