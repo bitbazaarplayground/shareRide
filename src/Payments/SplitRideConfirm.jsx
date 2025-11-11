@@ -27,6 +27,10 @@ export default function SplitRideConfirm() {
 
   // Booking lock countdown
   const [lockRemaining, setLockRemaining] = useState(null);
+  const [lockLoading, setLockLoading] = useState(true);
+
+  // 5-min timer
+  const [expiresAt, setExpiresAt] = useState(null);
 
   const BACKEND = import.meta.env.VITE_STRIPE_BACKEND;
   // 🧹 Auto-release seat if returning from Stripe cancel
@@ -89,52 +93,50 @@ export default function SplitRideConfirm() {
     })();
   }, []);
 
-  // 🔒 Request a booking lock immediately on arrival
-  // useEffect(() => {
-  //   if (!rideId || !userId || !BACKEND) return;
+  // === Real backend timer ===
+  useEffect(() => {
+    if (!rideId || !BACKEND) return;
+    (async () => {
+      setLockLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setLockLoading(false);
+        return;
+      }
 
-  //   let interval;
-  //   (async () => {
-  //     try {
-  //       const {
-  //         data: { session },
-  //       } = await supabase.auth.getSession();
-  //       const token = session?.access_token;
-  //       if (!token) {
-  //         console.warn("No Supabase token, cannot lock seat");
-  //         return;
-  //       }
+      try {
+        const res = await fetch(`${BACKEND}/api/rides/${rideId}/lock-seat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
 
-  //       const resp = await fetch(`${BACKEND}/api/rides/${rideId}/lock-seat`, {
-  //         method: "POST",
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           Authorization: `Bearer ${token}`,
-  //         },
-  //       });
+        const data = await res.json();
+        if (res.ok && data.expiresAt) {
+          const expiry = new Date(data.expiresAt).getTime();
+          const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+          setLockRemaining(diff);
+        }
+      } catch (err) {
+        console.warn("⚠️ Could not start or reuse seat lock:", err.message);
+      } finally {
+        setLockLoading(false);
+      }
+    })();
+  }, [rideId, BACKEND]);
 
-  //       const json = await resp.json().catch(() => ({}));
-  //       if (!resp.ok) {
-  //         console.error("Lock-seat error:", json);
-  //         return;
-  //       }
-
-  //       if (json.expiresAt) {
-  //         const expiry = new Date(json.expiresAt).getTime();
-  //         const update = () => {
-  //           const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
-  //           setLockRemaining(diff);
-  //         };
-  //         update(); // start immediately
-  //         interval = setInterval(update, 1000);
-  //       }
-  //     } catch (e) {
-  //       console.error("Lock-seat fetch failed:", e);
-  //     }
-  //   })();
-
-  //   return () => clearInterval(interval);
-  // }, [rideId, userId, BACKEND]);
+  // Update countdown every second
+  useEffect(() => {
+    if (lockRemaining == null) return;
+    const timer = setInterval(() => {
+      setLockRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockRemaining]);
 
   const safeFormat = (val) =>
     Number.isFinite(val) ? (val / 100).toFixed(2) : "0.00";
@@ -150,21 +152,6 @@ export default function SplitRideConfirm() {
   );
 
   const hasPaid = !!booking?.hasPaid;
-
-  // If backend reports a new lock expiry, sync countdown
-  useEffect(() => {
-    if (!booking?.lock?.expiresAt) return;
-    const expiry = new Date(booking.lock.expiresAt).getTime();
-
-    const update = () => {
-      const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
-      setLockRemaining(diff);
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [booking?.lock?.expiresAt]);
 
   // --- Capacity handling ---
   const seatsLimit =
@@ -569,8 +556,14 @@ export default function SplitRideConfirm() {
         </strong>{" "}
         £{totalWithFee}
       </p>
+      {/* Timer loading indicator */}
+      {lockLoading && (
+        <p style={{ marginTop: 12, color: "#666" }}>
+          ⏳ Securing your booking slot...
+        </p>
+      )}
 
-      {/* Lock countdown timer */}
+      {/* Show backend (real) lock timer only if exists */}
       {lockRemaining !== null && (
         <div style={{ marginTop: 12 }}>
           {lockRemaining > 0 ? (
