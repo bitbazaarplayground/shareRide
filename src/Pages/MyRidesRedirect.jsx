@@ -31,16 +31,30 @@ export default function MyRidesRedirect() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rideToDelete, setRideToDelete] = useState(null);
 
+  //Timer Countdown
+  // for live countdown timer
+  const [now, setNow] = useState(Date.now());
+
   useEffect(() => {
     if (!user) return;
 
     const fetchPublishedRides = async () => {
       const { data, error } = await supabase
         .from("rides")
-        .select("*")
+        .select("*, ride_pools(id, confirm_by, status)")
         .eq("user_id", user.id)
         .order("date", { ascending: true });
-      if (!error) setPublishedRides(data || []);
+
+      if (!error) {
+        // 🔧 Normalize ride_pools into an array
+        const normalized = (data || []).map((r) => ({
+          ...r,
+          ride_pools: Array.isArray(r.ride_pools)
+            ? r.ride_pools
+            : [r.ride_pools],
+        }));
+        setPublishedRides(normalized);
+      }
     };
 
     const fetchSavedRides = async () => {
@@ -57,10 +71,10 @@ export default function MyRidesRedirect() {
       const { data: contribs, error: cErr } = await supabase
         .from("ride_pool_contributions")
         .select(
-          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status, is_host, booking_code"
+          "id, ride_pool_id, user_share_minor, platform_fee_minor, checked_in_at, status, is_host, booking_code, lost_host"
         )
         .eq("user_id", user.id)
-        .eq("status", "paid");
+        .in("status", ["pending", "paid"]);
 
       if (cErr) {
         console.warn("contribs error:", cErr);
@@ -76,7 +90,7 @@ export default function MyRidesRedirect() {
       const poolIds = [...new Set(contribs.map((c) => c.ride_pool_id))];
       const { data: pools, error: pErr } = await supabase
         .from("ride_pools")
-        .select("id, ride_id, status, min_contributors")
+        .select("id, ride_id, status, min_contributors, confirm_by")
         .in("id", poolIds);
 
       if (pErr) {
@@ -148,8 +162,9 @@ export default function MyRidesRedirect() {
               share: (c.user_share_minor || 0) / 100,
               fee: (c.platform_fee_minor || 0) / 100,
               checkedIn: !!c.checked_in_at,
-              status: statuses[ride.id] || null, // ✅ inject backend status
+              status: statuses[ride.id] || null,
               isHost: c.is_host,
+              lost_host: !!c.lost_host,
               booking_code: c.booking_code || null,
             },
           };
@@ -253,6 +268,48 @@ export default function MyRidesRedirect() {
     }
   };
 
+  // Confirm ride button logic
+  const canShowConfirmButton = (ride, pool, bookingDetails, user) => {
+    if (!ride || !user) return false;
+
+    const now = new Date();
+    const rideDateTime = new Date(`${ride.date}T${ride.time || "00:00"}`);
+
+    // 1️⃣ Ride already departed
+    if (rideDateTime <= now) return false;
+
+    // 2️⃣ Host confirmation window expired
+    const confirmBy = pool?.confirm_by ? new Date(pool.confirm_by) : null;
+    if (confirmBy && confirmBy <= now) return false;
+
+    // 3️⃣ Host already confirmed or ride completed
+    const status = bookingDetails?.status;
+    if (["confirmed", "completed", "paid"].includes(status)) return false;
+
+    // 4️⃣ Only show to the current host
+    if (!bookingDetails?.isHost && ride.user_id !== user.id) return false;
+
+    // ✅ All good
+    return true;
+  };
+  //Counter
+  // tick every second to update countdown
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // helper to format time left (mm:ss)
+  const getCountdown = (confirmBy) => {
+    if (!confirmBy) return null;
+    const diffMs = new Date(confirmBy) - new Date();
+    if (diffMs <= 0) return "expired";
+
+    const mins = Math.floor(diffMs / 60000);
+    const secs = Math.floor((diffMs % 60000) / 1000);
+    return `${mins}m ${secs}s`;
+  };
+
   return (
     <div className="public-profile">
       <h2>My Rides</h2>
@@ -293,6 +350,7 @@ export default function MyRidesRedirect() {
                     onEdit={handleEdit}
                     onDelete={() => confirmDelete(ride.id)}
                   />
+
                   {/* Booking status badge (only if ride.bookingDetails exists) */}
                   {ride.bookingDetails?.status === "pending" && (
                     <p
@@ -305,7 +363,6 @@ export default function MyRidesRedirect() {
                       🟠 Pending — waiting on host to confirm
                     </p>
                   )}
-
                   {ride.bookingDetails?.status === "confirmed" && (
                     <p
                       style={{ marginTop: 6, color: "green", fontWeight: 500 }}
@@ -313,66 +370,98 @@ export default function MyRidesRedirect() {
                       🟢 Confirmed — ride is scheduled
                     </p>
                   )}
-
                   {ride.bookingDetails?.status === "canceled" && (
                     <p style={{ marginTop: 6, color: "red", fontWeight: 500 }}>
                       🔴 Canceled — your payment has been refunded
                     </p>
                   )}
 
-                  {/* Host "Confirm Ride" button */}
-                  {ride.user_id === user.id && (
-                    <button
-                      className="btn"
-                      onClick={async () => {
-                        try {
-                          // 🔑 get Supabase JWT
-                          const {
-                            data: { session },
-                          } = await supabase.auth.getSession();
-                          const token = session?.access_token;
+                  {/* 🔹 Only show Confirm button if host’s window not expired */}
+                  {(ride.user_id === user.id || bookingDetails?.isHost) &&
+                    Array.isArray(ride.ride_pools) &&
+                    ride.ride_pools[0]?.confirm_by &&
+                    getCountdown(ride.ride_pools[0].confirm_by) !==
+                      "expired" && (
+                      <button
+                        className="btn"
+                        onClick={async () => {
+                          try {
+                            const {
+                              data: { session },
+                            } = await supabase.auth.getSession();
+                            const token = session?.access_token;
 
-                          if (!token) {
-                            toast.error(
-                              "Not authenticated. Please log in again."
-                            );
-                            return;
-                          }
-
-                          const res = await fetch(
-                            `${
-                              import.meta.env.VITE_STRIPE_BACKEND
-                            }/api/payments/create-host-session`,
-                            {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${token}`,
-                              },
-                              body: JSON.stringify({
-                                rideId: ride.id,
-                                userId: user.id,
-                                email: user.email,
-                              }),
+                            if (!token) {
+                              toast.error(
+                                "Not authenticated. Please log in again."
+                              );
+                              return;
                             }
-                          );
 
-                          const data = await res.json();
-                          if (data.url) {
-                            window.location.href = data.url; // redirect to Stripe Checkout
-                          } else {
-                            toast.error(
-                              data.error || "Failed to start host confirmation"
+                            const res = await fetch(
+                              `${
+                                import.meta.env.VITE_STRIPE_BACKEND
+                              }/api/payments/create-host-session`,
+                              {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                  rideId: ride.id,
+                                  userId: user.id,
+                                  email: user.email,
+                                }),
+                              }
                             );
+
+                            const data = await res.json();
+                            if (data.url) {
+                              window.location.href = data.url;
+                            } else {
+                              toast.error(
+                                data.error ||
+                                  "Failed to start host confirmation"
+                              );
+                            }
+                          } catch (e) {
+                            toast.error("Request failed");
                           }
-                        } catch (e) {
-                          toast.error("Request failed");
-                        }
-                      }}
-                    >
-                      Confirm Ride
-                    </button>
-                  )}
+                        }}
+                      >
+                        Confirm Ride
+                      </button>
+                    )}
+
+                  {/* 🔸 Show live countdown until host confirmation expires */}
+                  {ride.ride_pools?.length > 0 &&
+                    ride.ride_pools[0]?.confirm_by && (
+                      <p
+                        style={{
+                          marginTop: 6,
+                          fontSize: "0.9em",
+                          color:
+                            getCountdown(ride.ride_pools[0].confirm_by) ===
+                            "expired"
+                              ? "red"
+                              : "#555",
+                          fontWeight:
+                            getCountdown(ride.ride_pools[0].confirm_by) ===
+                            "expired"
+                              ? "600"
+                              : "400",
+                        }}
+                      >
+                        ⏳ Confirm by{" "}
+                        {getCountdown(ride.ride_pools[0].confirm_by) ===
+                        "expired"
+                          ? "Host window expired — next passenger may become host"
+                          : `Confirm within ${getCountdown(
+                              ride.ride_pools[0].confirm_by
+                            )}`}
+                      </p>
+                    )}
                 </li>
               ))}
             </ul>
@@ -388,9 +477,7 @@ export default function MyRidesRedirect() {
                   key={ride.id}
                   ride={ride}
                   user={user}
-                  canEdit={true}
-                  onEdit={handleEdit}
-                  onDelete={() => confirmDelete(ride.id)}
+                  canEdit={false}
                 />
               ))}
             </ul>
@@ -454,15 +541,29 @@ export default function MyRidesRedirect() {
                       bookingDetails={bookingDetails} //CHECK HERE
                       onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                     />
-                    {bookingDetails?.isHost && (
+                    {/* Host / Promotion messages */}
+                    {bookingDetails?.isHost && !bookingDetails?.lost_host && (
                       <p
                         style={{
                           marginTop: 8,
-                          color: "#007bff",
-                          fontWeight: 600,
+                          color: "green",
+                          fontWeight: 500,
                         }}
                       >
                         👑 You are now the host of this ride.
+                      </p>
+                    )}
+
+                    {bookingDetails?.lost_host && !bookingDetails?.isHost && (
+                      <p
+                        style={{
+                          marginTop: 8,
+                          color: "#b76e00",
+                          fontWeight: 500,
+                        }}
+                      >
+                        ⚠️ Your host window expired. Another passenger may now
+                        host this ride.
                       </p>
                     )}
 
@@ -513,7 +614,7 @@ export default function MyRidesRedirect() {
                     )}
 
                     {/* Progress tracker */}
-                    <div
+                    {/* <div
                       className="progress-tracker"
                       style={{ margin: "12px 0" }}
                     >
@@ -535,7 +636,7 @@ export default function MyRidesRedirect() {
                       >
                         ❌ Canceled
                       </span>
-                    </div>
+                    </div> */}
 
                     {/* Active rides: Booking Flow widgets */}
                     <div className="booking-flow-widgets">
@@ -579,7 +680,7 @@ export default function MyRidesRedirect() {
                     <p
                       style={{ marginTop: 6, color: "green", fontWeight: 500 }}
                     >
-                      🟢 Confirmed — ride is scheduled
+                      Completed — this ride has ended
                     </p>
                   )}
 

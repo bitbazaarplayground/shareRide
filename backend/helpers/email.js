@@ -1,5 +1,7 @@
+// backend/helpers/email.js
 import dotenv from "dotenv";
-dotenv.config({ path: "./backend/.env" });
+import path from "path";
+dotenv.config({ path: path.resolve("backend/.env") });
 
 const BREVO_KEY = process.env.BREVO_API_KEY;
 const FROM = process.env.BREVO_FROM || "TabFair <hello@tabfair.com>";
@@ -19,6 +21,8 @@ export const APP_ORIGIN =
  * @param {string} [text] - Optional plain text fallback
  */
 export async function sendEmail(to, subject, html, text = "") {
+  console.log("📨 BREVO_KEY loaded:", !!BREVO_KEY, "FROM:", FROM);
+
   if (!BREVO_KEY) {
     console.warn("⚠️ Brevo API key not set. Email skipped.");
     return null;

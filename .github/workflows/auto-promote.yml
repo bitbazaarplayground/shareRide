@@ -2,15 +2,23 @@ name: Auto-Promote Fallback Host
 
 on:
   schedule:
-    # Runs every 10 minutes
     - cron: "*/10 * * * *"
-  workflow_dispatch: # allow manual trigger for testing
+  workflow_dispatch:
 
 jobs:
   run-auto-promote:
     runs-on: ubuntu-latest
     steps:
       - name: Call TabFair backend to auto-promote rides
+        id: promote
         run: |
-          curl -X POST https://shareride-backend.onrender.com/api/payments/cleanup-auto-promote \
-            -H "Authorization: Bearer ${{ secrets.JOB_SECRET }}"
+          RESPONSE=$(curl -s -X POST https://shareride-backend.onrender.com/api/payments/cleanup-auto-promote \
+            -H "Authorization: Bearer ${{ secrets.JOB_SECRET }}")
+
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"promoted":[1-9]'; then
+            echo "✅ Promotion occurred — host(s) auto-promoted successfully!"
+          else
+            echo "⚠️ No promotions this cycle (no expired rides)."
+          fi
