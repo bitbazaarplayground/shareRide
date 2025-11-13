@@ -89,6 +89,7 @@ router.post("/:rideId/create-pool", async (req, res) => {
         ride_id: rideId,
         currency: "gbp",
         booker_user_id: ride.user_id || userId,
+        host_user_id: ride.user_id,
         status: "collecting",
         confirm_by: confirmBy.toISOString(),
       })
@@ -132,7 +133,7 @@ router.post("/:rideId/create-pool", async (req, res) => {
     return res.json({
       message: "✅ Ride pool + host baseline created",
       poolId: newPool.id,
-      confirmBy,
+      confirm_by: confirmBy.toISOString(),
     });
   } catch (err) {
     console.error("❌ create-pool error:", err);
