@@ -772,19 +772,37 @@ router.post("/cleanup-auto-promote", async (req, res) => {
         .limit(1)
         .maybeSingle();
 
-      if (paidErr || !firstPaid) continue;
+      if (paidErr || !firstPaid) {
+        console.log(
+          `⏭️ Pool ${pool.id}: no paid contributions found, skipping.`
+        );
+        continue;
+      }
 
-      // 🔎 Find current host (if any)
-      const { data: currentHost } = await supabase
+      console.log(
+        `👀 Pool ${pool.id}: first paid user is ${firstPaid.user_id}`
+      );
+
+      // 🔎 Find ALL current hosts (if any)
+      const { data: currentHosts, error: hostErr } = await supabase
         .from("ride_pool_contributions")
         .select("user_id")
         .eq("ride_pool_id", pool.id)
-        .eq("is_host", true)
-        .maybeSingle();
+        .eq("is_host", true);
 
-      // 🔁 Demote old host (if exists)
-      if (currentHost?.user_id) {
-        await supabase
+      if (hostErr) {
+        console.warn(
+          `⚠️ Could not fetch current hosts for pool ${pool.id}`,
+          hostErr
+        );
+      }
+
+      const allHostIds = (currentHosts || []).map((h) => h.user_id);
+      const hostsToDemote = allHostIds.filter((id) => id !== firstPaid.user_id);
+
+      // 🔁 Demote ALL old hosts except the new one
+      if (hostsToDemote.length > 0) {
+        const { error: demoteErr } = await supabase
           .from("ride_pool_contributions")
           .update({
             is_host: false,
@@ -793,10 +811,23 @@ router.post("/cleanup-auto-promote", async (req, res) => {
             host_changed_at: new Date().toISOString(),
           })
           .eq("ride_pool_id", pool.id)
-          .eq("user_id", currentHost.user_id);
+          .in("user_id", hostsToDemote);
+
+        if (demoteErr) {
+          console.warn(
+            `⚠️ Could not demote old hosts for pool ${pool.id}`,
+            demoteErr
+          );
+        } else {
+          console.log(
+            `🔻 Demoted old host(s) in pool ${pool.id}: ${hostsToDemote.join(
+              ", "
+            )}`
+          );
+        }
       }
 
-      // 3️⃣ Promote new host
+      // 3️⃣ Promote new host (idempotent)
       const { error: promoteErr } = await supabase
         .from("ride_pool_contributions")
         .update({ is_host: true })
@@ -811,7 +842,8 @@ router.post("/cleanup-auto-promote", async (req, res) => {
         continue;
       }
 
-      /* ---------------------------  🆕 KEEP SOURCE OF TRUTH IN SYNC  --------------------------- */
+      console.log(`👑 New host for pool ${pool.id} is ${firstPaid.user_id}`);
+
       // 🆕 3.1 Ensure the ride owner reflects the newly promoted host
       const { data: rideOwnerRow, error: rideOwnerFetchErr } = await supabase
         .from("rides")
@@ -841,14 +873,13 @@ router.post("/cleanup-auto-promote", async (req, res) => {
         }
       }
 
-      // 🆕 3.2 If you have ride_pools.host_user_id, mirror it too (safe no-op if column missing)
+      // 🆕 3.2 Mirror host_user_id in ride_pools if column exists
       try {
         const { error: hostColErr } = await supabase
           .from("ride_pools")
-          .update({ host_user_id: firstPaid.user_id }) // <-- only if this column exists in your schema
+          .update({ host_user_id: firstPaid.user_id })
           .eq("id", pool.id);
         if (hostColErr) {
-          // If the column doesn't exist, this will error; logging is enough.
           console.debug(
             `(optional) host_user_id update skipped for pool ${pool.id}:`,
             hostColErr.message
@@ -860,9 +891,8 @@ router.post("/cleanup-auto-promote", async (req, res) => {
           e.message
         );
       }
-      /* ----------------------------------------------------------------------------------------- */
 
-      // 4️⃣ Mark pool as booked (your enum allows 'booked')
+      // 4️⃣ Mark pool as booked
       const { error: updateErr } = await supabase
         .from("ride_pools")
         .update({ status: "booked" })
@@ -875,7 +905,7 @@ router.post("/cleanup-auto-promote", async (req, res) => {
 
       console.log(`✅ Pool ${pool.id} marked as booked`);
 
-      // 5️⃣ Get ride info (for email)
+      // 5️⃣ Get ride info (for email) — keep your existing code from here on...
       const { data: ride } = await supabase
         .from("rides")
         .select("from, to, date, time")
