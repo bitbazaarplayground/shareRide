@@ -41,7 +41,7 @@ export default function MyRidesRedirect() {
     const fetchPublishedRides = async () => {
       const { data, error } = await supabase
         .from("rides")
-        .select("*, ride_pools(id, confirm_by, status)")
+        .select("*, ride_pools(id, confirm_by, status, host_user_id)")
         .eq("user_id", user.id)
         .order("date", { ascending: true });
 
@@ -538,9 +538,12 @@ export default function MyRidesRedirect() {
                     <RideCard
                       ride={ride}
                       user={user}
-                      bookingDetails={bookingDetails} //CHECK HERE
+                      bookingDetails={bookingDetails}
+                      isHost={bookingDetails?.isHost}
+                      lostHost={bookingDetails?.lost_host}
                       onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                     />
+
                     {/* Host / Promotion messages */}
                     {bookingDetails?.isHost && !bookingDetails?.lost_host && (
                       <p
@@ -660,9 +663,12 @@ export default function MyRidesRedirect() {
                   <RideCard
                     ride={ride}
                     user={user}
-                    bookingDetails={bookingDetails} //CHECK HERE
+                    bookingDetails={bookingDetails}
+                    isHost={bookingDetails?.isHost}
+                    lostHost={bookingDetails?.lost_host}
                     onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                   />
+
                   {/* Booking status badge */}
                   {bookingDetails?.status === "pending" && (
                     <p
