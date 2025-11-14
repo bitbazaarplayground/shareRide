@@ -16,6 +16,8 @@ export default function RideCard({
   onStartChat,
   showBookNow = false,
   bookingDetails = null, // supports legacy "booked" details; may be empty for "contributed"
+  isHost = false,
+  lostHost = false,
   children, // <-- NEW: extra content (e.g., booking flow widgets) renders inside the <li>
 }) {
   const navigate = useNavigate();
@@ -202,7 +204,12 @@ export default function RideCard({
 
       {/* Actions */}
       <div className="ride-actions">
-        {canEdit ? (
+        {/* 🔹 Lost Host Message */}
+        {lostHost ? (
+          <div className="expired-notice">
+            Confirm by host window expired — next passenger may become host.
+          </div>
+        ) : canEdit ? (
           <>
             <button
               type="button"
@@ -216,11 +223,22 @@ export default function RideCard({
               onClick={() => onDelete?.(ride.id)}
               className="delete-ride-btn"
             >
-              Delete Ride
+              Cancel Ride
             </button>
+
+            {/* ✅ Host Check-In Button */}
+            {isHost && (
+              <button
+                type="button"
+                onClick={() => setShowCheckInPanel?.(true)}
+                className="checkin-btn"
+              >
+                Enter Check-In Code
+              </button>
+            )}
           </>
         ) : (
-          // Show CTAs for everyone except the owner (logged-out users still see them)
+          // Show CTAs for everyone except the owner
           !isOwner && (
             <>
               {onStartChat && (

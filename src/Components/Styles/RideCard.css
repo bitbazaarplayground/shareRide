@@ -150,3 +150,11 @@
   color: #666;
   font-size: 0.85rem;
 }
+.expired-notice {
+  color: #b76e00;
+  font-weight: 500;
+  background: #fff7e6;
+  border-left: 4px solid #b76e00;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
