@@ -16,7 +16,7 @@ export default function RideCard({
   onStartChat,
   showBookNow = false,
   bookingDetails = null, // supports legacy "booked" details; may be empty for "contributed"
-  isHost = false,
+  is_Host = false,
   lostHost = false,
   children, // <-- NEW: extra content (e.g., booking flow widgets) renders inside the <li>
 }) {
@@ -202,45 +202,137 @@ export default function RideCard({
           )}
       </div>
 
-      {/* Actions */}
       <div className="ride-actions">
-        {/* 🔹 Lost Host Message */}
-        {lostHost ? (
-          <div className="expired-notice">
-            Confirm by host window expired — next passenger may become host.
-          </div>
-        ) : canEdit ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onEdit?.(ride.id)}
-              className="edit-ride-btn"
-            >
-              Edit Ride
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete?.(ride.id)}
-              className="delete-ride-btn"
-            >
-              Cancel Ride
-            </button>
+        {(() => {
+          function getUserRole(bookingDetails) {
+            if (bookingDetails?.is_Host && !bookingDetails?.lost_host)
+              return "active-host";
+            if (bookingDetails?.lost_host) return "old-host";
+            return "passenger";
+          }
 
-            {/* ✅ Host Check-In Button */}
-            {isHost && (
-              <button
-                type="button"
-                onClick={() => setShowCheckInPanel?.(true)}
-                className="checkin-btn"
-              >
-                Enter Check-In Code
-              </button>
-            )}
-          </>
-        ) : (
-          // Show CTAs for everyone except the owner
-          !isOwner && (
+          const role = getUserRole(bookingDetails);
+
+          // 🟢 ROLE A — Active Host
+          if (role === "active-host") {
+            return (
+              <>
+                <p className="success">👑 You are now the host of this ride.</p>
+                <button
+                  type="button"
+                  onClick={() => onEdit?.(ride.id)}
+                  className="edit-ride-btn"
+                >
+                  Confirm Ride
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(ride.id)}
+                  className="delete-ride-btn"
+                >
+                  Cancel Ride
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/checkin/${ride.id}`)}
+                  className="checkin-btn"
+                >
+                  Generate Check-In Code
+                </button>
+
+                {canSave && (
+                  <button
+                    type="button"
+                    onClick={
+                      user
+                        ? () => onSaveToggle?.(ride.id)
+                        : requireAuthForCta(() => {})
+                    }
+                    className="save-ride-btn"
+                    aria-label={isSaved ? "Unsave ride" : "Save ride"}
+                    title={
+                      user
+                        ? isSaved
+                          ? "Unsave"
+                          : "Save"
+                        : "Log in to save rides"
+                    }
+                  >
+                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
+                  </button>
+                )}
+              </>
+            );
+          }
+
+          // ⚠️ ROLE B — Old Host (lost host)
+          if (role === "old-host") {
+            return (
+              <>
+                <div className="expired-notice">
+                  ⚠️ Host window expired — a new host has been assigned.
+                </div>
+
+                {onStartChat && (
+                  <button
+                    type="button"
+                    onClick={
+                      user
+                        ? () => onStartChat(ride.profiles?.id, ride.id)
+                        : requireAuthForCta(() => {})
+                    }
+                    className="send-message-btn"
+                  >
+                    Send Message
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={
+                    user
+                      ? () => navigate(`/splitride-confirm/${ride.id}`)
+                      : requireAuthForCta(() => {})
+                  }
+                  className="book-now-btn"
+                >
+                  Book Now
+                </button>
+
+                {canSave && (
+                  <button
+                    type="button"
+                    onClick={
+                      user
+                        ? () => onSaveToggle?.(ride.id)
+                        : requireAuthForCta(() => {})
+                    }
+                    className="save-ride-btn"
+                    aria-label={isSaved ? "Unsave ride" : "Save ride"}
+                    title={
+                      user
+                        ? isSaved
+                          ? "Unsave"
+                          : "Save"
+                        : "Log in to save rides"
+                    }
+                  >
+                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
+                  </button>
+                )}
+              </>
+            );
+          }
+
+          // 👥 ROLE C — Passenger / Normal Viewer
+          return (
             <>
+              {bookingDetails?.status === "pending" && (
+                <div className="alert muted">
+                  Pending — waiting for the host to confirm the ride.
+                </div>
+              )}
+
               {onStartChat && (
                 <button
                   type="button"
@@ -291,8 +383,8 @@ export default function RideCard({
                 </button>
               )}
             </>
-          )
-        )}
+          );
+        })()}
       </div>
 
       {/* Slot for extra UI (e.g., IssueCodePanel / CheckInPanel / ConfirmBookedButton) */}
