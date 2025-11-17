@@ -1,0 +1,325 @@
+/* AllPostedRides.css – consolidated + trimmed + a11y-friendly */
+
+/* ===== Theme tokens ===== */
+:root {
+  --brand: #e66000;
+  --brand-600: #0062cc;
+  --success: #34a853;
+  --success-600: #288d41;
+  --danger: #dc3545;
+  --warning: #f0ad4e;
+  --text: #1a1a1a;
+  --muted: #333;
+  --card-shadow: rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Page layout ===== */
+.rides-page-wrapper {
+  margin-top: 80px; /* space under hero search */
+  max-width: 1056px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1rem;
+}
+
+.all-rides-container {
+  max-width: 1056px;
+  margin: 2rem auto;
+  padding: 1.5rem 0;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* New Code start */
+/* ===== Hero (image element, not CSS background) ===== */
+.hero-header {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+/* Optional soft gradient for readability near the bottom */
+.hero-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.hero-media {
+  width: 100%;
+}
+
+.hero-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Keep a stable box even before the image loads */
+  aspect-ratio: 16 / 5; /* ~1600×500 look; adjust if you prefer */
+  object-fit: cover;
+}
+
+/* SearchBar overlay pin */
+.overlay-content {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -56px; /* pulls it below the image edge */
+  width: min(100%, 1008px);
+  padding: 0 1rem;
+  z-index: 5;
+}
+
+/* Give room so content below doesn't collide with the overlay */
+.rides-page-wrapper {
+  /* you already had 80px for header spacing; add overlay offset */
+  margin-top: calc(80px + 56px);
+  max-width: 1056px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .hero-img {
+    aspect-ratio: 16 / 9; /* taller on mobile for better crop */
+  }
+  .overlay-content {
+    bottom: -44px;
+  }
+  .rides-page-wrapper {
+    margin-top: calc(80px + 44px);
+  }
+}
+/* NEW CODE END */
+
+/* ===== Feedback / toast-like success stripe ===== */
+.success {
+  background-color: #e6ffed;
+  border-left: 5px solid #2ecc71;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #2b7a4b;
+}
+
+/* ===== List wrapper ===== */
+.ride-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ===== Card ===== */
+.ride-card {
+  width: 100%;
+  background: #fff;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--card-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.ride-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Avatar + nickname row ===== */
+.avatar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.5rem;
+}
+.ride-avatar,
+.poster-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--brand);
+}
+.poster-avatar.initial-avatar {
+  background-color: var(--brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+/* Make nickname behave like a link but keep accessibility of a button */
+.poster-nickname {
+  background: none !important;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: #0a58ca;
+
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+
+  border-radius: 3px;
+}
+.poster-nickname:hover {
+  color: #063d9e;
+}
+.poster-nickname:focus-visible {
+  outline: 2px solid #0a58ca;
+  outline-offset: 2px;
+}
+
+/* ===== Route (From → To) ===== */
+.ride-locations {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+
+/* ===== Details ===== */
+.ride-details {
+  margin-bottom: 0.75rem;
+}
+.ride-details p {
+  margin: 0.25rem 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+/* Optional notes */
+.ride-notes {
+  margin-top: 0.75rem;
+  font-style: italic;
+  color: #666;
+  font-size: 0.92rem;
+}
+
+/* ===== Actions ===== */
+.ride-actions {
+  margin-top: 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.send-message-btn,
+.book-now-btn,
+.edit-ride-btn,
+.delete-ride-btn,
+.save-ride-btn {
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Individual button colors */
+.send-message-btn {
+  background-color: var(--success);
+  color: #fff;
+}
+.send-message-btn:hover {
+  background-color: var(--success-600);
+}
+
+.book-now-btn {
+  background-color: var(--brand);
+  color: #fff;
+}
+.book-now-btn:hover {
+  background-color: var(--brand-600);
+}
+
+.edit-ride-btn {
+  background-color: var(--warning);
+  color: #fff;
+}
+.edit-ride-btn:hover {
+  filter: brightness(0.95);
+}
+
+.delete-ride-btn {
+  background-color: var(--danger);
+  color: #fff;
+}
+.delete-ride-btn:hover {
+  filter: brightness(0.95);
+}
+
+.save-ride-btn {
+  background: transparent;
+  font-size: 1.25rem;
+  color: red;
+  padding: 0 8px; /* tighter target without huge box */
+}
+
+/* Separator line inside card */
+hr {
+  margin-top: 1.5rem;
+  border: none;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .all-rides-container {
+    animation: none;
+  }
+  .ride-card,
+  .send-message-btn,
+  .book-now-btn,
+  .edit-ride-btn,
+  .delete-ride-btn {
+    transition: none;
+  }
+  .ride-card:hover {
+    transform: none;
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .hero-header {
+    height: 280px;
+  }
+  .overlay-content {
+    bottom: -60px;
+  }
+  .ride-actions {
+    gap: 10px;
+  }
+  .send-message-btn,
+  .book-now-btn,
+  .edit-ride-btn,
+  .delete-ride-btn {
+    padding: 10px 14px;
+    font-size: 0.93rem;
+  }
+}

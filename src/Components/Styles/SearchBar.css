@@ -1,0 +1,215 @@
+/* === Base Layout === */
+.searchbar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  background: white;
+  padding: 20px;
+  border-radius: 2rem;
+  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.05);
+  gap: 1rem;
+  margin: 0 auto;
+  max-width: 1200px;
+  z-index: 2000;
+}
+
+.searchbar-item {
+  display: flex;
+  align-items: center;
+  background-color: #f9f9f9;
+  padding: 10px 15px;
+  border-radius: 12px;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 120px;
+  transition: background 0.3s ease;
+}
+
+.searchbar-item input,
+.searchbar-item .autocomplete-input {
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+  margin-left: -10px;
+}
+/* .searchbar-container.glass {
+  background-color: #8a8579;
+} */
+
+.searchbar-item .icon {
+  font-size: 1.2rem;
+  color: #4a4a4a;
+}
+/* in Styles/SearchBar.css */
+.radius-select {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+}
+.visually-hidden {
+  position: absolute;
+  left: -9999px;
+}
+
+.passenger-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.searchbar-button {
+  background-color: #0099ff;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.searchbar-button:hover {
+  background-color: #007acc;
+}
+/* Autocomplete dropdown container */
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 0.25rem 0;
+  width: auto !important;
+}
+
+/* Reset list styles */
+.autocomplete-list li {
+  list-style: none;
+}
+
+/* Dropdown item styling */
+.autocomplete-item {
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #eee;
+}
+
+/* Hover and active state */
+.autocomplete-item:hover,
+.autocomplete-item:focus,
+.autocomplete-item:active {
+  background-color: #f4f4f4;
+}
+
+/* Optionally wrap long text on smaller screens */
+.autocomplete-item {
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Optional: highlight typed part vs suggested */
+.autocomplete-item strong {
+  font-weight: bold;
+}
+.autocomplete-item.highlighted {
+  background-color: #e6f3ff;
+}
+
+/* For mobile screens */
+@media (max-width: 480px) {
+  .autocomplete-item {
+    padding: 0.8rem 1rem;
+    font-size: 1.05rem;
+  }
+}
+
+/* === Responsive for Tablets === */
+@media (max-width: 768px) {
+  .searchbar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .searchbar-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 10px 0;
+    border: none;
+    border-bottom: 1px solid #eee;
+  }
+
+  .searchbar-item:last-child {
+    border-bottom: none;
+  }
+
+  .searchbar-button {
+    align-self: center;
+    width: 100%;
+    max-width: 200px;
+    font-size: 1.1rem;
+    padding: 12px;
+    margin-top: 12px;
+  }
+
+  .passenger-dropdown-panel {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .passenger-item {
+    width: 100%;
+  }
+}
+
+/* === Responsive for Phones === */
+@media (max-width: 480px) {
+  .searchbar-container {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .searchbar-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .searchbar-button {
+    font-size: 1rem;
+    padding: 10px;
+  }
+
+  .searchbar-item input,
+  .searchbar-item .autocomplete-input {
+    width: 100%;
+  }
+}
+
+/* === Accessibility and Prefixed Fix === */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}

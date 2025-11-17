@@ -1,0 +1,62 @@
+/* Styles/CropModal.css */
+
+/* === Overlay Style === */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0; /* shorthand for top:0, right:0, bottom:0, left:0 */
+  background-color: rgba(128, 128, 128, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+/* === Modal Content Container === */
+.crop-modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  width: min(90%, 500px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* === Cropper Wrapper (Circular Cropping Area) === */
+.cropper-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; /* makes it 1:1 aspect ratio */
+  overflow: hidden;
+  background-color: #f2f2f2;
+  margin-bottom: 1.5rem;
+}
+
+/* === Zoom Slider Container === */
+.slider-container {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+/* === Action Buttons (Bottom Row) === */
+.crop-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.crop-actions .MuiButton-root {
+  flex: 1;
+  font-weight: bold;
+}
+
+.crop-actions .MuiButton-root:first-child {
+  border-color: #999;
+  color: #333;
+}
+
+.crop-actions .MuiButton-root:last-child {
+  background-color: #e66000;
+}
+
+.crop-actions .MuiButton-root:last-child:hover {
+  background-color: #cc5000;
+}

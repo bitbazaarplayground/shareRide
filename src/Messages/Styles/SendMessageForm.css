@@ -1,0 +1,92 @@
+SendMessageForm.css .send-message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  position: relative;
+  font-family: "Helvetica Neue", sans-serif;
+}
+
+.textarea-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.chat-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  resize: none;
+  min-height: 3.5rem;
+  line-height: 1.5;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.emoji-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e66000;
+}
+
+.emoji-picker {
+  position: absolute;
+  bottom: 3.5rem;
+  right: 0;
+  z-index: 100;
+}
+
+.send-message-form button[type="submit"] {
+  align-self: flex-end;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  background-color: #e66000;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.send-message-form button[type="submit"]:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.typing-feedback {
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+@media (max-width: 600px) {
+  .chat-textarea {
+    font-size: 0.95rem;
+    padding: 0.6rem 2.2rem 0.6rem 0.6rem;
+  }
+
+  .emoji-btn {
+    top: 0.3rem;
+    right: 0.3rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.9rem;
+  }
+}

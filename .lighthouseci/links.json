@@ -1,0 +1,13 @@
+{
+  "http://localhost:4173/": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768415706-88987.report.html",
+  "http://localhost:4173/publishride": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768416704-47246.report.html",
+  "http://localhost:4173/results": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768417453-18334.report.html",
+  "http://localhost:4173/profile": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768418209-14323.report.html",
+  "http://localhost:4173/complete-profile": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768419074-69964.report.html",
+  "http://localhost:4173/login": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768419942-67761.report.html",
+  "http://localhost:4173/register": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768420782-48534.report.html",
+  "http://localhost:4173/ourmission": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768421745-7217.report.html",
+  "http://localhost:4173/all-rides": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768422813-42260.report.html",
+  "http://localhost:4173/Termsofuse": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768423705-42967.report.html",
+  "http://localhost:4173/privacy": "https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1754768424475-94952.report.html"
+}

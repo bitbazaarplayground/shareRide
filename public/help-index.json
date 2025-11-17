@@ -1,0 +1,299 @@
+{
+  "_comment": "⚠️ AUTO-GENERATED from help-index.dev.json5 — DO NOT EDIT",
+  "items": [
+    {
+      "title": "Rating your carpool driver",
+      "path": "/help/rating-driver",
+      "category": "driver",
+      "tags": [
+        "rating",
+        "review",
+        "driver",
+        "feedback"
+      ],
+      "popular": true
+    },
+    {
+      "title": "Offering a ride",
+      "path": "/help/offering-ride",
+      "category": "driver",
+      "tags": [
+        "offer",
+        "ride",
+        "publish"
+      ]
+    },
+    {
+      "title": "Passenger cancellation rate",
+      "path": "/help/passenger-cancellation",
+      "category": "passenger",
+      "tags": [
+        "cancellation",
+        "penalties",
+        "no show",
+        "policy"
+      ],
+      "popular": true
+    },
+    {
+      "title": "Search Tips",
+      "path": "/help/passenger/search-tips",
+      "category": "passenger",
+      "tags": [
+        "search",
+        "filters",
+        "find",
+        "results"
+      ]
+    },
+    {
+      "title": "How to Book",
+      "path": "/help/passenger/how-to-book",
+      "category": "passenger",
+      "tags": [
+        "booking",
+        "request",
+        "join",
+        "confirmation"
+      ]
+    },
+    {
+      "title": "Requirements to Book",
+      "path": "/help/passenger/requirements",
+      "category": "passenger",
+      "tags": [
+        "signup",
+        "profile",
+        "verification",
+        "eligibility"
+      ]
+    },
+    {
+      "title": "Booking Requests & Confirmation",
+      "path": "/help/passenger/booking-confirmation",
+      "category": "passenger",
+      "tags": [
+        "confirmation",
+        "email",
+        "accepted",
+        "rejected"
+      ]
+    },
+    {
+      "title": "Communicating with Drivers",
+      "path": "/help/passenger/communicating-drivers",
+      "category": "passenger",
+      "tags": [
+        "chat",
+        "message",
+        "coordination",
+        "host"
+      ]
+    },
+    {
+      "title": "Luggage Guidelines",
+      "path": "/help/passenger/luggage",
+      "category": "passenger",
+      "tags": [
+        "bags",
+        "weight",
+        "limits",
+        "baggage"
+      ]
+    },
+    {
+      "title": "Paying for a Ride",
+      "path": "/help/passenger/payment-methods",
+      "category": "account",
+      "tags": [
+        "payment",
+        "pre-pay",
+        "deep link",
+        "payment methods"
+      ]
+    },
+    {
+      "title": "Pricing",
+      "path": "/help/passenger/pricing",
+      "category": "account",
+      "tags": [
+        "pricing",
+        "fare",
+        "cost"
+      ]
+    },
+    {
+      "title": "Refunds and Exchanges",
+      "path": "/help/passenger/refunds",
+      "category": "account",
+      "tags": [
+        "refund",
+        "exchange",
+        "cancel",
+        "reimbursement"
+      ]
+    },
+    {
+      "title": "Invoices and Receipts",
+      "path": "/help/passenger/invoices",
+      "category": "account",
+      "tags": [
+        "invoice",
+        "receipt",
+        "pre-pay"
+      ]
+    },
+    {
+      "title": "How to Find Your Booking",
+      "path": "/help/passenger/find-booking",
+      "category": "passenger",
+      "tags": [
+        "booking",
+        "my rides",
+        "upcoming",
+        "find"
+      ]
+    },
+    {
+      "title": "Cancellations",
+      "path": "/help/passenger/cancellations",
+      "category": "passenger",
+      "tags": [
+        "cancel",
+        "48 hours",
+        "policy"
+      ]
+    },
+    {
+      "title": "How to Change Your Booking",
+      "path": "/help/passenger/change-booking",
+      "category": "passenger",
+      "tags": [
+        "change",
+        "edit",
+        "modify",
+        "host"
+      ]
+    },
+    {
+      "title": "Preparing to Travel",
+      "path": "/help/passenger/preparing-travel",
+      "category": "passenger",
+      "tags": [
+        "prepare",
+        "checklist",
+        "pickup",
+        "notifications"
+      ]
+    },
+    {
+      "title": "Post-ride",
+      "path": "/help/passenger/post-ride",
+      "category": "passenger",
+      "tags": [
+        "review",
+        "feedback",
+        "after"
+      ]
+    },
+    {
+      "title": "Lost Item in Ride",
+      "path": "/help/passenger/lost-item",
+      "category": "passenger",
+      "tags": [
+        "lost",
+        "found",
+        "support",
+        "contact"
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "path": "/help/passenger/troubleshooting",
+      "category": "passenger",
+      "tags": [
+        "issues",
+        "not showing",
+        "edit",
+        "chat"
+      ]
+    },
+    {
+      "title": "Creating an Account",
+      "path": "/help/account/creating-account",
+      "category": "account",
+      "tags": [
+        "signup",
+        "register",
+        "verification",
+        "email"
+      ]
+    },
+    {
+      "title": "Managing Your Profile",
+      "path": "/help/account/manage-profile",
+      "category": "account",
+      "tags": [
+        "profile",
+        "photo",
+        "contact",
+        "my account"
+      ]
+    },
+    {
+      "title": "Troubleshooting Login",
+      "path": "/help/account/troubleshooting-login",
+      "category": "account",
+      "tags": [
+        "login",
+        "password",
+        "reset",
+        "email"
+      ]
+    },
+    {
+      "title": "Your Profile and Account",
+      "path": "/help/account",
+      "category": "account",
+      "tags": [
+        "overview",
+        "login",
+        "signup",
+        "issues"
+      ]
+    },
+    {
+      "title": "Leaving Ratings & Comments",
+      "path": "/help/account/ratings",
+      "category": "account",
+      "tags": [
+        "ratings",
+        "comments",
+        "feedback",
+        "review"
+      ]
+    },
+    {
+      "title": "Account Security",
+      "path": "/help/account/security",
+      "category": "account",
+      "tags": [
+        "security",
+        "password",
+        "privacy",
+        "suspicious"
+      ]
+    },
+    {
+      "title": "Accessibility features",
+      "path": "/help/accessibility",
+      "category": "safety",
+      "tags": [
+        "a11y",
+        "screen reader",
+        "vision"
+      ]
+    }
+  ],
+  "generatedAt": "2025-10-27T16:20:17.324Z"
+}

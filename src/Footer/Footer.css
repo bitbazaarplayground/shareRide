@@ -1,0 +1,107 @@
+/* === Footer === */
+.site-footer {
+  background-color: #e8e7c5;
+  color: #333;
+  padding: 2.5rem 1.5rem 1rem;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.95rem;
+}
+
+.footer-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+}
+
+.footer-brand h2 {
+  color: #e66000;
+  margin-bottom: 0.5rem;
+}
+
+.footer-brand p {
+  max-width: 300px;
+}
+
+.footer-links h4,
+.footer-legal h4,
+.footer-contact h4 {
+  margin-bottom: 0.5rem;
+  color: #000;
+}
+
+.footer-links ul,
+.footer-legal ul,
+.footer-contact ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-links li,
+.footer-legal li,
+.footer-contact li {
+  margin-bottom: 0.4rem;
+}
+
+.footer-links a,
+.footer-legal a {
+  color: #333;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer-links a:hover,
+.footer-legal a:hover {
+  color: #e66000;
+}
+
+.footer-contact li {
+  font-weight: 500;
+}
+
+/* Bottom row */
+.site-footer .back-to-top {
+  display: block;
+  margin: 1rem auto;
+  text-align: center;
+  margin-top: 0rem;
+}
+.footer-bottom {
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 3px solid #ef7d2c;
+  color: #ef7d2c;
+  font-size: 0.85rem;
+}
+/* === Back to Top Button === */
+.back-to-top {
+  display: inline-block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background-color: #e66000;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.3s ease;
+}
+
+.back-to-top:hover {
+  background-color: #c54f00;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .footer-top {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .footer-brand p {
+    margin: 0 auto;
+  }
+}

@@ -1,0 +1,7 @@
+.checkin-panel p {
+  transition: opacity 0.4s ease;
+}
+
+.checkin-panel p.fade-out {
+  opacity: 0;
+}

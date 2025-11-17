@@ -1,0 +1,78 @@
+/* === Carousel Comparison === */
+.savings-comparison-carousel {
+  padding: 5vh 4vw;
+  text-align: center;
+  background-color: #fafafa;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.savings-comparison-carousel h2 {
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  margin-bottom: 2rem;
+  color: #000000;
+}
+
+/* Card Layout Container */
+.carousel-grid {
+  display: flex;
+  gap: 1.5rem; /* Uniform spacing between cards */
+  justify-content: center;
+  flex-wrap: nowrap; /* Prevent cards from stacking vertically */
+  padding: 0 1rem;
+  scroll-behavior: smooth;
+}
+
+/* === Card Base Style === */
+.savings-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  flex: 0 0 auto;
+  width: clamp(220px, 28vw, 330px);
+  height: clamp(130px, 18vw, 160px);
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.savings-card:hover {
+  transform: translateY(-4px);
+}
+
+.savings-card.highlight {
+  border: 0.15rem solid #f4aa0a;
+  background-color: #fffbea;
+}
+
+.savings-card h3 {
+  font-size: clamp(1rem, 1.4vw, 1.1rem);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.savings-card .cost {
+  font-weight: bold;
+  font-size: clamp(1.1rem, 1.6vw, 1.25rem);
+  color: #e66000;
+  margin-bottom: 0.25rem;
+}
+
+.savings-card .time {
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: #555;
+}
+
+.savings-footnote {
+  font-size: clamp(0.75rem, 0.9vw, 0.85rem);
+  color: #999;
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .carousel-grid {
+    gap: 1rem;
+  }
+}
