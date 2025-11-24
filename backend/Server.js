@@ -10,8 +10,12 @@ import { fileURLToPath } from "url";
 
 import adminRoutes from "./admin/index.js";
 import bookingRouter from "./routes/booking.js";
-import paymentsRouter from "./routes/payments.js";
+
 import ridesRouter from "./routes/rides.js";
+
+// Routes NEW
+import paymentsNewRouter from "./routes/payments-new.js";
+import ridesNewRouter from "./routes/rides-new.js";
 
 // Env + paths
 const __filename = fileURLToPath(import.meta.url);
@@ -61,16 +65,22 @@ app.use(
 );
 
 // Raw body only for Stripe webhook (must come before express.json)
-app.use("/api/payments/webhook", bodyParser.raw({ type: "application/json" }));
+app.use(
+  "/api/payments-new/webhook",
+  bodyParser.raw({ type: "application/json" })
+);
 
 // JSON parser for everything else
 app.use(express.json());
 
 /* ---------------------- Health route ---------------------- */
 app.get("/health", (_req, res) => res.json({ ok: true }));
+/* ---------------------- New Mount routes ---------------------- */
 
+app.use("/api/rides-new", ridesNewRouter);
+app.use("/api/payments-new", paymentsNewRouter);
 /* ---------------------- Mount routes ---------------------- */
-app.use("/api/payments", paymentsRouter);
+// app.use("/api/payments", paymentsRouter);
 app.use("/api/rides", ridesRouter);
 app.use("/api", bookingRouter); // for /booker/onboarding-link
 /* ---------------------- Admin routes ---------------------- */
