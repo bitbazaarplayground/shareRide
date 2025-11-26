@@ -42,6 +42,7 @@ import EditProfileHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Ac
 import NotificationsHelp from "./Pages/Help/YourProfileAndAccount/Managing Your Account/FilesInside/Notifications";
 import ManageAccountOverview from "./Pages/Help/YourProfileAndAccount/Managing Your Account/ManagingYourAccount";
 import Homepage from "./Pages/Homepage";
+import HostManageRide from "./Pages/HostManageRide";
 import IndividualRide from "./Pages/IndividualRide";
 import Login from "./Pages/Login";
 import MyRidesRedirect from "./Pages/MyRidesRedirect";
@@ -119,7 +120,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/profile" element={<UserProfile />} />
-          <Route path="/profile/:id" element={<PublicProfile />} />
+
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/results" element={<Results />} />
@@ -133,6 +134,10 @@ export default function App() {
           <Route path="/Termsofuse" element={<TermsofUse />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/cookies" element={<CookiesPolicy />} />
+          {/* Booking - Host */}
+
+          <Route path="/host/ride/:rideId" element={<HostManageRide />} />
+          <Route path="/profile/:id" element={<PublicProfile />} />
 
           {/* Help */}
 

@@ -258,5 +258,33 @@ router.post(
     }
   }
 );
+/* ========================================================================
+   4. VERIFY SESSION (Frontend calls this after redirect)
+=========================================================================== */
+router.get("/verify", async (req, res) => {
+  try {
+    const sessionId = req.query.session_id;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: "Missing session_id" });
+    }
+
+    // Fetch session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    return res.json({
+      ok: true,
+      amount_total: session.amount_total,
+      currency: session.currency,
+      payment_status: session.payment_status,
+      deposit_id: session.metadata?.deposit_id,
+      ride_id: session.metadata?.ride_id,
+      user_id: session.metadata?.user_id,
+    });
+  } catch (err) {
+    console.error("verify session error:", err);
+    return res.status(500).json({ error: "Failed to verify session" });
+  }
+});
 
 export default router;
