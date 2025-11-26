@@ -1,0 +1,203 @@
+/* src/Pages/StylesPages/HostManageRide.css */
+.host-manage-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.host-back-btn {
+  border: none;
+  background: none;
+  color: #555;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.host-back-btn:hover {
+  color: #222;
+}
+
+.host-title {
+  font-size: 1.9rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.host-title-id {
+  color: #4f46e5;
+}
+
+.host-ride-card {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.host-ride-meta {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.host-finalise-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: #4f46e5;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.host-finalise-btn:hover {
+  background: #4338ca;
+}
+
+.host-section-title {
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.host-empty-state {
+  color: #6b7280;
+}
+
+.host-request-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.host-request-item {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  margin-bottom: 0.75rem;
+}
+
+.host-request-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.host-request-name {
+  margin-bottom: 0.25rem;
+}
+
+.host-request-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+
+.host-status-pill {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.host-request-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.host-link {
+  font-size: 0.85rem;
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+.host-link:hover {
+  text-decoration: underline;
+}
+
+.host-btn {
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.host-btn-accept {
+  background: #16a34a;
+  color: white;
+}
+
+.host-btn-accept:hover {
+  background: #15803d;
+}
+
+.host-btn-reject {
+  background: #dc2626;
+  color: white;
+}
+
+.host-btn-reject:hover {
+  background: #b91c1c;
+}
+
+.host-btn-cancel {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.host-btn-cancel:hover {
+  background: #d1d5db;
+}
+
+.host-footer-note {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.host-manage-loading,
+.host-manage-error {
+  padding: 1rem;
+  text-align: center;
+}
+.host-passenger-name-link {
+  color: #111;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.host-passenger-name-link:hover {
+  color: #4f46e5; /* indigo-600 */
+  text-decoration: underline;
+  cursor: pointer;
+}

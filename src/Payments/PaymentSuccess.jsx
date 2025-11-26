@@ -23,7 +23,7 @@ export default function PaymentSuccess() {
     (async () => {
       try {
         const res = await fetch(
-          `${BACKEND}/api/payments/verify?session_id=${encodeURIComponent(
+          `${BACKEND}/api/payments-new/verify?session_id=${encodeURIComponent(
             sessionId
           )}`
         );

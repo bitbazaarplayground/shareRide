@@ -1,3 +1,4 @@
+// src/BookingFlow/CheckInPanel.jsx
 import { useState } from "react";
 import { toast } from "react-toastify";
 import useBookingStatus from "../../hooks/useBookingStatus";
