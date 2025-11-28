@@ -50,30 +50,26 @@ export default function RideCard({
   };
 
   /* ------------------------------------
-   SEAT & PRICE HELPERS
------------------------------------- */
-  const capacity =
-    Number(ride.seat_limit ?? ride.seats_total ?? ride.max_passengers ?? 0) ||
-    0;
+       SEAT & PRICE LOGIC (Taxi = 4 seats)
+  ------------------------------------ */
+  const TAXI_CAPACITY = 4;
 
   const hostSeats = Number(ride.seats ?? 1);
 
-  const acceptedPassengerSeats = Array.isArray(ride.ride_requests)
+  const acceptedPassengersSeats = Array.isArray(ride.ride_requests)
     ? ride.ride_requests
         .filter((r) => r.status === "accepted")
         .reduce((sum, r) => sum + Number(r.seats || 0), 0)
     : 0;
 
-  const totalTakenSeats = hostSeats + acceptedPassengerSeats;
+  const totalTaken = hostSeats + acceptedPassengersSeats;
 
-  const availableSeats =
-    capacity > 0 ? Math.max(0, capacity - totalTakenSeats) : null;
+  const availableSeats = Math.max(0, TAXI_CAPACITY - totalTaken);
 
-  // estimated_fare is total ride fare → divide by seat capacity
-  const pricePerPassenger =
-    ride.estimated_fare && capacity > 0
-      ? Number(ride.estimated_fare) / capacity
-      : null;
+  // Price per seat (total ride fare / 4)
+  const estimatedFare = Number(ride.estimated_fare || 0);
+  const pricePerSeat =
+    estimatedFare > 0 ? (estimatedFare / TAXI_CAPACITY).toFixed(2) : null;
 
   /* ------------------------------------
        AUTH CHECK
@@ -126,31 +122,24 @@ export default function RideCard({
         <p>
           <strong>Date:</strong> {formatDate(ride.date)}
         </p>
+
         <p>
           <strong>Time:</strong> {formatTime(ride.time)}
         </p>
 
-        {/* ✅ Available seats for passengers */}
-        {availableSeats !== null && (
+        {/* Available seats */}
+        <p>
+          <strong>Available Seats:</strong> {availableSeats}
+        </p>
+
+        {/* Price per passenger */}
+        {pricePerSeat && (
           <p>
-            <strong>Available Seats:</strong> {availableSeats}
+            <strong>Price Per Passenger:</strong> £{pricePerSeat}
           </p>
         )}
 
-        {/* ✅ Price per passenger */}
-        {pricePerPassenger !== null && (
-          <p>
-            <strong>Price Per Passenger:</strong> £
-            {pricePerPassenger.toFixed(2)}
-          </p>
-        )}
-
-        {/* {ride.vehicle_type && (
-          <p>
-            <strong>Vehicle:</strong> {ride.vehicle_type}
-          </p>
-        )} */}
-
+        {/* Notes */}
         {ride.notes && (
           <p className="muted notes">
             <strong>Notes:</strong> {ride.notes}
@@ -189,6 +178,7 @@ export default function RideCard({
           </>
         ) : (
           <>
+            {/* Send Message */}
             {onStartChat && (
               <button
                 className="send-message-btn"
@@ -202,6 +192,7 @@ export default function RideCard({
               </button>
             )}
 
+            {/* Request to Join */}
             {onRequestJoin && (
               <button
                 className="request-join-btn"
@@ -213,6 +204,7 @@ export default function RideCard({
               </button>
             )}
 
+            {/* Save */}
             {canSave && (
               <button
                 className="save-ride-btn"
@@ -220,13 +212,18 @@ export default function RideCard({
                   user ? () => onSaveToggle(ride.id) : requireAuth(() => {})
                 }
               >
-                {isSaved ? <FaHeart className="heart saved" /> : <FaRegHeart />}
+                {isSaved ? (
+                  <FaHeart className="heart saved" />
+                ) : (
+                  <FaRegHeart className="heart" />
+                )}
               </button>
             )}
           </>
         )}
       </div>
 
+      {/* Extra content (Host Manage Ride inserts content) */}
       {children && <div className="ride-card-extra">{children}</div>}
 
       {showHostTools && isOwner && (

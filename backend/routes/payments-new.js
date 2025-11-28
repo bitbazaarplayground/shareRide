@@ -84,6 +84,7 @@ router.get("/deposits/:rideId/mine", async (req, res) => {
 
    Body: { email?: string }
 =========================================================================== */
+
 router.post(
   "/deposits/:depositId/create-session",
   express.json(),
@@ -132,41 +133,41 @@ router.post(
         return res.status(400).json({ error: "Deposit is not pending" });
       }
 
-      const amountMinor = Number(deposit.amount_minor || 0);
-      const feeMinor = Number(deposit.platform_fee_minor || 0);
+      const seatMinor = Number(deposit.amount_minor || 0);
+      const platformMinor = Number(deposit.platform_fee_minor || 0);
+
+      if (seatMinor <= 0) {
+        return res.status(400).json({ error: "Invalid deposit amount" });
+      }
+
       const currency = deposit.currency || "gbp";
 
-      if (amountMinor <= 0) {
-        return res
-          .status(400)
-          .json({ error: "Deposit amount is invalid (<= 0)" });
-      }
-
-      const lineItems = [];
-
-      // Seat share
-      if (amountMinor > 0) {
-        lineItems.push({
+      /* ----------------------------------------------
+        Build Stripe line items:
+        - Seat Price
+        - Platform Fee
+      ---------------------------------------------- */
+      const lineItems = [
+        {
           price_data: {
             currency,
             product_data: {
-              name: "Ride seat share",
+              name: "Seat Price",
             },
-            unit_amount: amountMinor,
+            unit_amount: seatMinor,
           },
           quantity: 1,
-        });
-      }
+        },
+      ];
 
-      // Platform fee
-      if (feeMinor > 0) {
+      if (platformMinor > 0) {
         lineItems.push({
           price_data: {
             currency,
             product_data: {
-              name: "Platform fee",
+              name: "Platform Fee",
             },
-            unit_amount: feeMinor,
+            unit_amount: platformMinor,
           },
           quantity: 1,
         });
