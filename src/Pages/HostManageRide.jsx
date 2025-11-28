@@ -1,3 +1,4 @@
+// src/Pages/HostManageRide.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -19,9 +20,9 @@ export default function HostManageRide() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  // ------------------------------------------------
-  // Load ride + requests + deposits + payout
-  // ------------------------------------------------
+  /* ---------------------------------------------
+     LOAD DASHBOARD
+  --------------------------------------------- */
   useEffect(() => {
     if (!rideId) return;
 
@@ -31,9 +32,8 @@ export default function HostManageRide() {
 
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-
-        if (!token || !BACKEND) {
-          toast.error("Not authenticated or backend missing.");
+        if (!token) {
+          toast.error("Not authenticated.");
           setLoading(false);
           return;
         }
@@ -45,7 +45,7 @@ export default function HostManageRide() {
 
         const json = await res.json();
         if (!res.ok || !json.ok) {
-          toast.error(json.error || "Failed to load ride dashboard.");
+          toast.error(json.error || "Failed to load dashboard.");
           setLoading(false);
           return;
         }
@@ -64,47 +64,68 @@ export default function HostManageRide() {
 
   const formatGBP = (minor) => (Number(minor || 0) / 100).toFixed(2);
 
-  // ------------------------------------------------
-  // Fare preview (if estimated fare exists)
-  // ------------------------------------------------
+  /* ---------------------------------------------
+     CALCULATE PER-SEAT PRICE (NEW SYSTEM)
+     taxi = 4 seats, always
+  --------------------------------------------- */
+  const pricePerSeatMinor = useMemo(() => {
+    if (!ride?.estimated_fare) return null;
+
+    const totalFareMinor = pennies(ride.estimated_fare);
+    const seatPriceMinor = Math.round(totalFareMinor / 4); // fixed 4-seat model
+
+    return seatPriceMinor;
+  }, [ride]);
+
+  function computePlatformFee(seatMinor) {
+    // < £10 → £1 flat
+    if (seatMinor < 1000) return 100;
+    // ≥ £10 → 10%
+    return Math.round(seatMinor * 0.1);
+  }
+
+  /* ---------------------------------------------
+     FARE PER REQUEST
+  --------------------------------------------- */
   const farePreviewByRequestId = useMemo(() => {
-    if (!ride || !requests.length) return {};
+    const map = {};
+    if (!pricePerSeatMinor) return map;
 
-    const rideEstimateMinor = pennies(ride.estimated_fare || 0);
-    if (!rideEstimateMinor) return {};
+    const platformFeePerSeat = computePlatformFee(pricePerSeatMinor);
 
-    const hostSeats = Number(ride.seats ?? 1);
+    for (const req of requests) {
+      const seats = Number(req.seats || 0);
 
-    const passengerSeats = requests
-      .filter((r) => ["pending", "accepted"].includes(r.status))
-      .reduce((sum, r) => sum + Number(r.seats || 0), 0);
+      const seatTotal = pricePerSeatMinor * seats;
+      const platformTotal = platformFeePerSeat * seats;
+      const userPaysTotal = seatTotal + platformTotal;
 
-    const totalPeople = Math.max(1, hostSeats + passengerSeats);
-    const seatShareMinor = Math.max(
-      1,
-      Math.round(rideEstimateMinor / totalPeople)
-    );
-
-    const out = {};
-    for (const r of requests) {
-      const s = Number(r.seats || 0);
-      out[r.id] = {
-        seatShareMinor,
-        amountMinor: seatShareMinor * s,
+      map[req.id] = {
+        seats,
+        seatMinor: pricePerSeatMinor,
+        seatTotal,
+        platformFeePerSeat,
+        platformTotal,
+        userPaysTotal,
+        hostReceives: seatTotal, // no host withdrawal fee yet
       };
     }
-    return out;
-  }, [ride, requests]);
 
+    return map;
+  }, [requests, pricePerSeatMinor]);
+
+  /* ---------------------------------------------
+     UPDATE LOCAL STATUS
+  --------------------------------------------- */
   const updateLocalStatus = (requestId, status) => {
     setRequests((prev) =>
       prev.map((req) => (req.id === requestId ? { ...req, status } : req))
     );
   };
 
-  // ------------------------------------------------
-  // Accept Request  → backend auto-creates deposit
-  // ------------------------------------------------
+  /* ---------------------------------------------
+     ACCEPT REQUEST (auto-creates deposit)
+  --------------------------------------------- */
   const handleAccept = async (requestId) => {
     try {
       setBusy(true);
@@ -120,32 +141,33 @@ export default function HostManageRide() {
 
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        toast.error(json.error || "Accept failed.");
+        toast.error(json.error || "Failed to accept request.");
         setBusy(false);
         return;
       }
 
-      toast.success("Request accepted. Deposit created automatically.");
+      toast.success("Request accepted. Deposit created.");
       updateLocalStatus(requestId, "accepted");
 
-      // Reload to fetch newly created deposit
+      // Reload to show deposit immediately
       setTimeout(() => window.location.reload(), 600);
     } catch (err) {
       console.error(err);
-      toast.error("Could not accept request.");
+      toast.error("Error accepting request.");
     } finally {
       setBusy(false);
     }
   };
 
-  // ------------------------------------------------
-  // Reject Request
-  // ------------------------------------------------
+  /* ---------------------------------------------
+     REJECT REQUEST
+  --------------------------------------------- */
   const handleReject = async (requestId) => {
     if (!window.confirm("Reject this passenger?")) return;
 
     try {
       setBusy(true);
+
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
 
@@ -165,15 +187,16 @@ export default function HostManageRide() {
       updateLocalStatus(requestId, "rejected");
     } catch (err) {
       console.error(err);
-      toast.error("Could not reject request.");
+      toast.error("Error rejecting request.");
     } finally {
       setBusy(false);
     }
   };
 
-  // ------------------------------------------------
-  // UI
-  // ------------------------------------------------
+  /* ---------------------------------------------
+     UI
+  --------------------------------------------- */
+
   if (loading) return <p className="host-manage-loading">Loading…</p>;
   if (!ride) return <p className="host-manage-error">Ride not found.</p>;
 
@@ -190,34 +213,35 @@ export default function HostManageRide() {
         Manage Ride <span className="host-title-id">#{ride.id}</span>
       </h2>
 
-      {/* TOP SUMMARY CARD */}
+      {/* SUMMARY */}
       <div className="host-ride-card">
         <p className="host-ride-route">
           <strong>
             {ride.from} → {ride.to}
           </strong>
         </p>
+
         <p className="host-ride-meta">
           {ride.date} at {ride.time}
         </p>
+
         <p className="host-ride-meta">
-          Estimated fare:{" "}
-          <strong>£{Number(ride.estimated_fare || 0).toFixed(2)}</strong>
+          Estimated Fare (Whole Ride): <strong>£{ride.estimated_fare}</strong>
         </p>
+
+        {pricePerSeatMinor && (
+          <p className="host-ride-meta">
+            Passenger Price (Per Seat):{" "}
+            <strong>£{formatGBP(pricePerSeatMinor)}</strong>
+          </p>
+        )}
+
         <p className="host-ride-meta">
           Ride Status: <strong>{ride.status}</strong>
         </p>
-
-        {payout && (
-          <p className="host-ride-meta">
-            Host payout: <strong>{payout.status}</strong>{" "}
-            {payout.host_payout_minor != null && (
-              <>— est. £{formatGBP(payout.host_payout_minor)}</>
-            )}
-          </p>
-        )}
       </div>
 
+      {/* REQUESTS */}
       <h3 className="host-section-title">Passenger Requests</h3>
 
       {requests.length === 0 ? (
@@ -229,32 +253,21 @@ export default function HostManageRide() {
             const preview = farePreviewByRequestId[req.id] || {};
             const deposit = req.deposit;
 
-            let depositText = "Not created";
-            let depositClass = "none";
+            const depositStatus = deposit?.status || "none";
 
-            if (!deposit) {
-              depositText =
-                req.status === "pending"
-                  ? "Pending approval"
-                  : req.status === "accepted"
-                  ? "Deposit created automatically"
-                  : "Not created";
-            } else {
-              if (deposit.status === "pending") {
-                depositText = "Waiting for passenger to pay";
-                depositClass = "pending";
-              } else if (deposit.status === "paid") {
-                depositText = "Paid";
-                depositClass = "paid";
-              } else {
-                depositText = deposit.status;
-                depositClass = deposit.status;
-              }
-            }
+            let depositText =
+              depositStatus === "pending"
+                ? "Waiting for payment"
+                : depositStatus === "paid"
+                ? "Paid"
+                : req.status === "accepted"
+                ? "Deposit created"
+                : "Not created";
 
             return (
               <li key={req.id} className="host-request-item">
                 <div className="host-request-main">
+                  {/* NAME */}
                   <p className="host-request-name">
                     <Link
                       to={`/profile/${req.user_id}`}
@@ -265,22 +278,42 @@ export default function HostManageRide() {
                     ({req.seats} seat{req.seats > 1 ? "s" : ""})
                   </p>
 
+                  {/* LUGGAGE */}
                   <p className="host-request-sub">
-                    Luggage: backpack {req.luggage_backpack ?? 0}, small{" "}
+                    Luggage — backpack {req.luggage_backpack ?? 0}, small{" "}
                     {req.luggage_small ?? 0}, large {req.luggage_large ?? 0}
                   </p>
 
-                  {preview.amountMinor ? (
-                    <p className="host-request-sub">
-                      Est. per seat: £{formatGBP(preview.seatShareMinor)} — Est.
-                      total: £{formatGBP(preview.amountMinor)}
-                    </p>
+                  {/* PRICE */}
+                  {preview.seatMinor ? (
+                    <>
+                      <p className="host-request-sub">
+                        Seat price: £{formatGBP(preview.seatMinor)} ×{" "}
+                        {preview.seats} = £{formatGBP(preview.seatTotal)}
+                      </p>
+
+                      <p className="host-request-sub">
+                        Platform fee: £{formatGBP(preview.platformFeePerSeat)} ×{" "}
+                        {preview.seats} = £{formatGBP(preview.platformTotal)}
+                      </p>
+
+                      <p className="host-request-sub">
+                        <strong>
+                          Total passenger pays: £
+                          {formatGBP(preview.userPaysTotal)}
+                        </strong>
+                      </p>
+
+                      <p className="host-request-sub">
+                        Host receives (before withdrawal fee): £
+                        {formatGBP(preview.hostReceives)}
+                      </p>
+                    </>
                   ) : (
-                    <p className="host-request-sub">
-                      Estimated fare not set yet.
-                    </p>
+                    <p className="host-request-sub">No fare available</p>
                   )}
 
+                  {/* STATUS */}
                   <p className="host-status-pill">
                     Status:{" "}
                     <span className={`status-pill status-${req.status}`}>
@@ -288,16 +321,16 @@ export default function HostManageRide() {
                     </span>
                   </p>
 
-                  {/* Deposit row */}
+                  {/* DEPOSIT */}
                   <div className="host-deposit-row">
                     <span className="host-deposit-label">Deposit:</span>
-                    <span className={`status-pill deposit-${depositClass}`}>
+                    <span className={`status-pill deposit-${depositStatus}`}>
                       {depositText}
                     </span>
 
                     {deposit && (
                       <span className="host-deposit-amount">
-                        £
+                        Passenger paid: £
                         {formatGBP(
                           (deposit.amount_minor || 0) +
                             (deposit.platform_fee_minor || 0)
@@ -307,6 +340,7 @@ export default function HostManageRide() {
                   </div>
                 </div>
 
+                {/* ACTION BUTTONS */}
                 <div className="host-request-actions">
                   {req.status === "pending" && (
                     <>
