@@ -54,7 +54,14 @@ export default function AllPostedRides() {
     async function fetchRides() {
       const { data, error } = await supabase
         .from("rides")
-        .select("*, profiles(id, nickname, avatar_url)")
+        .select(
+          `
+  *,
+  profiles(id, nickname, avatar_url),
+  ride_requests!left(status, seats)
+`
+        )
+
         .order("date", { ascending: true })
         .order("time", { ascending: true });
 
@@ -177,7 +184,10 @@ export default function AllPostedRides() {
 
       // call backend
       const res = await fetch(
-        `${import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "")}/api/rides/${rideToDelete}`,
+        `${import.meta.env.VITE_STRIPE_BACKEND.replace(
+          /\/$/,
+          ""
+        )}/api/rides/${rideToDelete}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -241,6 +251,58 @@ export default function AllPostedRides() {
     }
 
     navigate(`/messages/${chatId}`);
+  };
+  const handleRequestJoin = async (rideId) => {
+    if (!user) {
+      if (
+        window.confirm("You need an account to join rides. Create one now?")
+      ) {
+        navigate("/signup");
+      }
+      return;
+    }
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        toast.error("Not authenticated.");
+        return;
+      }
+
+      const token = session.access_token;
+
+      const res = await fetch(
+        `${
+          import.meta.env.VITE_STRIPE_BACKEND
+        }/api/rides-new/${rideId}/request`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            seats: 1, // default for now — can extend later
+            luggage: { backpack: 0, small: 0, large: 0 }, // extend later
+          }),
+        }
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        toast.error(json.error || "Failed to request ride.");
+        return;
+      }
+
+      toast.success("Request sent! The host will review it soon.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not send request.");
+    }
   };
 
   return (
@@ -323,12 +385,11 @@ export default function AllPostedRides() {
                   isSaved={savedRideIds.includes(ride.id)}
                   canSave={true}
                   canEdit={user?.id === ride.profiles?.id}
-                  /* 👇 Show Book button to everyone (hidden only for owner when logged in) */
-                  showBookNow={ride.profiles?.id !== user?.id}
                   onSaveToggle={toggleSaveRide}
                   onDelete={() => confirmDelete(ride.id)}
                   onEdit={(id) => navigate(`/edit-ride/${id}`)}
                   onStartChat={handleStartChat}
+                  onRequestJoin={handleRequestJoin}
                 />
               ))}
             </ul>

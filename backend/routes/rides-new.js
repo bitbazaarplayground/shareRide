@@ -262,29 +262,47 @@ router.get("/:rideId/requests", async (req, res) => {
       .from("ride_requests")
       .select(
         `
-        id,
-        user_id,
-        seats,
-        luggage_backpack,
-        luggage_small,
-        luggage_large,
-        status,
-        profiles ( nickname, avatar_url )
-      `
+    id,
+    user_id,
+    seats,
+    luggage_backpack,
+    luggage_small,
+    luggage_large,
+    status,
+    profiles ( nickname, avatar_url )
+  `
       )
       .eq("ride_id", rideId)
       .order("created_at");
 
     if (reqErr) throw reqErr;
 
-    return res.json({ ok: true, requests });
+    // Load deposits for this ride (if any)
+    const { data: deposits, error: depErr } = await supabase
+      .from("ride_deposits")
+      .select("id, request_id, status, amount_minor")
+      .eq("ride_id", rideId);
+
+    if (depErr) throw depErr;
+
+    // Attach deposit to each request (by request_id)
+    const depositByRequestId = Object.fromEntries(
+      (deposits || []).map((d) => [d.request_id, d])
+    );
+
+    const withDeposits = (requests || []).map((r) => ({
+      ...r,
+      deposit: depositByRequestId[r.id] || null,
+    }));
+
+    return res.json({ ok: true, requests: withDeposits });
   } catch (err) {
     console.error("get requests error:", err);
     return res.status(500).json({ error: "Failed to load requests" });
   }
 });
 /* ============================================================
-   4A. ACCEPT REQUEST (Host only)
+   4A. ACCEPT REQUEST (Host only) — WITH INSTANT DEPOSIT CREATION
 ============================================================ */
 router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
   try {
@@ -297,7 +315,7 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
     // Fetch ride + ensure host owns it
     const { data: ride } = await supabase
       .from("rides")
-      .select("user_id, status")
+      .select("*")
       .eq("id", rideId)
       .single();
 
@@ -320,7 +338,7 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
     if (request.status !== "pending")
       return res.status(400).json({ error: "Request already processed" });
 
-    // Check capacity before accepting
+    // Check capacity constraints
     const cap = await computeRemainingCapacity(rideId);
 
     if (request.seats > cap.remainingSeats)
@@ -338,7 +356,7 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
         error: `Not enough large suitcase space. Remaining: ${cap.remainingLarge}`,
       });
 
-    // Accept it
+    // 1️⃣ Accept request
     const { data: updated, error: updErr } = await supabase
       .from("ride_requests")
       .update({ status: "accepted", updated_at: new Date().toISOString() })
@@ -348,12 +366,218 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
 
     if (updErr) throw updErr;
 
-    return res.json({ ok: true, request: updated });
+    // 2️⃣ === NEW: INSTANT DEPOSIT CREATION ===
+    let deposit = null;
+    try {
+      const fare = computeFareModel(ride, [request]);
+
+      const depositRow = {
+        ride_id: rideId,
+        user_id: request.user_id,
+        request_id: request.id,
+        amount_minor: fare.perRequest[0].seat_amount_minor,
+        platform_fee_minor: fare.perRequest[0].platform_fee_minor,
+        currency: "gbp",
+        status: "pending", // passenger must pay
+        created_at: new Date().toISOString(),
+      };
+
+      const { data: dep, error: depErr } = await supabase
+        .from("ride_deposits")
+        .insert(depositRow)
+        .select()
+        .single();
+
+      if (depErr) {
+        console.error("Deposit creation error:", depErr);
+        return res.status(500).json({ error: "Deposit could not be created" });
+      }
+
+      deposit = dep;
+    } catch (fareErr) {
+      console.error("fare/deposit error:", fareErr);
+      return res.status(500).json({ error: "Failed to compute deposit" });
+    }
+
+    // 3️⃣ Auto-finalise ride if full
+    let autoFinalised = false;
+    try {
+      const capAfter = await computeRemainingCapacity(rideId);
+
+      if (capAfter.remainingSeats === 0) {
+        const finaliseResult = await finaliseRideInternal(rideId, user.id);
+        if (finaliseResult.ok && !finaliseResult.alreadyFinalised) {
+          autoFinalised = true;
+        }
+      }
+    } catch (autoErr) {
+      console.warn("auto-finalise skipped:", autoErr.message);
+      // non-fatal
+    }
+
+    return res.json({
+      ok: true,
+      request: updated,
+      deposit,
+      autoFinalised,
+    });
   } catch (err) {
     console.error("accept request error:", err);
     return res.status(500).json({ error: "Failed to accept request" });
   }
 });
+// ============================================================
+// 3AA HELPER — Maybe release funds after all check-ins completed
+// ============================================================
+async function maybeReleaseFunds(rideId) {
+  // 1. Load all paid deposits
+  const { data: deposits } = await supabase
+    .from("ride_deposits")
+    .select("*")
+    .eq("ride_id", rideId)
+    .eq("status", "paid");
+
+  // 2. Required: accepted requests
+  const { data: reqs } = await supabase
+    .from("ride_requests")
+    .select("id, user_id")
+    .eq("ride_id", rideId)
+    .eq("status", "accepted");
+
+  // 3. Check-ins (ride_pool_contributions)
+  const { data: contributions } = await supabase
+    .from("ride_pool_contributions")
+    .select("user_id, checked_in_at")
+    .eq("ride_pool_id", rideId);
+
+  const acceptedCount = reqs.length;
+  const checkedInCount = contributions.filter((c) => c.checked_in_at).length;
+
+  if (checkedInCount !== acceptedCount) {
+    return; // not ready yet
+  }
+
+  // 4. Load payout row
+  const { data: payoutRow } = await supabase
+    .from("ride_payouts")
+    .select("id, host_user_id, host_payout_minor, stripe_account_id")
+    .eq("ride_id", rideId)
+    .single();
+
+  if (!payoutRow) return;
+
+  // 5. RELEASE FUNDS to host's Stripe Connect account
+  await stripe.transfers.create({
+    amount: payoutRow.host_payout_minor,
+    currency: "gbp",
+    destination: payoutRow.stripe_account_id,
+  });
+
+  // 6. Mark payout as completed
+  await supabase
+    .from("ride_payouts")
+    .update({ status: "paid" })
+    .eq("ride_id", rideId);
+
+  console.log("Funds released for ride:", rideId);
+}
+
+/* ============================================================
+   3B. HOST DASHBOARD DATA (ride + requests + deposits + payout)
+============================================================ */
+router.get("/:rideId/host-dashboard", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    // 1️⃣ Load ride and ensure this user is the host
+    const { data: ride, error: rideErr } = await supabase
+      .from("rides")
+      .select(
+        "id, user_id, from, to, date, time, status, estimated_fare, seats"
+      )
+      .eq("id", rideId)
+      .single();
+
+    if (rideErr || !ride)
+      return res.status(404).json({ error: "Ride not found" });
+
+    if (ride.user_id !== user.id)
+      return res.status(403).json({ error: "Not your ride" });
+
+    // 2️⃣ Load ride requests with profile info
+    const { data: requests, error: reqErr } = await supabase
+      .from("ride_requests")
+      .select(
+        `
+        id,
+        user_id,
+        seats,
+        luggage_backpack,
+        luggage_small,
+        luggage_large,
+        status,
+        created_at,
+        updated_at,
+        profiles ( nickname, avatar_url )
+      `
+      )
+      .eq("ride_id", rideId)
+      .order("created_at");
+
+    if (reqErr) throw reqErr;
+
+    const requestIds = (requests || []).map((r) => r.id);
+
+    // 3️⃣ Load deposits per request (if any)
+    let depositByRequestId = {};
+    if (requestIds.length > 0) {
+      const { data: deposits, error: depErr } = await supabase
+        .from("ride_deposits")
+        .select(
+          "id, request_id, user_id, amount_minor, platform_fee_minor, currency, status, payment_intent_id"
+        )
+        .in("request_id", requestIds);
+
+      if (depErr) throw depErr;
+
+      depositByRequestId = Object.fromEntries(
+        (deposits || []).map((d) => [d.request_id, d])
+      );
+    }
+
+    // 4️⃣ Optional: host payout summary
+    const { data: payoutRow } = await supabase
+      .from("ride_payouts")
+      .select("id, status, host_payout_minor, total_seat_minor, host_fee_minor")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    // 5️⃣ Build enriched request list
+    const enrichedRequests = (requests || []).map((r) => {
+      const { profiles, ...rest } = r;
+      return {
+        ...rest,
+        profile: profiles || null,
+        deposit: depositByRequestId[r.id] || null,
+      };
+    });
+
+    return res.json({
+      ok: true,
+      ride,
+      requests: enrichedRequests,
+      payout: payoutRow || null,
+    });
+  } catch (err) {
+    console.error("host-dashboard error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to load host dashboard for this ride" });
+  }
+});
+
 /* ============================================================
    4B. REJECT REQUEST (Host only)
 ============================================================ */
@@ -404,128 +628,231 @@ router.post("/:rideId/requests/:requestId/reject", async (req, res) => {
     return res.status(500).json({ error: "Failed to reject request" });
   }
 });
+// ============================================================
+// INTERNAL: finalise ride → create deposits + payout
+// Can be called from: manual route OR auto-finalise in /accept
+// ============================================================
+async function finaliseRideInternal(rideId, hostUserId = null) {
+  // 1️⃣ Load ride & check host (if hostUserId provided)
+  const { data: ride, error: rideErr } = await supabase
+    .from("rides")
+    .select("id, user_id, estimated_fare, seats")
+    .eq("id", rideId)
+    .single();
+
+  if (rideErr || !ride) {
+    return { ok: false, status: 404, error: "Ride not found" };
+  }
+
+  if (hostUserId && ride.user_id !== hostUserId) {
+    return { ok: false, status: 403, error: "Only the host can finalise" };
+  }
+
+  // 2️⃣ Prevent double-finalise
+  const { data: existingDeposits, error: depCheckErr } = await supabase
+    .from("ride_deposits")
+    .select("id")
+    .eq("ride_id", rideId)
+    .limit(1);
+
+  if (depCheckErr) {
+    console.error("deposit check error:", depCheckErr);
+    return {
+      ok: false,
+      status: 500,
+      error: "Failed to check existing deposits",
+    };
+  }
+
+  if (existingDeposits && existingDeposits.length > 0) {
+    // Already done — not an error, just tell caller
+    return {
+      ok: true,
+      alreadyFinalised: true,
+      message: "Ride already has deposits",
+    };
+  }
+
+  // 3️⃣ Load accepted requests
+  const { data: acceptedReqs, error: reqErr } = await supabase
+    .from("ride_requests")
+    .select("id, user_id, seats")
+    .eq("ride_id", rideId)
+    .eq("status", "accepted");
+
+  if (reqErr) {
+    console.error("load accepted requests error:", reqErr);
+    return { ok: false, status: 500, error: "Failed to load ride requests" };
+  }
+
+  if (!acceptedReqs || acceptedReqs.length === 0) {
+    return {
+      ok: false,
+      status: 400,
+      error: "No accepted requests to finalise",
+    };
+  }
+
+  // 4️⃣ Compute fare model (seat share + platform + host fee)
+  let fare;
+  try {
+    fare = computeFareModel(ride, acceptedReqs);
+  } catch (err) {
+    console.error("fare compute error:", err);
+    return {
+      ok: false,
+      status: 500,
+      error: err.message || "Failed to compute fare",
+    };
+  }
+
+  // 5️⃣ Insert deposits per request
+  const depositRows = fare.perRequest.map((r) => ({
+    ride_id: rideId,
+    user_id: r.user_id,
+    request_id: r.request_id,
+    amount_minor: r.seat_amount_minor, // seat share
+    platform_fee_minor: r.platform_fee_minor,
+    currency: "gbp",
+    status: "pending", // not yet paid
+  }));
+
+  const { data: insertedDeposits, error: depErr } = await supabase
+    .from("ride_deposits")
+    .insert(depositRows)
+    .select(
+      "id, request_id, user_id, amount_minor, platform_fee_minor, status"
+    );
+
+  if (depErr) {
+    console.error("insert deposits error:", depErr);
+    return { ok: false, status: 500, error: "Failed to create deposits" };
+  }
+
+  // 6️⃣ Create host payout stub
+  const { totals } = fare;
+  const { data: payoutRow, error: payoutErr } = await supabase
+    .from("ride_payouts")
+    .insert({
+      ride_id: rideId,
+      host_user_id: ride.user_id,
+      currency: "gbp",
+      total_seat_minor: totals.totalPassengerSeatMinor,
+      host_fee_minor: totals.hostFeeMinor,
+      host_payout_minor: totals.hostPayoutMinor,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (payoutErr) {
+    console.error("insert payout error:", payoutErr);
+    return { ok: false, status: 500, error: "Failed to create host payout" };
+  }
+
+  // 7️⃣ Update ride status
+  await supabase
+    .from("rides")
+    .update({ status: "pending_payment" })
+    .eq("id", rideId);
+
+  return {
+    ok: true,
+    alreadyFinalised: false,
+    seatShareMinor: fare.seatShareMinor,
+    deposits: insertedDeposits,
+    hostPayout: payoutRow,
+    totals: fare.totals,
+  };
+}
+
 /* ============================================================
    5. FINALISE RIDE (host locks in payouts & deposits)
 ============================================================ */
-router.post("/:rideId/finalise", express.json(), async (req, res) => {
+router.post("/:rideId/finalise", async (req, res) => {
   try {
     const rideId = Number(req.params.rideId);
     const user = await getUserFromToken(req.headers.authorization);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-    // 1️⃣ Load ride & verify host
-    const { data: ride, error: rideErr } = await supabase
+    const { data: ride } = await supabase
       .from("rides")
-      .select("id, user_id, estimated_fare, seats")
+      .select("user_id, status")
       .eq("id", rideId)
       .single();
 
-    if (rideErr || !ride)
-      return res.status(404).json({ error: "Ride not found" });
+    if (!ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.user_id !== user.id)
+      return res.status(403).json({ error: "Not your ride" });
 
-    if (ride.user_id !== user.id) {
-      return res.status(403).json({ error: "Only the host can finalise" });
-    }
-
-    // 2️⃣ Prevent double-finalise (if deposits already exist)
-    const { data: existingDeposits, error: depCheckErr } = await supabase
-      .from("ride_deposits")
-      .select("id")
-      .eq("ride_id", rideId)
-      .limit(1);
-
-    if (depCheckErr) {
-      console.error("deposit check error:", depCheckErr);
-      return res
-        .status(500)
-        .json({ error: "Failed to check existing deposits" });
-    }
-
-    if (existingDeposits && existingDeposits.length > 0) {
-      return res
-        .status(400)
-        .json({ error: "Ride already has deposits; maybe already finalised" });
-    }
-
-    // 3️⃣ Load accepted requests
-    const { data: acceptedReqs, error: reqErr } = await supabase
-      .from("ride_requests")
-      .select("id, user_id, seats")
-      .eq("ride_id", rideId)
-      .eq("status", "accepted");
-
-    if (reqErr) {
-      console.error("load accepted requests error:", reqErr);
-      return res.status(500).json({ error: "Failed to load ride requests" });
-    }
-
-    if (!acceptedReqs || acceptedReqs.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No accepted requests to finalise" });
-    }
-
-    // 4️⃣ Compute fare model (seat share + platform + host fee)
-    const fare = computeFareModel(ride, acceptedReqs);
-
-    // 5️⃣ Insert deposits per request
-    const depositRows = fare.perRequest.map((r) => ({
-      ride_id: rideId,
-      user_id: r.user_id,
-      request_id: r.request_id,
-      amount_minor: r.seat_amount_minor, // seat share
-      platform_fee_minor: r.platform_fee_minor,
-      currency: "gbp",
-      status: "pending", // not yet paid
-    }));
-
-    const { data: insertedDeposits, error: depErr } = await supabase
-      .from("ride_deposits")
-      .insert(depositRows)
-      .select("id, request_id, user_id, amount_minor, platform_fee_minor");
-
-    if (depErr) {
-      console.error("insert deposits error:", depErr);
-      return res.status(500).json({ error: "Failed to create deposits" });
-    }
-
-    // 6️⃣ Create host payout stub
-    const { totals } = fare;
-    const { data: payoutRow, error: payoutErr } = await supabase
-      .from("ride_payouts")
-      .insert({
-        ride_id: rideId,
-        host_user_id: ride.user_id,
-        currency: "gbp",
-        total_seat_minor: totals.totalPassengerSeatMinor,
-        host_fee_minor: totals.hostFeeMinor,
-        host_payout_minor: totals.hostPayoutMinor,
-        status: "pending",
-      })
-      .select()
-      .single();
-
-    if (payoutErr) {
-      console.error("insert payout error:", payoutErr);
-      return res.status(500).json({ error: "Failed to create host payout" });
-    }
-
-    // 7️⃣ Optionally update ride status
     await supabase
       .from("rides")
-      .update({ status: "pending_payment" })
+      .update({ status: "closed_to_requests" })
       .eq("id", rideId);
 
-    return res.json({
-      ok: true,
-      seatShareMinor: fare.seatShareMinor,
-      deposits: insertedDeposits,
-      hostPayout: payoutRow,
-      totals: fare.totals,
-    });
+    return res.json({ ok: true, message: "Ride closed to new requests" });
   } catch (err) {
     console.error("finalise error:", err);
-    return res.status(500).json({ error: "Failed to finalise ride" });
+    return res.status(500).json({ error: "Failed to close ride" });
+  }
+});
+// ============================================================
+// 6. GET passenger's deposits for rides
+// ============================================================
+router.get("/my/deposits", async (req, res) => {
+  try {
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data, error } = await supabase
+      .from("ride_deposits")
+      .select(
+        `
+        id,
+        ride_id,
+        request_id,
+        amount_minor,
+        platform_fee_minor,
+        status,
+        rides (*, profiles(*)),
+        ride_requests (seats, status)
+      `
+      )
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+
+    return res.json({ ok: true, deposits: data });
+  } catch (err) {
+    console.error("my deposits error:", err);
+    return res.status(500).json({ error: "Failed to load deposits" });
+  }
+});
+// ============================================================
+// 7. Passenger Check-In
+// ============================================================
+router.post("/:rideId/check-in", async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    // Mark checked in
+    const { error: updateErr } = await supabase
+      .from("ride_pool_contributions")
+      .update({ checked_in_at: new Date().toISOString() })
+      .eq("ride_pool_id", rideId)
+      .eq("user_id", user.id);
+
+    if (updateErr) throw updateErr;
+
+    // 🚀 NEW: Try releasing funds
+    await maybeReleaseFunds(rideId);
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("check-in error:", err);
+    return res.status(500).json({ error: "Failed to check-in" });
   }
 });
 

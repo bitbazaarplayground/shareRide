@@ -1,9 +1,8 @@
-// src/Pages/HostManageRide.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { supabase } from "../supabaseClient";
-import "./StylesPages/HostManageRide.css"; // create this file
+import "./StylesPages/HostManageRide.css";
 
 function pennies(gbp) {
   return Math.round(Number(gbp || 0) * 100);
@@ -16,11 +15,12 @@ export default function HostManageRide() {
 
   const [ride, setRide] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [payout, setPayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   // ------------------------------------------------
-  // Load ride + requests
+  // Load ride + requests + deposits + payout
   // ------------------------------------------------
   useEffect(() => {
     if (!rideId) return;
@@ -29,48 +29,30 @@ export default function HostManageRide() {
       try {
         setLoading(true);
 
-        // 1) Load ride from Supabase
-        const { data: rideData, error: rideErr } = await supabase
-          .from("rides")
-          .select("*, profiles(nickname, avatar_url)")
-          .eq("id", rideId)
-          .single();
-
-        if (rideErr || !rideData) {
-          console.error("Ride load error:", rideErr);
-          toast.error("Could not load ride.");
-          setLoading(false);
-          return;
-        }
-
-        setRide(rideData);
-
-        // 2) Load ride requests from backend (host-only endpoint)
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
 
         if (!token || !BACKEND) {
-          toast.error("Not authenticated or backend not configured.");
+          toast.error("Not authenticated or backend missing.");
           setLoading(false);
           return;
         }
 
-        const res = await fetch(`${BACKEND}/api/rides-new/${rideId}/requests`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${BACKEND}/api/rides-new/${rideId}/host-dashboard`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
         const json = await res.json();
         if (!res.ok || !json.ok) {
-          console.error("Requests load error:", json);
-          toast.error(json.error || "Failed to load ride requests.");
-          setRequests([]);
-        } else {
-          setRequests(json.requests || []);
+          toast.error(json.error || "Failed to load ride dashboard.");
+          setLoading(false);
+          return;
         }
+
+        setRide(json.ride);
+        setRequests(json.requests || []);
+        setPayout(json.payout || null);
       } catch (err) {
         console.error(err);
         toast.error("Failed to load ride.");
@@ -80,187 +62,110 @@ export default function HostManageRide() {
     })();
   }, [rideId, BACKEND]);
 
+  const formatGBP = (minor) => (Number(minor || 0) / 100).toFixed(2);
+
   // ------------------------------------------------
-  // Simple fare preview per request (estimate)
+  // Fare preview (if estimated fare exists)
   // ------------------------------------------------
   const farePreviewByRequestId = useMemo(() => {
     if (!ride || !requests.length) return {};
 
-    const estimateMinor = pennies(ride.estimated_fare || 0);
-    if (!estimateMinor) return {};
+    const rideEstimateMinor = pennies(ride.estimated_fare || 0);
+    if (!rideEstimateMinor) return {};
 
     const hostSeats = Number(ride.seats ?? 1);
 
-    const totalPassengerSeats = requests
-      .filter((r) => r.status === "pending" || r.status === "accepted")
+    const passengerSeats = requests
+      .filter((r) => ["pending", "accepted"].includes(r.status))
       .reduce((sum, r) => sum + Number(r.seats || 0), 0);
 
-    const groupSize = Math.max(1, hostSeats + totalPassengerSeats);
-    const seatShareMinor = Math.max(1, Math.round(estimateMinor / groupSize));
+    const totalPeople = Math.max(1, hostSeats + passengerSeats);
+    const seatShareMinor = Math.max(
+      1,
+      Math.round(rideEstimateMinor / totalPeople)
+    );
 
-    const map = {};
+    const out = {};
     for (const r of requests) {
-      const seats = Number(r.seats || 0);
-      const amountMinor = seatShareMinor * seats;
-      map[r.id] = {
+      const s = Number(r.seats || 0);
+      out[r.id] = {
         seatShareMinor,
-        amountMinor,
+        amountMinor: seatShareMinor * s,
       };
     }
-    return map;
+    return out;
   }, [ride, requests]);
 
-  const formatGBP = (minor) => (Number(minor || 0) / 100).toFixed(2);
-
-  // ------------------------------------------------
-  // Accept / Reject
-  // ------------------------------------------------
-  const updateRequestStatusLocal = (requestId, newStatus) => {
+  const updateLocalStatus = (requestId, status) => {
     setRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: newStatus } : r))
+      prev.map((req) => (req.id === requestId ? { ...req, status } : req))
     );
   };
 
+  // ------------------------------------------------
+  // Accept Request  → backend auto-creates deposit
+  // ------------------------------------------------
   const handleAccept = async (requestId) => {
-    if (!BACKEND) return toast.error("Backend not configured.");
-
     try {
       setBusy(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        toast.error("Not authenticated.");
-        setBusy(false);
-        return;
-      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return toast.error("Not authenticated.");
 
       const res = await fetch(
         `${BACKEND}/api/rides-new/${rideId}/requests/${requestId}/accept`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } }
       );
 
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        toast.error(json.error || "Failed to accept request.");
+        toast.error(json.error || "Accept failed.");
         setBusy(false);
         return;
       }
 
-      toast.success("Request accepted.");
-      updateRequestStatusLocal(requestId, "accepted");
+      toast.success("Request accepted. Deposit created automatically.");
+      updateLocalStatus(requestId, "accepted");
+
+      // Reload to fetch newly created deposit
+      setTimeout(() => window.location.reload(), 600);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to accept request.");
+      toast.error("Could not accept request.");
     } finally {
       setBusy(false);
     }
   };
 
+  // ------------------------------------------------
+  // Reject Request
+  // ------------------------------------------------
   const handleReject = async (requestId) => {
-    if (!BACKEND) return toast.error("Backend not configured.");
-
-    if (!window.confirm("Are you sure you want to reject this request?"))
-      return;
+    if (!window.confirm("Reject this passenger?")) return;
 
     try {
       setBusy(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        toast.error("Not authenticated.");
-        setBusy(false);
-        return;
-      }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
       const res = await fetch(
         `${BACKEND}/api/rides-new/${rideId}/requests/${requestId}/reject`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } }
       );
 
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        toast.error(json.error || "Failed to reject request.");
+        toast.error(json.error || "Reject failed.");
         setBusy(false);
         return;
       }
 
-      toast.info("Request rejected.");
-      updateRequestStatusLocal(requestId, "rejected");
+      toast.info("Passenger rejected.");
+      updateLocalStatus(requestId, "rejected");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to reject request.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // ------------------------------------------------
-  // Finalise ride → creates deposits
-  // ------------------------------------------------
-  const handleFinalise = async () => {
-    if (!BACKEND) return toast.error("Backend not configured.");
-
-    const acceptedCount = requests.filter(
-      (r) => r.status === "accepted"
-    ).length;
-
-    if (!acceptedCount) {
-      toast.warn("You need at least one accepted request to finalise.");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        "Finalise ride now? This creates deposits for accepted passengers."
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setBusy(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        toast.error("Not authenticated.");
-        setBusy(false);
-        return;
-      }
-
-      const res = await fetch(`${BACKEND}/api/rides-new/${rideId}/finalise`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        toast.error(json.error || "Failed to finalise ride.");
-        setBusy(false);
-        return;
-      }
-
-      toast.success("Ride finalised. Deposits created.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to finalise ride.");
+      toast.error("Could not reject request.");
     } finally {
       setBusy(false);
     }
@@ -285,6 +190,7 @@ export default function HostManageRide() {
         Manage Ride <span className="host-title-id">#{ride.id}</span>
       </h2>
 
+      {/* TOP SUMMARY CARD */}
       <div className="host-ride-card">
         <p className="host-ride-route">
           <strong>
@@ -298,111 +204,145 @@ export default function HostManageRide() {
           Estimated fare:{" "}
           <strong>£{Number(ride.estimated_fare || 0).toFixed(2)}</strong>
         </p>
+        <p className="host-ride-meta">
+          Ride Status: <strong>{ride.status}</strong>
+        </p>
 
-        <button
-          className="host-finalise-btn"
-          onClick={handleFinalise}
-          disabled={busy}
-          title="Create deposits for all accepted passengers"
-        >
-          {busy ? "Working…" : "Finalise Ride (Create Deposits)"}
-        </button>
+        {payout && (
+          <p className="host-ride-meta">
+            Host payout: <strong>{payout.status}</strong>{" "}
+            {payout.host_payout_minor != null && (
+              <>— est. £{formatGBP(payout.host_payout_minor)}</>
+            )}
+          </p>
+        )}
       </div>
 
       <h3 className="host-section-title">Passenger Requests</h3>
 
       {requests.length === 0 ? (
-        <p className="host-empty-state">No one has requested this ride yet.</p>
+        <p className="host-empty-state">No ride requests yet.</p>
       ) : (
         <ul className="host-request-list">
           {requests.map((req) => {
-            const passenger = req.profiles || {};
+            const passenger = req.profile || {};
             const preview = farePreviewByRequestId[req.id] || {};
-            const amountMinor = preview.amountMinor;
-            const seatShareMinor = preview.seatShareMinor;
+            const deposit = req.deposit;
+
+            let depositText = "Not created";
+            let depositClass = "none";
+
+            if (!deposit) {
+              depositText =
+                req.status === "pending"
+                  ? "Pending approval"
+                  : req.status === "accepted"
+                  ? "Deposit created automatically"
+                  : "Not created";
+            } else {
+              if (deposit.status === "pending") {
+                depositText = "Waiting for passenger to pay";
+                depositClass = "pending";
+              } else if (deposit.status === "paid") {
+                depositText = "Paid";
+                depositClass = "paid";
+              } else {
+                depositText = deposit.status;
+                depositClass = deposit.status;
+              }
+            }
 
             return (
               <li key={req.id} className="host-request-item">
                 <div className="host-request-main">
-                  <div>
-                    <p className="host-request-name">
-                      <Link
-                        to={`/profile/${req.user_id}`}
-                        className="host-passenger-name-link"
-                      >
-                        <strong>{passenger.nickname || "Passenger"}</strong>
-                      </Link>{" "}
-                      ({req.seats} seat{req.seats > 1 ? "s" : ""})
-                    </p>
+                  <p className="host-request-name">
+                    <Link
+                      to={`/profile/${req.user_id}`}
+                      className="host-passenger-name-link"
+                    >
+                      <strong>{passenger.nickname || "Passenger"}</strong>
+                    </Link>{" "}
+                    ({req.seats} seat{req.seats > 1 ? "s" : ""})
+                  </p>
 
+                  <p className="host-request-sub">
+                    Luggage: backpack {req.luggage_backpack ?? 0}, small{" "}
+                    {req.luggage_small ?? 0}, large {req.luggage_large ?? 0}
+                  </p>
+
+                  {preview.amountMinor ? (
                     <p className="host-request-sub">
-                      Luggage — backpack: {req.luggage_backpack ?? 0}, small:{" "}
-                      {req.luggage_small ?? 0}, large: {req.luggage_large ?? 0}
+                      Est. per seat: £{formatGBP(preview.seatShareMinor)} — Est.
+                      total: £{formatGBP(preview.amountMinor)}
                     </p>
+                  ) : (
+                    <p className="host-request-sub">
+                      Estimated fare not set yet.
+                    </p>
+                  )}
 
-                    {amountMinor ? (
-                      <p className="host-request-sub">
-                        Est. per seat: £{formatGBP(seatShareMinor)} — Est.
-                        total: £{formatGBP(amountMinor)}
-                      </p>
-                    ) : (
-                      <p className="host-request-sub">
-                        Estimated fare not available yet. Passenger will pay a
-                        fair split once set.
-                      </p>
-                    )}
+                  <p className="host-status-pill">
+                    Status:{" "}
+                    <span className={`status-pill status-${req.status}`}>
+                      {req.status}
+                    </span>
+                  </p>
 
-                    <p className="host-status-pill">
-                      Status:{" "}
-                      <span className={`status-pill status-${req.status}`}>
-                        {req.status}
+                  {/* Deposit row */}
+                  <div className="host-deposit-row">
+                    <span className="host-deposit-label">Deposit:</span>
+                    <span className={`status-pill deposit-${depositClass}`}>
+                      {depositText}
+                    </span>
+
+                    {deposit && (
+                      <span className="host-deposit-amount">
+                        £
+                        {formatGBP(
+                          (deposit.amount_minor || 0) +
+                            (deposit.platform_fee_minor || 0)
+                        )}
                       </span>
-                    </p>
-                  </div>
-
-                  <div className="host-request-actions">
-                    {req.status === "pending" && (
-                      <>
-                        <button
-                          className="host-btn host-btn-accept"
-                          onClick={() => handleAccept(req.id)}
-                          disabled={busy}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          className="host-btn host-btn-reject"
-                          onClick={() => handleReject(req.id)}
-                          disabled={busy}
-                        >
-                          Reject
-                        </button>
-                      </>
                     )}
+                  </div>
+                </div>
 
-                    {req.status === "accepted" && (
+                <div className="host-request-actions">
+                  {req.status === "pending" && (
+                    <>
                       <button
-                        className="host-btn host-btn-cancel"
+                        className="host-btn host-btn-accept"
+                        onClick={() => handleAccept(req.id)}
+                        disabled={busy}
+                      >
+                        Accept
+                      </button>
+
+                      <button
+                        className="host-btn host-btn-reject"
                         onClick={() => handleReject(req.id)}
                         disabled={busy}
                       >
-                        Cancel / Reject
+                        Reject
                       </button>
-                    )}
-                  </div>
+                    </>
+                  )}
+
+                  {req.status === "accepted" && (
+                    <button
+                      className="host-btn host-btn-cancel"
+                      onClick={() => handleReject(req.id)}
+                      disabled={busy}
+                    >
+                      Cancel / Remove
+                    </button>
+                  )}
                 </div>
               </li>
             );
           })}
         </ul>
       )}
-
-      <p className="host-footer-note">
-        After you’re happy with who’s joining, click{" "}
-        <strong>“Finalise Ride”</strong>. That will create deposits for each
-        accepted passenger, and they’ll be able to pay from their booking
-        screen.
-      </p>
     </div>
   );
 }

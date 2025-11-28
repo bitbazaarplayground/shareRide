@@ -2,403 +2,239 @@
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import CheckInPanel from "./BookingFlow/CheckInPanel";
+import "./Styles/RideCard.css";
 
 export default function RideCard({
   ride,
   user,
   showAvatar = true,
+
+  // Owner tools
   canEdit = false,
-  canSave = false,
-  isSaved = false,
   onEdit,
   onDelete,
-  onSaveToggle,
+  showHostTools = false,
+
+  // Passenger actions
   onStartChat,
-  showBookNow = false,
-  bookingDetails = null, // supports legacy "booked" details; may be empty for "contributed"
-  is_Host = false,
-  lostHost = false,
-  children, // <-- NEW: extra content (e.g., booking flow widgets) renders inside the <li>
+  onRequestJoin,
+
+  // Save feature
+  canSave = false,
+  isSaved = false,
+  onSaveToggle,
+
+  children,
 }) {
   const navigate = useNavigate();
-  const isOwner = !!(user && ride?.profiles?.id === user.id);
+  const isOwner = user && ride?.profiles?.id === user?.id;
 
+  /* ------------------------------------
+       DATE & TIME HELPERS
+  ------------------------------------ */
   const formatTime = (timeStr) => {
     if (!timeStr) return "N/A";
-    const [hours, minutes] = String(timeStr).split(":");
-    const date = new Date();
-    date.setHours(+hours || 0, +minutes || 0, 0, 0);
-    return date.toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const [h, m] = String(timeStr).split(":");
+    return new Date(0, 0, 0, h, m)
+      .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      .replace(/^0/, "");
   };
 
-  const formatDateWithWeekday = (dateStr) => {
+  const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
-    const dateObj = new Date(dateStr);
-    return dateObj.toLocaleDateString(undefined, {
-      weekday: "long",
-      year: "numeric",
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      weekday: "short",
       month: "short",
       day: "numeric",
     });
   };
 
-  // Confirm used for message/book/save when logged out
-  const confirmAuthCta = () =>
-    window.confirm(
-      "You must be logged in to message or book a ride.\n\nWould you like to create an account for free?"
-    );
+  /* ------------------------------------
+   SEAT & PRICE HELPERS
+------------------------------------ */
+  const capacity =
+    Number(ride.seat_limit ?? ride.seats_total ?? ride.max_passengers ?? 0) ||
+    0;
 
-  // Confirm used for username/profile when logged out
-  const confirmAuthProfile = () =>
-    window.confirm(
-      "Please log in to view profiles.\n\nWould you like to create a free account?"
-    );
+  const hostSeats = Number(ride.seats ?? 1);
 
-  const requireAuthForCta = (action) => () => {
+  const acceptedPassengerSeats = Array.isArray(ride.ride_requests)
+    ? ride.ride_requests
+        .filter((r) => r.status === "accepted")
+        .reduce((sum, r) => sum + Number(r.seats || 0), 0)
+    : 0;
+
+  const totalTakenSeats = hostSeats + acceptedPassengerSeats;
+
+  const availableSeats =
+    capacity > 0 ? Math.max(0, capacity - totalTakenSeats) : null;
+
+  // estimated_fare is total ride fare → divide by seat capacity
+  const pricePerPassenger =
+    ride.estimated_fare && capacity > 0
+      ? Number(ride.estimated_fare) / capacity
+      : null;
+
+  /* ------------------------------------
+       AUTH CHECK
+  ------------------------------------ */
+  const requireAuth = (action) => () => {
     if (user) return action();
-    if (confirmAuthCta()) navigate("/signup");
-  };
-
-  const handleNicknameClick = () => {
-    if (user) {
-      navigate(`/profile/${ride.profiles.id}`);
-    } else if (confirmAuthProfile()) {
+    if (window.confirm("Please log in to continue.\nCreate a free account?")) {
       navigate("/signup");
     }
   };
 
   return (
     <div className="ride-card">
-      {/* Header / poster */}
+      {/* HOST AVATAR + NAME */}
       {showAvatar && ride?.profiles && (
         <div className="avatar-header">
           {ride.profiles.avatar_url ? (
             <img
               src={ride.profiles.avatar_url}
-              alt={`${ride.profiles.nickname || "User"}'s avatar`}
+              alt={`${ride.profiles.nickname} avatar`}
               className="ride-avatar"
-              referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="poster-avatar initial-avatar" aria-hidden="true">
-              {ride.profiles.nickname?.charAt(0).toUpperCase() || "?"}
+            <div className="ride-avatar placeholder">
+              {ride.profiles.nickname?.slice(0, 1).toUpperCase() || "?"}
             </div>
           )}
-          <div className="name-destination">
-            <button
-              type="button"
-              className="poster-nickname clickable"
-              onClick={handleNicknameClick}
-              aria-label={
-                user
-                  ? `View ${ride.profiles.nickname}'s profile`
-                  : "Log in to view profiles"
-              }
-            >
-              {ride.profiles.nickname}
-            </button>
-          </div>
+
+          <button
+            type="button"
+            className="poster-nickname clickable"
+            onClick={
+              user
+                ? () => navigate(`/profile/${ride.profiles.id}`)
+                : requireAuth(() => {})
+            }
+          >
+            {ride.profiles.nickname}
+          </button>
         </div>
       )}
 
-      {/* Core details */}
+      {/* DESTINATION */}
       <div className="ride-locations">
         <strong>{ride.from}</strong> → <strong>{ride.to}</strong>
-        {/* Tiny status badge */}
-        {bookingDetails?.status === "pending" && (
-          <span
-            style={{
-              fontSize: "0.8rem",
-              color: "#b76e00",
-              fontWeight: "600",
-              marginLeft: "8px",
-            }}
-          >
-            🟠 Pending
-          </span>
-        )}
-        {bookingDetails?.status === "confirmed" && (
-          <span
-            style={{
-              fontSize: "0.8rem",
-              color: "green",
-              fontWeight: "600",
-              marginLeft: "8px",
-            }}
-          >
-            🟢 Confirmed
-          </span>
-        )}
-        {bookingDetails?.status === "canceled" && (
-          <span
-            style={{
-              fontSize: "0.8rem",
-              color: "red",
-              fontWeight: "600",
-              marginLeft: "8px",
-            }}
-          >
-            🔴 Canceled
-          </span>
-        )}
       </div>
 
+      {/* BASIC RIDE DETAILS */}
       <div className="ride-details">
         <p>
-          <strong>Date:</strong> {formatDateWithWeekday(ride.date)}
+          <strong>Date:</strong> {formatDate(ride.date)}
         </p>
-
         <p>
           <strong>Time:</strong> {formatTime(ride.time)}
         </p>
-        <p>
-          <strong>Seats:</strong>{" "}
-          {ride.seats ??
-            ride.seats_total ??
-            ride.seat_limit ??
-            ride.max_passengers ??
-            "—"}
-        </p>
-        {/* Booking Code */}
-        {bookingDetails?.booking_code && (
+
+        {/* ✅ Available seats for passengers */}
+        {availableSeats !== null && (
           <p>
-            <strong>Your Code:</strong> {bookingDetails.booking_code}
-            <br />
-            <small className="muted">
-              Share this code once you meet your host. Do not share this code
-              before meeting.
-            </small>
+            <strong>Available Seats:</strong> {availableSeats}
           </p>
         )}
 
-        {/* Optional: legacy "booked" details (payments table) */}
-        {bookingDetails &&
-          (bookingDetails.seats ||
-            bookingDetails.backpacks ||
-            bookingDetails.small ||
-            bookingDetails.large) && (
-            <>
-              <p>
-                <strong>Seats Booked:</strong> {bookingDetails.seats}
-              </p>
-              <p>
-                <strong>Luggage:</strong>{" "}
-                {[
-                  bookingDetails.backpacks &&
-                    `${bookingDetails.backpacks} backpack(s)`,
-                  bookingDetails.small &&
-                    `${bookingDetails.small} small suitcase(s)`,
-                  bookingDetails.large &&
-                    `${bookingDetails.large} large suitcase(s)`,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            </>
-          )}
+        {/* ✅ Price per passenger */}
+        {pricePerPassenger !== null && (
+          <p>
+            <strong>Price Per Passenger:</strong> £
+            {pricePerPassenger.toFixed(2)}
+          </p>
+        )}
+
+        {/* {ride.vehicle_type && (
+          <p>
+            <strong>Vehicle:</strong> {ride.vehicle_type}
+          </p>
+        )} */}
+
+        {ride.notes && (
+          <p className="muted notes">
+            <strong>Notes:</strong> {ride.notes}
+          </p>
+        )}
       </div>
 
+      {/* ACTION BUTTONS */}
       <div className="ride-actions">
-        {(() => {
-          function getUserRole(bookingDetails) {
-            if (bookingDetails?.is_Host && !bookingDetails?.lost_host)
-              return "active-host";
-            if (bookingDetails?.lost_host) return "old-host";
-            return "passenger";
-          }
+        {isOwner ? (
+          <>
+            {canEdit && (
+              <button
+                className="edit-ride-btn"
+                onClick={() => onEdit?.(ride.id)}
+              >
+                Edit Ride
+              </button>
+            )}
 
-          const role = getUserRole(bookingDetails);
+            {onDelete && (
+              <button
+                className="delete-ride-btn"
+                onClick={() => onDelete?.(ride.id)}
+              >
+                Delete Ride
+              </button>
+            )}
 
-          // 🟢 ROLE A — Active Host
-          if (role === "active-host") {
-            return (
-              <>
-                <p className="success">👑 You are now the host of this ride.</p>
-                <button
-                  type="button"
-                  onClick={() => onEdit?.(ride.id)}
-                  className="edit-ride-btn"
-                >
-                  Confirm Ride
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete?.(ride.id)}
-                  className="delete-ride-btn"
-                >
-                  Cancel Ride
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/checkin/${ride.id}`)}
-                  className="checkin-btn"
-                >
-                  Generate Check-In Code
-                </button>
+            <button
+              className="manage-ride-btn"
+              onClick={() => navigate(`/host/ride/${ride.id}`)}
+            >
+              Manage Ride
+            </button>
+          </>
+        ) : (
+          <>
+            {onStartChat && (
+              <button
+                className="send-message-btn"
+                onClick={
+                  user
+                    ? () => onStartChat(ride.profiles?.id, ride.id)
+                    : requireAuth(() => {})
+                }
+              >
+                Send Message
+              </button>
+            )}
 
-                {canSave && (
-                  <button
-                    type="button"
-                    onClick={
-                      user
-                        ? () => onSaveToggle?.(ride.id)
-                        : requireAuthForCta(() => {})
-                    }
-                    className="save-ride-btn"
-                    aria-label={isSaved ? "Unsave ride" : "Save ride"}
-                    title={
-                      user
-                        ? isSaved
-                          ? "Unsave"
-                          : "Save"
-                        : "Log in to save rides"
-                    }
-                  >
-                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
-                  </button>
-                )}
-              </>
-            );
-          }
+            {onRequestJoin && (
+              <button
+                className="request-join-btn"
+                onClick={
+                  user ? () => onRequestJoin(ride.id) : requireAuth(() => {})
+                }
+              >
+                Request to Join
+              </button>
+            )}
 
-          // ⚠️ ROLE B — Old Host (lost host)
-          if (role === "old-host") {
-            return (
-              <>
-                <div className="expired-notice">
-                  ⚠️ Host window expired — a new host has been assigned.
-                </div>
-
-                {onStartChat && (
-                  <button
-                    type="button"
-                    onClick={
-                      user
-                        ? () => onStartChat(ride.profiles?.id, ride.id)
-                        : requireAuthForCta(() => {})
-                    }
-                    className="send-message-btn"
-                  >
-                    Send Message
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={
-                    user
-                      ? () => navigate(`/splitride-confirm/${ride.id}`)
-                      : requireAuthForCta(() => {})
-                  }
-                  className="book-now-btn"
-                >
-                  Book Now
-                </button>
-
-                {canSave && (
-                  <button
-                    type="button"
-                    onClick={
-                      user
-                        ? () => onSaveToggle?.(ride.id)
-                        : requireAuthForCta(() => {})
-                    }
-                    className="save-ride-btn"
-                    aria-label={isSaved ? "Unsave ride" : "Save ride"}
-                    title={
-                      user
-                        ? isSaved
-                          ? "Unsave"
-                          : "Save"
-                        : "Log in to save rides"
-                    }
-                  >
-                    {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
-                  </button>
-                )}
-              </>
-            );
-          }
-
-          // 👥 ROLE C — Passenger / Normal Viewer
-          return (
-            <>
-              {bookingDetails?.status === "pending" && (
-                <div className="alert muted">
-                  Pending — waiting for the host to confirm the ride.
-                </div>
-              )}
-
-              {onStartChat && (
-                <button
-                  type="button"
-                  onClick={
-                    user
-                      ? () => onStartChat(ride.profiles?.id, ride.id)
-                      : requireAuthForCta(() => {})
-                  }
-                  className="send-message-btn"
-                >
-                  Send Message
-                </button>
-              )}
-
-              {showBookNow && (
-                <button
-                  type="button"
-                  onClick={
-                    user
-                      ? () => navigate(`/splitride-confirm/${ride.id}`)
-                      : requireAuthForCta(() => {})
-                  }
-                  className="book-now-btn"
-                >
-                  Book Now
-                </button>
-              )}
-
-              {canSave && (
-                <button
-                  type="button"
-                  onClick={
-                    user
-                      ? () => onSaveToggle?.(ride.id)
-                      : requireAuthForCta(() => {})
-                  }
-                  className="save-ride-btn"
-                  aria-label={isSaved ? "Unsave ride" : "Save ride"}
-                  title={
-                    user
-                      ? isSaved
-                        ? "Unsave"
-                        : "Save"
-                      : "Log in to save rides"
-                  }
-                >
-                  {isSaved ? <FaHeart color="red" /> : <FaRegHeart />}
-                </button>
-              )}
-            </>
-          );
-        })()}
+            {canSave && (
+              <button
+                className="save-ride-btn"
+                onClick={
+                  user ? () => onSaveToggle(ride.id) : requireAuth(() => {})
+                }
+              >
+                {isSaved ? <FaHeart className="heart saved" /> : <FaRegHeart />}
+              </button>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Slot for extra UI (e.g., IssueCodePanel / CheckInPanel / ConfirmBookedButton) */}
-      {children ? <div className="ride-card-extra">{children}</div> : null}
-      {/* Host-only section */}
-      {user && ride.profiles?.id === user.id && (
+      {children && <div className="ride-card-extra">{children}</div>}
+
+      {showHostTools && isOwner && (
         <div className="host-section">
           <h4>Group Status</h4>
-          <p>Group is ready?</p>
           <CheckInPanel rideId={ride.id} user={user} />
         </div>
       )}
-
-      <hr />
     </div>
   );
 }
