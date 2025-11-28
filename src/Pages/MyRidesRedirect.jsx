@@ -15,13 +15,11 @@ const TABS = ["published", "saved", "booked"];
 export default function MyRidesRedirect() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  // keep ?tab= in sync
   const { activeTab, changeTab } = useTabQueryParam(TABS, "published");
 
   const [publishedRides, setPublishedRides] = useState([]);
   const [savedRides, setSavedRides] = useState([]);
-  const [bookedRides, setBookedRides] = useState([]); // <-- will be replaced by ride_requests later
+  const [bookedRides, setBookedRides] = useState([]);
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rideToDelete, setRideToDelete] = useState(null);
@@ -29,37 +27,56 @@ export default function MyRidesRedirect() {
   useEffect(() => {
     if (!user) return;
 
-    // ------------------------------------------------------------
-    // ✅ FETCH PUBLISHED RIDES (host-created)
-    // ------------------------------------------------------------
+    // FETCH PUBLISHED RIDES
     const fetchPublishedRides = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("rides")
-        .select("*, profiles(*)")
+        .select(
+          `
+  *,
+  profiles(*),
+  ride_requests!left(status, seats)
+`
+        )
+
         .eq("user_id", user.id)
         .order("date", { ascending: true });
 
-      if (!error) setPublishedRides(data || []);
+      setPublishedRides(data || []);
     };
 
-    // ------------------------------------------------------------
-    // ✅ FETCH SAVED RIDES
-    // ------------------------------------------------------------
+    // FETCH SAVED RIDES
     const fetchSavedRides = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("saved_rides")
         .select("rides(*, profiles(*))")
         .eq("user_id", user.id);
 
-      if (!error) setSavedRides((data || []).map((entry) => entry.rides));
+      setSavedRides((data || []).map((entry) => entry.rides));
     };
 
-    // ------------------------------------------------------------
-    // ❌ REMOVE OLD BOOKED-RIDES BUILT FROM ride_pools + contributions
-    // ------------------------------------------------------------
-    // This entire block is replaced by the new ride_requests model later.
+    // FETCH BOOKED RIDES (deposit-based)
     const fetchBookedRides = async () => {
-      setBookedRides([]); // placeholder until new model added
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+        if (!token) return;
+
+        const BACKEND = import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "");
+        const res = await fetch(`${BACKEND}/api/rides-new/my/deposits`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const json = await res.json();
+        if (res.ok && json.ok) {
+          setBookedRides(json.deposits || []);
+        }
+      } catch (err) {
+        console.error("fetchBookedRides:", err);
+      }
     };
 
     fetchPublishedRides();
@@ -67,14 +84,8 @@ export default function MyRidesRedirect() {
     fetchBookedRides();
   }, [user]);
 
-  // ------------------------------------------------------------
-  // TODAY
-  // ------------------------------------------------------------
+  // DATE FILTERS
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
-
-  // ------------------------------------------------------------
-  // FILTER PUBLISHED RIDES
-  // ------------------------------------------------------------
   const activeRides = useMemo(
     () => publishedRides.filter((r) => r.date >= today),
     [publishedRides, today]
@@ -84,17 +95,8 @@ export default function MyRidesRedirect() {
     [publishedRides, today]
   );
 
-  // ------------------------------------------------------------
-  // FILTER BOOKED RIDES (placeholder)
-  // ------------------------------------------------------------
-  const bookedActive = [];
-  const bookedPast = [];
-
-  // ------------------------------------------------------------
-  // RIDE EDITING / DELETION
-  // ------------------------------------------------------------
+  // DELETE FLOW
   const handleEdit = (rideId) => navigate(`/edit-ride/${rideId}`);
-
   const confirmDelete = (rideId) => {
     setRideToDelete(rideId);
     setConfirmOpen(true);
@@ -109,20 +111,16 @@ export default function MyRidesRedirect() {
         data: { session },
       } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) throw new Error("Not authenticated");
 
       const res = await fetch(
         `${import.meta.env.VITE_STRIPE_BACKEND.replace(
           /\/$/,
           ""
         )}/api/rides/${rideToDelete}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const json = await res.json().catch(() => ({}));
+      const json = await res.json();
       if (res.ok && json.ok) {
         setPublishedRides((prev) => prev.filter((r) => r.id !== rideToDelete));
         toast.success("Ride deleted successfully.");
@@ -138,16 +136,44 @@ export default function MyRidesRedirect() {
     setLoading(false);
   };
 
+  // UNSAVE FLOW
   const handleUnsave = async (rideId) => {
-    const { error } = await supabase
+    await supabase
       .from("saved_rides")
       .delete()
       .eq("user_id", user.id)
       .eq("ride_id", rideId);
+    setSavedRides((prev) => prev.filter((r) => r.id !== rideId));
+    toast.info("Ride removed from saved rides.");
+  };
 
-    if (!error) {
-      setSavedRides((prev) => prev.filter((r) => r.id !== rideId));
-      toast.info("Ride removed from saved rides.");
+  // HANDLE PAYMENT
+  const handlePayNow = async (deposit) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const BACKEND = import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "");
+
+      const res = await fetch(`${BACKEND}/api/payments-new/pay-deposit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ depositId: deposit.id }),
+      });
+
+      const json = await res.json();
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        toast.error(json.error || "Payment could not be started.");
+      }
+    } catch (err) {
+      toast.error("Payment request failed.");
     }
   };
 
@@ -155,7 +181,7 @@ export default function MyRidesRedirect() {
     <div className="public-profile">
       <h2>My Rides</h2>
 
-      {/* Tabs */}
+      {/* TABS */}
       <div className="tab-buttons">
         <button
           onClick={() => changeTab("published")}
@@ -177,9 +203,9 @@ export default function MyRidesRedirect() {
         </button>
       </div>
 
-      {/* ============================
-          PUBLISHED RIDES (HOST)
-      ============================ */}
+      {/* =======================
+           PUBLISHED RIDES (HOST)
+      ======================= */}
       {activeTab === "published" && (
         <div className="rides-section">
           <h3>Active Rides</h3>
@@ -194,15 +220,15 @@ export default function MyRidesRedirect() {
                     canEdit={true}
                     onEdit={handleEdit}
                     onDelete={() => confirmDelete(ride.id)}
+                    showManageRideButton={true}
                   />
 
-                  {/* “Manage ride” button */}
                   <button
                     className="btn"
-                    style={{ marginTop: "0.5rem" }}
                     onClick={() => navigate(`/host/ride/${ride.id}`)}
+                    style={{ marginTop: "0.5rem" }}
                   >
-                    Manage riders
+                    Manage ride
                   </button>
                 </li>
               ))}
@@ -220,6 +246,7 @@ export default function MyRidesRedirect() {
                   ride={ride}
                   user={user}
                   canEdit={false}
+                  showHostTools={false}
                 />
               ))}
             </ul>
@@ -229,9 +256,9 @@ export default function MyRidesRedirect() {
         </div>
       )}
 
-      {/* ============================
-          SAVED RIDES
-      ============================ */}
+      {/* =======================
+           SAVED RIDES
+      ======================= */}
       {activeTab === "saved" && (
         <div className="rides-section">
           {savedRides.length > 0 ? (
@@ -241,11 +268,9 @@ export default function MyRidesRedirect() {
                   key={ride.id}
                   ride={ride}
                   user={user}
-                  canSave={true}
                   isSaved={true}
-                  showBookNow={true}
-                  onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
                   onSaveToggle={handleUnsave}
+                  showRequestButton={true}
                 />
               ))}
             </ul>
@@ -255,44 +280,47 @@ export default function MyRidesRedirect() {
         </div>
       )}
 
-      {/* ============================
-          BOOKED RIDES (NEW MODEL)
-          Using ride_requests + deposits later
-      ============================ */}
+      {/* =======================
+           BOOKED RIDES (DEPOSITS)
+      ======================= */}
       {activeTab === "booked" && (
         <div className="rides-section">
           <h3>Your Booked Rides</h3>
 
-          {bookedActive.length > 0 ? (
+          {bookedRides.length > 0 ? (
             <ul className="ride-list">
-              {bookedActive.map(({ ride }) => (
-                <li key={ride.id} className="ride-list-item">
-                  <RideCard
-                    ride={ride}
-                    user={user}
-                    onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No upcoming booked rides.</p>
-          )}
+              {bookedRides.map((deposit) => {
+                const ride = deposit.rides;
+                const isPendingPayment = deposit.status === "pending";
+                const isPaid = deposit.status === "paid";
 
-          <h3>Past Booked Rides</h3>
-          {bookedPast.length > 0 ? (
-            <ul className="ride-list">
-              {bookedPast.map(({ ride }) => (
-                <RideCard
-                  key={ride.id}
-                  ride={ride}
-                  user={user}
-                  onStartChat={() => navigate(`/chat/${ride.profiles.id}`)}
-                />
-              ))}
+                return (
+                  <li key={deposit.id} className="ride-list-item">
+                    <RideCard ride={ride} user={user} />
+
+                    {isPendingPayment && (
+                      <button
+                        className="btn pay-btn"
+                        onClick={() => handlePayNow(deposit)}
+                        style={{ marginTop: "0.5rem" }}
+                      >
+                        Pay £
+                        {(deposit.amount_minor + deposit.platform_fee_minor) /
+                          100}
+                      </button>
+                    )}
+
+                    {isPaid && (
+                      <p className="success" style={{ marginTop: "0.5rem" }}>
+                        Payment Completed
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
-            <p>No previous booked rides.</p>
+            <p>No booked rides yet.</p>
           )}
         </div>
       )}

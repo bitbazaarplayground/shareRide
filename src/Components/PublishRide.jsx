@@ -188,22 +188,6 @@ export default function PublishRide() {
 
       const rideId = data.id;
 
-      // 2. Immediately create ride_pool via backend
-      const poolRes = await fetch(
-        `${BACKEND}/api/rides/${rideId}/create-pool`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id }),
-        }
-      );
-
-      if (!poolRes.ok) {
-        console.error("⚠️ Ride pool creation failed", await poolRes.json());
-      } else {
-        console.log("✅ Ride pool created for ride", rideId);
-      }
-
       setMessage("✅ Ride published successfully!");
       setTimeout(() => {
         navigate("/all-rides", {

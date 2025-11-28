@@ -201,3 +201,34 @@
   text-decoration: underline;
   cursor: pointer;
 }
+/* Deposit row container */
+.host-deposit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* Label */
+.host-deposit-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #555;
+}
+
+/* Amount text */
+.host-deposit-amount {
+  font-size: 0.85rem;
+  color: #444;
+  font-weight: 500;
+}
+
+/* Intent ID */
+.host-deposit-intent {
+  display: block;
+  width: 100%;
+  margin-left: 1.6rem;
+  font-size: 0.75rem;
+  color: #888;
+}
