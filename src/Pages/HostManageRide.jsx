@@ -124,6 +124,36 @@ export default function HostManageRide() {
   };
 
   /* ---------------------------------------------
+   HOST EDIT / DELETE
+--------------------------------------------- */
+  // Navigate to edit form
+  const handleEdit = () => {
+    navigate(`/edit-ride/${rideId}`);
+  };
+
+  // Delete ride
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this ride?")) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    const res = await fetch(`${BACKEND}/api/rides-new/${rideId}/delete`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const json = await res.json();
+
+    if (!res.ok || !json.ok) {
+      return toast.error(json.error || "Failed to delete ride.");
+    }
+
+    toast.success("Ride deleted.");
+    navigate("/my-rides?tab=published");
+  };
+
+  /* ---------------------------------------------
      ACCEPT REQUEST (auto-creates deposit)
   --------------------------------------------- */
   const handleAccept = async (requestId) => {
@@ -239,6 +269,15 @@ export default function HostManageRide() {
         <p className="host-ride-meta">
           Ride Status: <strong>{ride.status}</strong>
         </p>
+        <div className="host-ride-actions">
+          <button className="edit-ride-btn" onClick={handleEdit}>
+            Edit Ride
+          </button>
+
+          <button className="delete-ride-btn" onClick={handleDelete}>
+            Delete Ride
+          </button>
+        </div>
       </div>
 
       {/* REQUESTS */}

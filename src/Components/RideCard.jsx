@@ -9,12 +9,6 @@ export default function RideCard({
   user,
   showAvatar = true,
 
-  // Owner tools
-  canEdit = false,
-  onEdit,
-  onDelete,
-  showHostTools = false,
-
   // Passenger actions
   onStartChat,
   onRequestJoin,
@@ -151,24 +145,6 @@ export default function RideCard({
       <div className="ride-actions">
         {isOwner ? (
           <>
-            {canEdit && (
-              <button
-                className="edit-ride-btn"
-                onClick={() => onEdit?.(ride.id)}
-              >
-                Edit Ride
-              </button>
-            )}
-
-            {onDelete && (
-              <button
-                className="delete-ride-btn"
-                onClick={() => onDelete?.(ride.id)}
-              >
-                Delete Ride
-              </button>
-            )}
-
             <button
               className="manage-ride-btn"
               onClick={() => navigate(`/host/ride/${ride.id}`)}
@@ -226,7 +202,7 @@ export default function RideCard({
       {/* Extra content (Host Manage Ride inserts content) */}
       {children && <div className="ride-card-extra">{children}</div>}
 
-      {showHostTools && isOwner && (
+      {isOwner && (
         <div className="host-section">
           <h4>Group Status</h4>
           <CheckInPanel rideId={ride.id} user={user} />
