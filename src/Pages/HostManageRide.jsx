@@ -138,7 +138,7 @@ export default function HostManageRide() {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
 
-    const res = await fetch(`${BACKEND}/api/rides-new/${rideId}/delete`, {
+    const res = await fetch(`${BACKEND}/api/rides-new/${rideId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
