@@ -1,0 +1,17 @@
+name: Auto No-Show Processor
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes
+  workflow_dispatch: # allows manual triggering
+
+jobs:
+  run-cron:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Auto No-Show endpoint
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://tabfair-backend.onrender.com/api/payments-new/auto-noshow
