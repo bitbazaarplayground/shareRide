@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "./StylesPages/EditRide.css";
@@ -52,10 +52,31 @@ export default function EditRide() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { error } = await supabase
-      .from("rides")
-      .update(formState)
-      .eq("id", rideId);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    const res = await fetch(
+      `${import.meta.env.VITE_STRIPE_BACKEND}/api/rides-new/${rideId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formState),
+      }
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || !json.ok) {
+      alert(json.error || "There was an issue updating your ride.");
+      return;
+    }
+
+    navigate("/my-rides?tab=published", {
+      state: { message: "Ride updated successfully!" },
+    });
 
     if (error) {
       console.error("Error updating ride:", error);
@@ -115,8 +136,7 @@ export default function EditRide() {
           name="seats"
           min="1"
           value={formState.seats}
-          onChange={handleChange}
-          required
+          disabled
         />
 
         <label>Notes (optional):</label>
