@@ -232,3 +232,37 @@
   font-size: 0.75rem;
   color: #888;
 }
+.host-payout-box {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.withdraw-btn {
+  margin-top: 1rem;
+  background: #1fa54a;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.withdraw-btn:hover {
+  background: #15923d;
+}
+
+.payout-paid {
+  margin-top: 10px;
+  font-weight: bold;
+  color: #0a8e0a;
+}
+
+.payout-not-ready,
+.host-payout-pending {
+  color: #777;
+  font-size: 0.9rem;
+}

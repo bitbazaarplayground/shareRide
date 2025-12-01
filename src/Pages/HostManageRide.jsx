@@ -222,6 +222,34 @@ export default function HostManageRide() {
       setBusy(false);
     }
   };
+  const handleWithdraw = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    try {
+      const res = await fetch(
+        `${BACKEND}/api/payments-new/payouts/${rideId}/withdraw`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        return toast.error(json.error || "Withdrawal failed.");
+      }
+
+      toast.success("Payout sent to your bank account!");
+
+      // Refresh page data
+      fetchDashboard();
+    } catch (err) {
+      console.error("withdraw error:", err);
+      toast.error("Something went wrong with withdrawal.");
+    }
+  };
 
   /* ---------------------------------------------
      UI
@@ -416,6 +444,59 @@ export default function HostManageRide() {
           })}
         </ul>
       )}
+      {/* -----------------------------------------
+    HOST PAYOUT SECTION
+----------------------------------------- */}
+      <div className="host-payout-box">
+        <h3>Host Earnings</h3>
+
+        {!payout && (
+          <p className="host-payout-pending">Payout info not available yet.</p>
+        )}
+
+        {payout && (
+          <>
+            <p>
+              <strong>Total Seat Earnings:</strong> £
+              {(payout.total_seat_minor / 100).toFixed(2)}
+            </p>
+
+            <p>
+              <strong>Withdrawal Fee:</strong> £
+              {(payout.withdrawal_fee_minor / 100).toFixed(2)}
+            </p>
+
+            <p>
+              <strong>You Will Receive:</strong> £
+              {(
+                (payout.total_seat_minor - payout.withdrawal_fee_minor) /
+                100
+              ).toFixed(2)}
+            </p>
+
+            {/* Already paid */}
+            {payout.status === "paid" && (
+              <p className="payout-paid">Payout completed ✓</p>
+            )}
+
+            {/* Available for withdrawal */}
+            {payout.status === "awaiting_withdrawal" && (
+              <button className="withdraw-btn" onClick={handleWithdraw}>
+                Withdraw Earnings
+              </button>
+            )}
+
+            {/* Not ready yet */}
+            {payout.status !== "paid" &&
+              payout.status !== "awaiting_withdrawal" && (
+                <p className="payout-not-ready">
+                  Payout will be available once all passengers are checked in
+                  (or after the no-show grace time).
+                </p>
+              )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
