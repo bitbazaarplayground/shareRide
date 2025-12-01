@@ -388,7 +388,7 @@ router.get("/verify", async (req, res) => {
 =========================================================================== */
 router.get("/auto-noshow", async (req, res) => {
   const secret = req.headers.authorization?.replace("Bearer ", "").trim();
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  if (!secret || secret !== process.env.CRON_SECRET_NOSHOW) {
     return res.status(401).json({ error: "Unauthorized cron access" });
   }
 
