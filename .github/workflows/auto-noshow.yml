@@ -13,5 +13,5 @@ jobs:
       - name: Call Auto No-Show endpoint
         run: |
           curl -X GET \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET_NOSHOW }}" \
             https://tabfair-backend.onrender.com/api/payments-new/auto-noshow
