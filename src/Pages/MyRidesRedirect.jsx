@@ -311,9 +311,52 @@ export default function MyRidesRedirect() {
                     )}
 
                     {isPaid && (
-                      <p className="success" style={{ marginTop: "0.5rem" }}>
-                        Payment Completed
-                      </p>
+                      <>
+                        <p className="success" style={{ marginTop: "0.5rem" }}>
+                          Payment Completed
+                        </p>
+
+                        {/* ⭐ Add the check-in code display here ⭐ */}
+                        {deposit.checkin_code && (
+                          <div
+                            className="checkin-box"
+                            style={{ marginTop: "0.5rem" }}
+                          >
+                            <p>
+                              <strong>Your Check-In Code:</strong>{" "}
+                              <span style={{ fontSize: "1.2rem" }}>
+                                {deposit.checkin_code}
+                              </span>
+                            </p>
+
+                            <button
+                              className="btn small-btn"
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  deposit.checkin_code
+                                );
+                                toast.success("Check-in code copied!");
+                              }}
+                              style={{
+                                marginTop: "0.3rem",
+                                padding: "0.3rem 0.8rem",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              Copy Code
+                            </button>
+
+                            {deposit.checkin_code_expires_at && (
+                              <p style={{ fontSize: "0.8rem", color: "#777" }}>
+                                Expires:{" "}
+                                {new Date(
+                                  deposit.checkin_code_expires_at
+                                ).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </li>
                 );

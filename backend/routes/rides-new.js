@@ -224,7 +224,19 @@ router.get("/:rideId/host-dashboard", async (req, res) => {
       const { data: deposits, error: depErr } = await supabase
         .from("ride_deposits")
         .select(
-          "id, request_id, user_id, amount_minor, platform_fee_minor, currency, status, payment_intent_id"
+          `
+        id,
+        request_id,
+        user_id,
+        amount_minor,
+        platform_fee_minor,
+        currency,
+        status,
+        payment_intent_id,
+        checkin_code,
+        checkin_code_expires_at,
+        checked_in_at
+      `
         )
         .in("request_id", requestIds);
 
@@ -513,8 +525,9 @@ router.post("/:rideId/finalise", async (req, res) => {
 });
 
 /* ============================================================
-   8. Passenger GET deposits
+   8. Passenger GET deposits (UPDATED FOR CHECK-IN CODES)
 ============================================================ */
+
 router.get("/my/deposits", async (req, res) => {
   try {
     const user = await getUserFromToken(req.headers.authorization);
@@ -530,37 +543,27 @@ router.get("/my/deposits", async (req, res) => {
         amount_minor,
         platform_fee_minor,
         status,
+        checkin_code,
+        checkin_code_expires_at,
+        checked_in_at,
         rides (*),
         ride_requests (*)
       `
       )
       .eq("user_id", user.id);
 
-    if (error) throw error;
+    if (error) {
+      console.error("load my deposits error:", error);
+      return res.status(500).json({ error: "Failed to load deposits" });
+    }
 
-    return res.json({ ok: true, deposits: data });
+    return res.json({ ok: true, deposits: data || [] });
   } catch (err) {
     console.error("my deposits error:", err);
     return res.status(500).json({ error: "Failed to load deposits" });
   }
 });
 
-/* ============================================================
-   9. Passenger check-in (kept but simplified)
-============================================================ */
-router.post("/:rideId/check-in", async (req, res) => {
-  try {
-    const user = await getUserFromToken(req.headers.authorization);
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    // Your future check-in logic here
-
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("check-in error:", err);
-    return res.status(500).json({ error: "Failed to check-in" });
-  }
-});
 /* ============================================================
    9. EDIT RIDE (Host only, safe rules)
    PATCH /api/rides-new/:rideId
@@ -835,6 +838,132 @@ router.delete("/:rideId", async (req, res) => {
   } catch (err) {
     console.error("delete ride error:", err);
     return res.status(500).json({ ok: false, error: "Failed to delete ride." });
+  }
+});
+/* ============================================================
+   9. Passenger check-in (kept but simplified)
+============================================================ */
+/* ============================================================
+   CHECK-IN PASSENGER WITH UNIQUE CODE (Host only)
+============================================================ */
+router.post("/:rideId/check-in", express.json(), async (req, res) => {
+  try {
+    const rideId = Number(req.params.rideId);
+    const { requestId, code } = req.body;
+
+    // 1️⃣ Basic input validation
+    if (!requestId || !code) {
+      return res.status(400).json({ error: "Missing requestId or code" });
+    }
+
+    // 2️⃣ Authenticate user and confirm host permissions
+    const user = await getUserFromToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: ride, error: rideErr } = await supabase
+      .from("rides")
+      .select("id, user_id, status")
+      .eq("id", rideId)
+      .single();
+
+    if (rideErr || !ride)
+      return res.status(404).json({ error: "Ride not found" });
+
+    if (ride.user_id !== user.id)
+      return res.status(403).json({ error: "Not your ride" });
+
+    // 3️⃣ Load passenger request (must be accepted)
+    const { data: request, error: reqErr } = await supabase
+      .from("ride_requests")
+      .select("id, user_id, seats, status, checked_in")
+      .eq("id", requestId)
+      .eq("ride_id", rideId)
+      .single();
+
+    if (reqErr || !request)
+      return res.status(404).json({ error: "Request not found" });
+
+    if (request.status !== "accepted") {
+      return res.status(400).json({ error: "Passenger not accepted yet" });
+    }
+
+    // 4️⃣ Load deposit (must exist + be paid)
+    const { data: deposit, error: depErr } = await supabase
+      .from("ride_deposits")
+      .select(
+        "id, status, checkin_code, checkin_code_expires_at, checked_in_at"
+      )
+      .eq("request_id", requestId)
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (depErr || !deposit)
+      return res.status(400).json({ error: "Deposit not found" });
+
+    if (deposit.status !== "paid") {
+      return res.status(400).json({ error: "Passenger has not paid" });
+    }
+
+    if (deposit.checked_in_at) {
+      return res.status(400).json({ error: "Passenger already checked in" });
+    }
+
+    // 5️⃣ Validate check-in code
+    if (!deposit.checkin_code)
+      return res.status(400).json({ error: "No check-in code assigned" });
+
+    if (deposit.checkin_code !== code.trim().toUpperCase()) {
+      return res.status(400).json({ error: "Invalid check-in code" });
+    }
+
+    // 6️⃣ Ensure code has not expired
+    if (deposit.checkin_code_expires_at) {
+      const expiresAt = new Date(deposit.checkin_code_expires_at).getTime();
+      if (Date.now() > expiresAt) {
+        return res.status(400).json({ error: "Check-in code has expired" });
+      }
+    }
+
+    // 7️⃣ Mark passenger as checked in (write timestamp)
+    const nowIso = new Date().toISOString();
+
+    const { error: checkErr } = await supabase
+      .from("ride_deposits")
+      .update({ checked_in_at: nowIso })
+      .eq("id", deposit.id);
+
+    if (checkErr) throw checkErr;
+
+    // 8️⃣ NEW — Update ride_requests.checked_in = true
+    await supabase
+      .from("ride_requests")
+      .update({ checked_in: true })
+      .eq("id", requestId);
+
+    // 9️⃣ NEW — Evaluate if ALL accepted + paid passengers are now checked in
+    //     If yes → set ride → ready_for_payout & upsert payout row
+    await evaluatePayoutReadiness(rideId);
+
+    // 🔟 Count checked-in passengers for UI feedback
+    const { data: allDeposits } = await supabase
+      .from("ride_deposits")
+      .select("status, checked_in_at")
+      .eq("ride_id", rideId)
+      .eq("status", "paid");
+
+    const totalPaid = allDeposits.length;
+    const checkedInCount = allDeposits.filter((d) => d.checked_in_at).length;
+
+    // 1️⃣1️⃣ Respond success
+    return res.json({
+      ok: true,
+      message: "Passenger checked in successfully",
+      checkedInCount,
+      totalPaid,
+    });
+  } catch (err) {
+    console.error("check-in error:", err);
+    return res.status(500).json({ error: "Failed to check in passenger" });
   }
 });
 

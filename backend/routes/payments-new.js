@@ -251,6 +251,48 @@ router.post(
             console.error("Failed to mark deposit as paid:", updErr);
             break;
           }
+          /* -----------------------------------------------------
+     1B. Generate passenger check-in code
+  ----------------------------------------------------- */
+          function generateCode() {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let out = "";
+            for (let i = 0; i < 6; i++) {
+              out += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return out;
+          }
+
+          const code = generateCode();
+
+          // Optional expiry (3 hours after ride start)
+          const { data: rideRowForCode } = await supabase
+            .from("rides")
+            .select("date, time")
+            .eq("id", rideId)
+            .single();
+
+          let expiresAt = null;
+          if (rideRowForCode?.date && rideRowForCode?.time) {
+            const rideDateTime = new Date(
+              `${rideRowForCode.date}T${rideRowForCode.time}:00`
+            );
+            expiresAt = new Date(
+              rideDateTime.getTime() + 3 * 60 * 60 * 1000
+            ).toISOString();
+          }
+
+          const { error: codeErr } = await supabase
+            .from("ride_deposits")
+            .update({
+              checkin_code: code,
+              checkin_code_expires_at: expiresAt,
+            })
+            .eq("id", depositId);
+
+          if (codeErr) {
+            console.error("Failed to set check-in code:", codeErr);
+          }
 
           /* -----------------------------------------------------
              2. Load ALL deposits for this ride
