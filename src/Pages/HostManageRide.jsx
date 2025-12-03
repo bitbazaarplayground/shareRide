@@ -20,6 +20,13 @@ export default function HostManageRide() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
+  // Check in
+  const [checkinInputs, setCheckinInputs] = useState({});
+
+  // Withdraw
+  const [canWithdraw, setCanWithdraw] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+
   /* ---------------------------------------------
      LOAD DASHBOARD
   --------------------------------------------- */
@@ -53,6 +60,22 @@ export default function HostManageRide() {
         setRide(json.ride);
         setRequests(json.requests || []);
         setPayout(json.payout || null);
+        // ----- Load payout readiness / withdrawal eligibility -----
+        try {
+          // Fetch payout row for this ride
+          const { data: payoutRow } = await supabase
+            .from("ride_payouts")
+            .select("host_payout_status")
+            .eq("ride_id", rideId)
+            .maybeSingle();
+
+          const rideIsReady = json.ride?.status === "ready_for_payout";
+          const payoutPending = payoutRow?.host_payout_status === "pending";
+
+          setCanWithdraw(rideIsReady && payoutPending);
+        } catch (err) {
+          console.error("Failed to load payout status", err);
+        }
       } catch (err) {
         console.error(err);
         toast.error("Failed to load ride.");
@@ -222,7 +245,34 @@ export default function HostManageRide() {
       setBusy(false);
     }
   };
+  // Reload dashboard data after payout
+  const fetchDashboard = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch(
+      `${BACKEND}/api/rides-new/${rideId}/host-dashboard`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const json = await res.json();
+
+    if (res.ok && json.ok) {
+      setRide(json.ride);
+      setRequests(json.requests || []);
+      setPayout(json.payout || null);
+    }
+  };
+
+  // ---------------------------------------------
+  // HOST WITHDRAW EARNINGS
+  // ---------------------------------------------
   const handleWithdraw = async () => {
+    if (!canWithdraw) return;
+
+    setWithdrawing(true);
+
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
 
@@ -237,17 +287,78 @@ export default function HostManageRide() {
 
       const json = await res.json();
 
+      if (!res.ok) {
+        toast.error(json.error || "Payout failed.");
+      } else {
+        toast.success("Payout sent! 🎉");
+        setCanWithdraw(false);
+        fetchDashboard(); // reload ride
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error connecting to payout service.");
+    }
+
+    setWithdrawing(false);
+  };
+
+  /* ---------------------------------------------
+     CHECK IN
+  --------------------------------------------- */
+  const handleCheckIn = async (requestId) => {
+    const code = checkinInputs[requestId];
+    if (!code || code.length < 6) {
+      toast.error("Please enter a valid 6-character code.");
+      return;
+    }
+
+    // Backend route comes in Step 5
+    toast.info("Check-in pending backend implementation.");
+  };
+  /* ---------------------------------------------
+     HOST CHECK-IN (new)
+  --------------------------------------------- */
+  const handleHostCheckIn = async (requestId, code) => {
+    if (!code || code.length < 6) {
+      return toast.error("Enter a valid 6-character code.");
+    }
+
+    try {
+      setBusy(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return toast.error("Not authenticated.");
+
+      const res = await fetch(`${BACKEND}/api/rides-new/${rideId}/check-in`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          request_id: requestId,
+          code,
+        }),
+      });
+
+      const json = await res.json();
+
       if (!res.ok || !json.ok) {
-        return toast.error(json.error || "Withdrawal failed.");
+        return toast.error(json.error || "Check-in failed");
       }
 
-      toast.success("Payout sent to your bank account!");
+      toast.success(
+        `Passenger checked in! (${json.checkedInCount}/${json.totalAccepted})`
+      );
 
-      // Refresh page data
-      fetchDashboard();
+      // Refresh ride dashboard
+      setTimeout(() => window.location.reload(), 400);
     } catch (err) {
-      console.error("withdraw error:", err);
-      toast.error("Something went wrong with withdrawal.");
+      console.error(err);
+      toast.error("Check-in error.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -405,6 +516,41 @@ export default function HostManageRide() {
                       </span>
                     )}
                   </div>
+                  {/* HOST CHECK-IN BOX */}
+                  {req.status === "accepted" &&
+                    req.deposit?.status === "paid" && (
+                      <div className="host-checkin-box">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="Code"
+                          className="host-checkin-input"
+                          onChange={(e) =>
+                            (req._tempCheckinCode =
+                              e.target.value.toUpperCase())
+                          }
+                        />
+
+                        <button
+                          className="host-btn host-btn-checkin"
+                          disabled={busy}
+                          onClick={() =>
+                            handleHostCheckIn(req.id, req._tempCheckinCode)
+                          }
+                        >
+                          Check In
+                        </button>
+
+                        {/* Checked-in status */}
+                        {req.deposit?.checked_in_at ? (
+                          <span className="checked-in-label">✓ Checked In</span>
+                        ) : (
+                          <span className="not-checked-label">
+                            Not checked in
+                          </span>
+                        )}
+                      </div>
+                    )}
                 </div>
 
                 {/* ACTION BUTTONS */}
@@ -463,7 +609,7 @@ export default function HostManageRide() {
 
             <p>
               <strong>Withdrawal Fee:</strong> £
-              {(payout.withdrawal_fee_minor / 100).toFixed(2)}
+              {(payout.host_fee_minor / 100).toFixed(2)}
             </p>
 
             <p>
@@ -473,17 +619,27 @@ export default function HostManageRide() {
                 100
               ).toFixed(2)}
             </p>
+            {/* Host Withdraw Earnings Button */}
+            {canWithdraw && (
+              <button
+                className="withdraw-btn"
+                onClick={handleWithdraw}
+                disabled={withdrawing}
+                style={{ marginTop: "10px" }}
+              >
+                {withdrawing ? "Processing payout…" : "Withdraw Earnings"}
+              </button>
+            )}
+
+            {!canWithdraw && ride?.status === "ready_for_payout" && (
+              <p className="payout-not-ready" style={{ marginTop: "10px" }}>
+                Earnings already withdrawn for this ride.
+              </p>
+            )}
 
             {/* Already paid */}
             {payout.status === "paid" && (
               <p className="payout-paid">Payout completed ✓</p>
-            )}
-
-            {/* Available for withdrawal */}
-            {payout.status === "awaiting_withdrawal" && (
-              <button className="withdraw-btn" onClick={handleWithdraw}>
-                Withdraw Earnings
-              </button>
             )}
 
             {/* Not ready yet */}
