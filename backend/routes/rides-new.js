@@ -10,18 +10,33 @@ const router = express.Router();
 ============================================================ */
 async function autoCloseIfTooLate(ride) {
   try {
-    if (!ride?.date || !ride?.time) return;
+    if (!ride?.date || !ride?.time) return false;
 
-    const rideDateTime = new Date(`${ride.date}T${ride.time}:00`);
+    // Parse in LOCAL TIME instead of UTC
+    const [hh, mm] = ride.time.split(":").map(Number);
+    const [y, m, d] = ride.date.split("-").map(Number);
+
+    const rideDateTime = new Date(y, m - 1, d, hh, mm, 0); // LOCAL TIME
     const now = new Date();
-    const diffMinutes = (rideDateTime - now) / 60000;
 
-    if (diffMinutes <= 5 && ride.status === "active") {
+    const diffMinutes = (rideDateTime.getTime() - now.getTime()) / 60000;
+
+    console.log("AUTO-CLOSE CHECK:", {
+      rideId: ride.id,
+      rideDateTime: rideDateTime.toString(),
+      now: now.toString(),
+      diffMinutes,
+      status: ride.status,
+    });
+
+    // Only auto-close if truly within the last 5 minutes before the ride
+    if (diffMinutes <= 5 && diffMinutes >= -5 && ride.status === "active") {
       await supabase
         .from("rides")
         .update({ status: "closed_to_requests" })
         .eq("id", ride.id);
 
+      console.log("AUTO-CLOSE: Ride closed because within 5 min window.");
       return true;
     }
   } catch (e) {
@@ -29,11 +44,13 @@ async function autoCloseIfTooLate(ride) {
   }
   return false;
 }
+
 /* ============================================================
    HELPER — Compute remaining ride capacity
 ============================================================ */
 async function computeRemainingCapacity(rideId) {
   // Load ride with CORRECT fields based on your DB schema
+
   const { data: ride, error: rideErr } = await supabase
     .from("rides")
     .select("seats, max_small_suitcases, max_large_suitcases")
@@ -52,7 +69,7 @@ async function computeRemainingCapacity(rideId) {
     .from("ride_requests")
     .select("seats, luggage_small, luggage_large")
     .eq("ride_id", rideId)
-    .in("status", ["pending", "accepted"]);
+    .eq("status", "accepted");
 
   if (reqErr) throw reqErr;
 
@@ -365,29 +382,41 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
     if (ride.status !== "active")
       return res.status(400).json({ error: "Ride is not open for booking" });
 
-    // Load request
-    const { data: request } = await supabase
+    /* ---------------------------------------------
+   Load request safely (avoid `.single()` crash)
+--------------------------------------------- */
+    const { data: request, error: reqErr } = await supabase
       .from("ride_requests")
       .select("*")
       .eq("id", requestId)
       .eq("ride_id", rideId)
-      .single();
+      .maybeSingle(); // ← SAFE VERSION
 
-    if (!request) return res.status(404).json({ error: "Request not found" });
+    if (reqErr) {
+      console.error("REQUEST LOAD ERROR:", reqErr);
+      return res.status(500).json({ error: "Failed to load request" });
+    }
+
+    if (!request) {
+      console.error("REQUEST NOT FOUND:", { rideId, requestId });
+      return res.status(404).json({ error: "Request not found" });
+    }
+
     if (request.status !== "pending")
       return res.status(400).json({ error: "Request already processed" });
 
     // Capacity check
-    const cap = await computeRemainingCapacity(rideId);
-
-    if (request.seats > cap.remainingSeats)
+    if (request.seats > cap.remainingSeats) {
       return res.status(400).json({ error: "Not enough seats" });
+    }
 
-    if (request.luggage_small > cap.remainingSmall)
+    if (request.luggage_small > cap.remainingSmall) {
       return res.status(400).json({ error: "Not enough small suitcase space" });
+    }
 
-    if (request.luggage_large > cap.remainingLarge)
+    if (request.luggage_large > cap.remainingLarge) {
       return res.status(400).json({ error: "Not enough large suitcase space" });
+    }
 
     // Accept request
     const { data: updatedReq, error: updErr } = await supabase
@@ -395,7 +424,9 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
       .update({ status: "accepted", updated_at: new Date().toISOString() })
       .eq("id", requestId)
       .select()
-      .single();
+      .maybeSingle();
+
+    console.log("UPDATE RESULT:", { updatedReq, updErr });
 
     if (updErr) throw updErr;
 
@@ -450,6 +481,7 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
     });
   } catch (err) {
     console.error("accept request error:", err);
+
     return res.status(500).json({ error: "Failed to accept request" });
   }
 });
@@ -483,6 +515,7 @@ router.post("/:rideId/requests/:requestId/reject", async (req, res) => {
       .single();
 
     if (!request) return res.status(404).json({ error: "Request not found" });
+
     if (request.status !== "pending")
       return res.status(400).json({ error: "Request already processed" });
 
