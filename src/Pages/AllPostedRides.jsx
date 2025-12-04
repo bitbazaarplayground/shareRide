@@ -22,7 +22,7 @@ export default function AllPostedRides() {
   const [rideToDelete, setRideToDelete] = useState(null);
 
   const [passengerCount, setPassengerCount] = useState(1);
-  const [backpacks, setBackpacks] = useState(0);
+
   const [smallSuitcases, setSmallSuitcases] = useState(0);
   const [largeSuitcases, setLargeSuitcases] = useState(0);
 
@@ -82,7 +82,6 @@ export default function AllPostedRides() {
             0
         );
 
-      const getBackpacks = (ride) => Number(ride.backpack_count ?? 0);
       const getSmall = (ride) => Number(ride.small_suitcase_count ?? 0);
       const getLarge = (ride) => Number(ride.large_suitcase_count ?? 0);
 
@@ -99,20 +98,17 @@ export default function AllPostedRides() {
         const remainingSeats = getRemainingSeats(ride);
 
         const hasDetailedLuggageFields =
-          ride.backpack_count != null ||
           ride.small_suitcase_count != null ||
           ride.large_suitcase_count != null;
 
         if (hasDetailedLuggageFields) {
           return (
             remainingSeats >= passengerCount &&
-            getBackpacks(ride) >= backpacks &&
             getSmall(ride) >= smallSuitcases &&
             getLarge(ride) >= largeSuitcases
           );
         } else if (ride.luggage_limit != null) {
-          const totalRequestedLuggage =
-            backpacks + smallSuitcases + largeSuitcases;
+          const totalRequestedLuggage = +smallSuitcases + largeSuitcases;
           return (
             remainingSeats >= passengerCount &&
             Number(ride.luggage_limit ?? 0) >= totalRequestedLuggage
@@ -127,7 +123,7 @@ export default function AllPostedRides() {
     }
 
     fetchRides();
-  }, [passengerCount, backpacks, smallSuitcases, largeSuitcases]);
+  }, [passengerCount, smallSuitcases, largeSuitcases]);
 
   useEffect(() => {
     async function fetchSavedRides() {
@@ -286,7 +282,7 @@ export default function AllPostedRides() {
           },
           body: JSON.stringify({
             seats: 1, // default for now — can extend later
-            luggage: { backpack: 0, small: 0, large: 0 }, // extend later
+            luggage: { small: 0, large: 0 }, // extend later
           }),
         }
       );
@@ -355,8 +351,6 @@ export default function AllPostedRides() {
           <SearchBar
             passengerCount={passengerCount}
             setPassengerCount={setPassengerCount}
-            backpacks={backpacks}
-            setBackpacks={setBackpacks}
             smallSuitcases={smallSuitcases}
             setSmallSuitcases={setSmallSuitcases}
             largeSuitcases={largeSuitcases}

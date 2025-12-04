@@ -408,6 +408,10 @@ export default function HostManageRide() {
         <p className="host-ride-meta">
           Ride Status: <strong>{ride.status}</strong>
         </p>
+        {ride.status === "ready_for_payout" && (
+          <p className="host-ride-ready">All passengers checked in ✓</p>
+        )}
+
         <div className="host-ride-actions">
           <button className="edit-ride-btn" onClick={handleEdit}>
             Edit Ride
@@ -418,6 +422,13 @@ export default function HostManageRide() {
           </button>
         </div>
       </div>
+      {/* ---------------------------------------------
+    CHECK-IN SUMMARY (Host View)
+--------------------------------------------- */}
+      <p className="host-summary">
+        Checked-in: {requests.filter((r) => r.deposit?.checked_in_at).length}/
+        {requests.length}
+      </p>
 
       {/* REQUESTS */}
       <h3 className="host-section-title">Passenger Requests</h3>
@@ -455,6 +466,12 @@ export default function HostManageRide() {
                     </Link>{" "}
                     ({req.seats} seat{req.seats > 1 ? "s" : ""})
                   </p>
+                  {/* Checked-in indicator */}
+                  {req.deposit?.checked_in_at ? (
+                    <span className="checked-in-badge">✓ Checked In</span>
+                  ) : (
+                    <span className="waiting-badge">Waiting…</span>
+                  )}
 
                   {/* LUGGAGE */}
                   <p className="host-request-sub">
@@ -619,6 +636,16 @@ export default function HostManageRide() {
                 100
               ).toFixed(2)}
             </p>
+            {payout && (
+              <p className="host-total-earnings">
+                Total earnings available: £
+                {(
+                  (payout.total_seat_minor - payout.host_fee_minor) /
+                  100
+                ).toFixed(2)}
+              </p>
+            )}
+
             {/* Host Withdraw Earnings Button */}
             {canWithdraw && (
               <button

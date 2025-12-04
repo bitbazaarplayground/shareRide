@@ -35,7 +35,7 @@ export default function PublishRide() {
 
   // passengers + luggage
   const [seatsReserved, setSeatsReserved] = useState(1);
-  const [backpacks, setBackpacks] = useState(0);
+
   const [smallSuitcases, setSmallSuitcases] = useState(0);
   const [largeSuitcases, setLargeSuitcases] = useState(0);
 
@@ -140,11 +140,7 @@ export default function PublishRide() {
       setMessage(`❌ Max ${limits.seat} passengers allowed for this vehicle.`);
       return;
     }
-    if (
-      backpacks > limits.backpack ||
-      smallSuitcases > limits.small ||
-      largeSuitcases > limits.large
-    ) {
+    if (smallSuitcases > limits.small || largeSuitcases > limits.large) {
       setMessage("❌ Luggage exceeds vehicle limit.");
       return;
     }
@@ -159,17 +155,17 @@ export default function PublishRide() {
       to: toPlace,
       date: toLocalYMD(date),
       time,
-      seats: seatsReserved,
+      seats: seatsReserved, // Host seats
       notes,
       vehicle_type: vehicleType,
-      seat_limit: limits.seat,
-      luggage_limit: limits.backpack + limits.small + limits.large,
-      backpack_count: backpacks || 0,
-      small_suitcase_count: smallSuitcases || 0,
-      large_suitcase_count: largeSuitcases || 0,
+
+      max_small_suitcases: smallSuitcases || 0,
+      max_large_suitcases: largeSuitcases || 0,
+
       user_id: user.id,
       status: "active",
       estimated_fare: estimate ? Number(estimate) : null,
+
       from_lat: origin?.lat ?? null,
       from_lng: origin?.lng ?? null,
       to_lat: dest?.lat ?? null,
@@ -327,15 +323,6 @@ export default function PublishRide() {
 
         {showLuggage && (
           <>
-            <label>How many backpacks?</label>
-            <input
-              type="number"
-              value={backpacks}
-              onChange={(e) => setBackpacks(Number(e.target.value))}
-              min={0}
-              max={limits.backpack}
-            />
-
             <label>How many small suitcases?</label>
             <input
               type="number"
