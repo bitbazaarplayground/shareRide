@@ -315,9 +315,7 @@ export default function HostManageRide() {
     // Backend route comes in Step 5
     toast.info("Check-in pending backend implementation.");
   };
-  /* ---------------------------------------------
-     HOST CHECK-IN (new)
-  --------------------------------------------- */
+  // HOST CHECK-IN (new)
   const handleHostCheckIn = async (requestId, code) => {
     if (!code || code.length < 6) {
       return toast.error("Enter a valid 6-character code.");
@@ -337,7 +335,8 @@ export default function HostManageRide() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          request_id: requestId,
+          // 🔥 change this key:
+          requestId, // was: request_id
           code,
         }),
       });
@@ -349,10 +348,9 @@ export default function HostManageRide() {
       }
 
       toast.success(
-        `Passenger checked in! (${json.checkedInCount}/${json.totalAccepted})`
+        `Passenger checked in! (${json.checkedInCount}/${json.totalPaid})`
       );
 
-      // Refresh ride dashboard
       setTimeout(() => window.location.reload(), 400);
     } catch (err) {
       console.error(err);

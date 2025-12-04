@@ -149,6 +149,8 @@ export default function MyRidesRedirect() {
 
   // HANDLE PAYMENT
   const handlePayNow = async (rideId) => {
+    console.log("VITE_STRIPE_BACKEND =", import.meta.env.VITE_STRIPE_BACKEND);
+
     try {
       // 1️⃣ Get auth token
       const {
