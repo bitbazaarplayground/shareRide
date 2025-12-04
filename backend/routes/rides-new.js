@@ -29,15 +29,14 @@ async function autoCloseIfTooLate(ride) {
   }
   return false;
 }
-
 /* ============================================================
    HELPER — Compute remaining ride capacity
 ============================================================ */
 async function computeRemainingCapacity(rideId) {
-  // Load ride
+  // Load ride with CORRECT fields based on your DB schema
   const { data: ride, error: rideErr } = await supabase
     .from("rides")
-    .select("seats, small_suitcase_count, large_suitcase_count")
+    .select("seats, max_small_suitcases, max_large_suitcases")
     .eq("id", rideId)
     .single();
 
@@ -45,8 +44,8 @@ async function computeRemainingCapacity(rideId) {
 
   // Host luggage + seat usage
   const hostSeats = ride.seats ?? 1;
-  const hostS = ride.small_suitcase_count ?? 0;
-  const hostL = ride.large_suitcase_count ?? 0;
+  const hostS = ride.max_small_suitcases ?? 0;
+  const hostL = ride.max_large_suitcases ?? 0;
 
   // Load all passenger requests
   const { data: requests, error: reqErr } = await supabase
@@ -74,7 +73,6 @@ async function computeRemainingCapacity(rideId) {
 
   return {
     remainingSeats: Math.max(0, SEAT_LIMIT - usedSeats),
-    remainingBackpacks: Infinity,
     remainingSmall: Math.max(0, MAX_S - usedS),
     remainingLarge: Math.max(0, MAX_L - usedL),
   };
@@ -128,7 +126,6 @@ router.post("/:rideId/request", express.json(), async (req, res) => {
     // Check capacity
     const cap = await computeRemainingCapacity(rideId);
 
-    const B = luggage.backpack || 0;
     const S = luggage.small || 0;
     const L = luggage.large || 0;
 
@@ -152,7 +149,6 @@ router.post("/:rideId/request", express.json(), async (req, res) => {
         ride_id: rideId,
         user_id: user.id,
         seats,
-        luggage_backpack: B,
         luggage_small: S,
         luggage_large: L,
         status: "pending",
@@ -202,7 +198,6 @@ router.get("/:rideId/host-dashboard", async (req, res) => {
         id,
         user_id,
         seats,
-        luggage_backpack,
         luggage_small,
         luggage_large,
         status,
@@ -313,7 +308,7 @@ router.get("/:rideId/requests", async (req, res) => {
     const { data: requests } = await supabase
       .from("ride_requests")
       .select(
-        `id, user_id, seats, luggage_backpack, luggage_small, luggage_large,
+        `id, user_id, seats, luggage_small, luggage_large,
          status, profiles (nickname, avatar_url)`
       )
       .eq("ride_id", rideId);
@@ -404,13 +399,17 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
 
     if (updErr) throw updErr;
 
-    // Compute simple fare
+    // FARE AND FEES
+    // convert estimated fare (host estimate) to integer minor units
     const totalFareMinor = Math.round(Number(ride.estimated_fare) * 100);
+
+    // blablacar pricing: fixed 4-way split
     const seatMinor = Math.round(totalFareMinor / 4);
 
-    let platformFeeMinorPerSeat =
-      seatMinor < 1000 ? 100 : Math.round(seatMinor * 0.1);
+    // platform fee (10%)
+    const platformFeeMinorPerSeat = Math.round(seatMinor * 0.1);
 
+    // compute totals
     const seats = request.seats;
     const totalSeatMinor = seats * seatMinor;
     const totalPlatformMinor = seats * platformFeeMinorPerSeat;

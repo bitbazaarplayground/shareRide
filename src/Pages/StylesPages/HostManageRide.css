@@ -299,3 +299,28 @@
   margin-left: 8px;
   color: #999;
 }
+.checked-in-badge {
+  color: green;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.waiting-badge {
+  color: #777;
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+.host-summary {
+  font-weight: bold;
+  margin: 16px 0;
+  font-size: 1rem;
+  background: #f8f8f8;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: inline-block;
+}
+.host-ride-ready {
+  color: green;
+  font-weight: bold;
+  margin-top: 4px;
+}

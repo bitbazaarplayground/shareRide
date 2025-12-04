@@ -150,6 +150,9 @@ export default function CheckInPanel({ rideId, user }) {
           {checkedInMessage}
         </p>
       )}
+      {status?.checked_in_at && (
+        <p className="checked-in-msg">✓ You are checked in</p>
+      )}
 
       <p className="muted">
         Enter the code you received after meeting your host.

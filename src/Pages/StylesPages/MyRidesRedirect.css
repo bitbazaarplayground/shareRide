@@ -92,6 +92,17 @@
   color: #777;
 }
 
+.checked-in-msg {
+  color: green;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.waiting-msg {
+  color: #777;
+  margin-top: 6px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .tab-buttons {

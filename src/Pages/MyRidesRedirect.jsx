@@ -148,32 +148,77 @@ export default function MyRidesRedirect() {
   };
 
   // HANDLE PAYMENT
-  const handlePayNow = async (deposit) => {
+  const handlePayNow = async (rideId) => {
     try {
+      // 1️⃣ Get auth token
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const token = session?.access_token;
 
-      const BACKEND = import.meta.env.VITE_STRIPE_BACKEND.replace(/\/$/, "");
-
-      const res = await fetch(`${BACKEND}/api/payments-new/pay-deposit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ depositId: deposit.id }),
-      });
-
-      const json = await res.json();
-      if (json.url) {
-        window.location.href = json.url;
-      } else {
-        toast.error(json.error || "Payment could not be started.");
+      if (!session?.access_token) {
+        toast.error("Not authenticated.");
+        return;
       }
+
+      const token = session.access_token;
+
+      // 2️⃣ Load this user's deposit for this ride
+      const depRes = await fetch(
+        `${
+          import.meta.env.VITE_STRIPE_BACKEND
+        }/api/payments-new/deposits/${rideId}/mine`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const depJson = await depRes.json();
+
+      if (!depJson.ok) {
+        toast.error(depJson.error || "Failed to load deposit.");
+        return;
+      }
+
+      if (!depJson.deposit) {
+        toast.error(
+          "Deposit not created. Ask host to accept your request first."
+        );
+        return;
+      }
+
+      const depositId = depJson.deposit.id;
+
+      // 3️⃣ Create Stripe checkout session
+      const sessionRes = await fetch(
+        `${
+          import.meta.env.VITE_STRIPE_BACKEND
+        }/api/payments-new/deposits/${depositId}/create-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: session.user.email,
+          }),
+        }
+      );
+
+      const sessionJson = await sessionRes.json();
+
+      if (!sessionJson.ok || !sessionJson.url) {
+        toast.error(sessionJson.error || "Failed to start payment.");
+        return;
+      }
+
+      // 4️⃣ Redirect user to Stripe Checkout
+      window.location.href = sessionJson.url;
     } catch (err) {
-      toast.error("Payment request failed.");
+      console.error(err);
+      toast.error("Payment failed.");
     }
   };
 
@@ -301,7 +346,7 @@ export default function MyRidesRedirect() {
                     {isPendingPayment && (
                       <button
                         className="btn pay-btn"
-                        onClick={() => handlePayNow(deposit)}
+                        onClick={() => handlePayNow(deposit.ride_id)}
                         style={{ marginTop: "0.5rem" }}
                       >
                         Pay £
@@ -315,6 +360,11 @@ export default function MyRidesRedirect() {
                         <p className="success" style={{ marginTop: "0.5rem" }}>
                           Payment Completed
                         </p>
+                        {deposit.checked_in_at ? (
+                          <p className="checked-in-msg">✓ You are checked in</p>
+                        ) : (
+                          <p className="waiting-msg">Waiting for check-in…</p>
+                        )}
 
                         {/* ⭐ Add the check-in code display here ⭐ */}
                         {deposit.checkin_code && (

@@ -421,119 +421,113 @@ router.get("/verify", async (req, res) => {
   }
 });
 /* ========================================================================
-   5. AUTO NO-SHOW PROCESSOR (Run every 5–10 min via cron)
+   5. AUTO NO-SHOW + AUTO-PAYOUT READY (cron)
    ------------------------------------------------------------------------
    GET /api/payments-new/auto-noshow
-   - Finds rides that started > 10 min ago
-   - Marks unchecked passengers as no_show
-   - If all passengers resolved → payout becomes eligible
+   Called by GitHub Actions every 5 minutes.
+
+   - Marks passengers as "no_show" if not checked-in 10 min after ride start
+   - Marks ride as "ready_for_payout"
+   - Ensures payout row exists and is pending
 =========================================================================== */
 router.get("/auto-noshow", async (req, res) => {
-  const secret = req.headers.authorization?.replace("Bearer ", "").trim();
-  if (!secret || secret !== process.env.CRON_SECRET_NOSHOW) {
-    return res.status(401).json({ error: "Unauthorized cron access" });
-  }
-
   try {
-    const now = new Date();
-    const cutoff = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
-
-    /* -------------------------------------------------------------
-       1. Find rides that:
-          - started more than 10 min ago
-          - are locked_to_requests or closed_to_requests
-          - have a payout record in "pending"
-       ------------------------------------------------------------- */
-    const { data: pendingPayouts, error: payoutErr } = await supabase
-      .from("ride_payouts")
-      .select("id, ride_id, host_user_id, status")
-      .eq("status", "pending");
-
-    if (payoutErr || !pendingPayouts) {
-      console.error("auto-noshow: failed to load payouts", payoutErr);
-      return res.json({ ok: false, error: "payout load error" });
+    const cronKey = req.headers["x-cron-secret"];
+    if (!cronKey || cronKey !== process.env.CRON_SECRET_NOSHOW) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    let processedRides = [];
+    const now = Date.now();
+    const GRACE_MINUTES = 10;
 
-    for (const payout of pendingPayouts) {
-      const rideId = payout.ride_id;
+    // 1. Load rides currently in or near check-in state
+    const { data: rides, error: rideErr } = await supabase
+      .from("rides")
+      .select("id, user_id, status, date, time")
+      .in("status", ["checking_in", "in_progress"])
+      .order("id");
 
-      // Load ride datetime
-      const { data: rideRow } = await supabase
-        .from("rides")
-        .select("date, time, status")
-        .eq("id", rideId)
-        .single();
+    if (rideErr) throw rideErr;
 
-      if (!rideRow) continue;
+    let processed = 0;
 
-      const rideDateTime = new Date(`${rideRow.date}T${rideRow.time}:00`);
-      if (rideDateTime > cutoff) continue; // too early
+    for (const ride of rides) {
+      const rideStart = new Date(`${ride.date}T${ride.time}`);
+      const cutoff = rideStart.getTime() + GRACE_MINUTES * 60 * 1000;
 
-      /* -------------------------------------------------------------
-         2. Load all accepted ride requests
-         ------------------------------------------------------------- */
-      const { data: reqs } = await supabase
+      // Skip future rides or ones still inside grace window
+      if (now < cutoff) continue;
+
+      const rideId = ride.id;
+
+      // 2. Get all accepted passengers for this ride
+      const { data: requests } = await supabase
         .from("ride_requests")
-        .select("id, status, checked_in, no_show")
+        .select("id, user_id, seats, status, checked_in_at")
         .eq("ride_id", rideId)
-        .in("status", ["accepted"]);
+        .eq("status", "accepted");
 
-      if (!reqs) continue;
-
-      /* -------------------------------------------------------------
-         3. Mark any non-checked-in passenger as NO SHOW
-         ------------------------------------------------------------- */
-      const toMarkNoShow = reqs.filter((r) => !r.checked_in && !r.no_show);
-
-      for (const r of toMarkNoShow) {
-        await supabase
-          .from("ride_requests")
-          .update({
-            no_show: true,
-            checked_in: false,
-            checked_in_at: new Date().toISOString(),
-          })
-          .eq("id", r.id);
+      // 3. Mark missing passengers as no-show
+      for (const req of requests) {
+        if (!req.checked_in_at) {
+          await supabase
+            .from("ride_requests")
+            .update({ status: "no_show" })
+            .eq("id", req.id);
+        }
       }
 
-      /* -------------------------------------------------------------
-         4. Check if ALL requests are now resolved
-         ------------------------------------------------------------- */
-      const { data: updatedReqs } = await supabase
-        .from("ride_requests")
-        .select("checked_in, no_show")
-        .eq("ride_id", rideId)
-        .in("status", ["accepted"]);
-
-      const allResolved = updatedReqs.every((r) => r.checked_in || r.no_show);
-
-      if (!allResolved) continue;
-
-      /* -------------------------------------------------------------
-         5. Mark payout as ready for withdrawal
-         ------------------------------------------------------------- */
-      await supabase
+      // 4. Ensure payout row exists
+      const { data: payoutRow } = await supabase
         .from("ride_payouts")
-        .update({
-          status: "awaiting_withdrawal",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", payout.id);
+        .select("id, host_payout_status")
+        .eq("ride_id", rideId)
+        .maybeSingle();
 
-      processedRides.push(rideId);
+      if (!payoutRow) {
+        // Create a payout entry with pending host payout
+        const { error: insertErr } = await supabase
+          .from("ride_payouts")
+          .insert({
+            ride_id: rideId,
+            host_user_id: ride.user_id,
+            host_payout_status: "pending",
+            total_seat_minor: 0,
+            total_platform_minor: 0,
+            withdrawal_fee_minor: 50,
+            host_receives_minor: 0,
+            platform_earnings_minor: 0,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (insertErr) throw insertErr;
+      } else if (payoutRow.host_payout_status !== "paid") {
+        // Ensure status remains pending
+        await supabase
+          .from("ride_payouts")
+          .update({
+            host_payout_status: "pending",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", payoutRow.id);
+      }
+
+      // 5. Set ride to ready_for_payout
+      await supabase
+        .from("rides")
+        .update({ status: "ready_for_payout" })
+        .eq("id", rideId);
+
+      processed++;
     }
 
-    return res.json({
-      ok: true,
-      processed: processedRides,
-    });
+    return res.json({ ok: true, processed });
   } catch (err) {
-    console.error("auto-noshow error:", err);
-    return res.status(500).json({ ok: false, error: "auto-noshow failure" });
+    console.error("auto-noshow cron error:", err);
+    return res.status(500).json({ error: "auto-noshow failed" });
   }
 });
+
 /* ========================================================================
    6. HOST WITHDRAW EARNINGS FOR A RIDE
    ------------------------------------------------------------------------
