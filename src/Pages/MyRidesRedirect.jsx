@@ -71,6 +71,7 @@ export default function MyRidesRedirect() {
         });
 
         const json = await res.json();
+
         if (res.ok && json.ok) {
           setBookedRides(json.deposits || []);
         }
@@ -328,8 +329,8 @@ export default function MyRidesRedirect() {
       )}
 
       {/* =======================
-           BOOKED RIDES (DEPOSITS)
-      ======================= */}
+     BOOKED RIDES (DEPOSITS)
+======================= */}
       {activeTab === "booked" && (
         <div className="rides-section">
           <h3>Your Booked Rides</h3>
@@ -341,10 +342,20 @@ export default function MyRidesRedirect() {
                 const isPendingPayment = deposit.status === "pending";
                 const isPaid = deposit.status === "paid";
 
+                // 🔍 Debug so we can SEE what we get
+                console.log("Booked ride row:", {
+                  id: deposit.id,
+                  status: deposit.status,
+                  checkin_code: deposit.checkin_code,
+                  checkin_code_expires_at: deposit.checkin_code_expires_at,
+                });
+
                 return (
                   <li key={deposit.id} className="ride-list-item">
+                    {/* Main ride info card */}
                     <RideCard ride={ride} user={user} />
 
+                    {/* Pending payment -> show Pay button */}
                     {isPendingPayment && (
                       <button
                         className="btn pay-btn"
@@ -357,58 +368,81 @@ export default function MyRidesRedirect() {
                       </button>
                     )}
 
+                    {/* PAID state */}
                     {isPaid && (
-                      <>
+                      <div className="payment-status-block">
                         <p className="success" style={{ marginTop: "0.5rem" }}>
                           Payment Completed
                         </p>
+
                         {deposit.checked_in_at ? (
                           <p className="checked-in-msg">✓ You are checked in</p>
                         ) : (
                           <p className="waiting-msg">Waiting for check-in…</p>
                         )}
 
-                        {/* ⭐ Add the check-in code display here ⭐ */}
-                        {deposit.checkin_code && (
-                          <div
-                            className="checkin-box"
-                            style={{ marginTop: "0.5rem" }}
-                          >
-                            <p>
-                              <strong>Your Check-In Code:</strong>{" "}
-                              <span style={{ fontSize: "1.2rem" }}>
-                                {deposit.checkin_code}
-                              </span>
-                            </p>
-
-                            <button
-                              className="btn small-btn"
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  deposit.checkin_code
-                                );
-                                toast.success("Check-in code copied!");
-                              }}
-                              style={{
-                                marginTop: "0.3rem",
-                                padding: "0.3rem 0.8rem",
-                                fontSize: "0.9rem",
-                              }}
-                            >
-                              Copy Code
-                            </button>
-
-                            {deposit.checkin_code_expires_at && (
-                              <p style={{ fontSize: "0.8rem", color: "#777" }}>
-                                Expires:{" "}
-                                {new Date(
-                                  deposit.checkin_code_expires_at
-                                ).toLocaleString()}
+                        {/* ⭐ Check-in code for passenger ⭐ */}
+                        <div
+                          className="checkin-box"
+                          style={{
+                            marginTop: "0.5rem",
+                            padding: "0.75rem 1rem",
+                            borderRadius: "8px",
+                            background: "#f4f6ff",
+                            border: "1px solid #d5ddff",
+                          }}
+                        >
+                          {deposit.checkin_code ? (
+                            <>
+                              <p style={{ marginBottom: "0.25rem" }}>
+                                <strong>Your Check-In Code:</strong>{" "}
+                                <span style={{ fontSize: "1.2rem" }}>
+                                  {deposit.checkin_code}
+                                </span>
                               </p>
-                            )}
-                          </div>
-                        )}
-                      </>
+
+                              <button
+                                className="btn small-btn"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    deposit.checkin_code
+                                  );
+                                  toast.success("Check-in code copied!");
+                                }}
+                                style={{
+                                  marginTop: "0.3rem",
+                                  padding: "0.3rem 0.8rem",
+                                  fontSize: "0.9rem",
+                                }}
+                              >
+                                Copy Code
+                              </button>
+
+                              {deposit.checkin_code_expires_at && (
+                                <p
+                                  style={{
+                                    marginTop: "0.25rem",
+                                    fontSize: "0.8rem",
+                                    color: "#777",
+                                  }}
+                                >
+                                  Expires:{" "}
+                                  {new Date(
+                                    deposit.checkin_code_expires_at
+                                  ).toLocaleString()}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <p style={{ fontSize: "0.9rem", color: "#555" }}>
+                              Your payment is confirmed. Your unique check-in
+                              code should appear here shortly. If it doesn’t
+                              show after refreshing the page, please contact
+                              support.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </li>
                 );

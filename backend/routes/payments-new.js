@@ -273,25 +273,60 @@ router.post(
             .single();
 
           let expiresAt = null;
+
           if (rideRowForCode?.date && rideRowForCode?.time) {
-            const rideDateTime = new Date(
-              `${rideRowForCode.date}T${rideRowForCode.time}:00`
-            );
-            expiresAt = new Date(
-              rideDateTime.getTime() + 3 * 60 * 60 * 1000
-            ).toISOString();
+            // Normalise time string — ensure format HH:MM:SS
+            let safeTime = rideRowForCode.time;
+
+            // If time is only "HH:MM", append ":00"
+            if (safeTime.length === 5) {
+              safeTime = safeTime + ":00";
+            }
+
+            // If time is empty or invalid, skip expiry
+            if (!safeTime || safeTime.length < 8) {
+              console.warn(
+                "⚠️ WEBHOOK: Invalid ride time, skipping expiry generation:",
+                safeTime
+              );
+            } else {
+              const rideDateTime = new Date(
+                `${rideRowForCode.date}T${safeTime}`
+              );
+
+              if (!isNaN(rideDateTime.getTime())) {
+                expiresAt = new Date(
+                  rideDateTime.getTime() + 3 * 60 * 60 * 1000
+                ).toISOString();
+              } else {
+                console.warn("⚠️ WEBHOOK: Could not parse rideDateTime:", {
+                  date: rideRowForCode.date,
+                  safeTime,
+                });
+              }
+            }
           }
 
-          const { error: codeErr } = await supabase
+          // Update deposit with code + expiry
+          const { data: codeUpdate, error: codeErr } = await supabase
             .from("ride_deposits")
             .update({
               checkin_code: code,
               checkin_code_expires_at: expiresAt,
             })
-            .eq("id", depositId);
+            .eq("id", depositId)
+            .select();
+
+          console.log("WEBHOOK code update result:", {
+            depositId,
+            code,
+            expiresAt,
+            codeUpdate,
+            codeErr,
+          });
 
           if (codeErr) {
-            console.error("Failed to set check-in code:", codeErr);
+            console.error("❌ Failed to set check-in code:", codeErr);
           }
 
           /* -----------------------------------------------------

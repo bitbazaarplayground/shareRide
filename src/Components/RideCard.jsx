@@ -9,23 +9,31 @@ export default function RideCard({
   user,
   showAvatar = true,
 
-  // Passenger actions
+  // Used only in published/saved views
   onStartChat,
   onRequestJoin,
-
-  // Save feature
   canSave = false,
   isSaved = false,
   onSaveToggle,
 
+  // NEW — for booked rides
+  depositStatus,
+  checkinCode,
+  checkedIn,
+
   children,
 }) {
   const navigate = useNavigate();
-  const isOwner = user && ride?.profiles?.id === user?.id;
 
-  /* ------------------------------------
-       DATE & TIME HELPERS
-  ------------------------------------ */
+  /* ----------------------------------------------------------
+     1) FIXED: Some rides (from deposits) DO NOT have profiles
+  ----------------------------------------------------------- */
+  const hostProfile = ride.profiles || null;
+  const isOwner = user && hostProfile && hostProfile.id === user.id;
+
+  /* ----------------------------------------------------------
+     DATE & TIME HELPERS
+  ----------------------------------------------------------- */
   const formatTime = (timeStr) => {
     if (!timeStr) return "N/A";
     const [h, m] = String(timeStr).split(":");
@@ -43,9 +51,9 @@ export default function RideCard({
     });
   };
 
-  /* ------------------------------------
-       SEAT & PRICE LOGIC (Taxi = 4 seats)
-  ------------------------------------ */
+  /* ----------------------------------------------------------
+     SEAT & PRICE LOGIC — only valid for Host-published rides
+  ----------------------------------------------------------- */
   const TAXI_CAPACITY = 4;
 
   const hostSeats = Number(ride.seats ?? 1);
@@ -57,17 +65,16 @@ export default function RideCard({
     : 0;
 
   const totalTaken = hostSeats + acceptedPassengersSeats;
-
   const availableSeats = Math.max(0, TAXI_CAPACITY - totalTaken);
 
-  // Price per seat (total ride fare / 4)
-  const estimatedFare = Number(ride.estimated_fare || 0);
   const pricePerSeat =
-    estimatedFare > 0 ? (estimatedFare / TAXI_CAPACITY).toFixed(2) : null;
+    ride.estimated_fare > 0
+      ? (Number(ride.estimated_fare) / TAXI_CAPACITY).toFixed(2)
+      : null;
 
-  /* ------------------------------------
-       AUTH CHECK
-  ------------------------------------ */
+  /* ----------------------------------------------------------
+     AUTH HANDLING
+  ----------------------------------------------------------- */
   const requireAuth = (action) => () => {
     if (user) return action();
     if (window.confirm("Please log in to continue.\nCreate a free account?")) {
@@ -77,18 +84,27 @@ export default function RideCard({
 
   return (
     <div className="ride-card">
+      {/* ===========================
+          FOR BOOKED RIDES ONLY
+      ============================ */}
+      {depositStatus && (
+        <div className="badge booked-badge">
+          {depositStatus === "paid" ? "Paid Ride" : "Pending Payment"}
+        </div>
+      )}
+
       {/* HOST AVATAR + NAME */}
-      {showAvatar && ride?.profiles && (
+      {showAvatar && hostProfile && (
         <div className="avatar-header">
-          {ride.profiles.avatar_url ? (
+          {hostProfile.avatar_url ? (
             <img
-              src={ride.profiles.avatar_url}
-              alt={`${ride.profiles.nickname} avatar`}
+              src={hostProfile.avatar_url}
+              alt={`${hostProfile.nickname} avatar`}
               className="ride-avatar"
             />
           ) : (
             <div className="ride-avatar placeholder">
-              {ride.profiles.nickname?.slice(0, 1).toUpperCase() || "?"}
+              {hostProfile.nickname?.[0]?.toUpperCase() || "?"}
             </div>
           )}
 
@@ -97,11 +113,11 @@ export default function RideCard({
             className="poster-nickname clickable"
             onClick={
               user
-                ? () => navigate(`/profile/${ride.profiles.id}`)
+                ? () => navigate(`/profile/${hostProfile.id}`)
                 : requireAuth(() => {})
             }
           >
-            {ride.profiles.nickname}
+            {hostProfile.nickname}
           </button>
         </div>
       )}
@@ -116,24 +132,23 @@ export default function RideCard({
         <p>
           <strong>Date:</strong> {formatDate(ride.date)}
         </p>
-
         <p>
           <strong>Time:</strong> {formatTime(ride.time)}
         </p>
 
-        {/* Available seats */}
-        <p>
-          <strong>Available Seats:</strong> {availableSeats}
-        </p>
+        {/* Only show seat availability for published rides */}
+        {!depositStatus && (
+          <p>
+            <strong>Available Seats:</strong> {availableSeats}
+          </p>
+        )}
 
-        {/* Price per passenger */}
-        {pricePerSeat && (
+        {pricePerSeat && !depositStatus && (
           <p>
             <strong>Price Per Passenger:</strong> £{pricePerSeat}
           </p>
         )}
 
-        {/* Notes */}
         {ride.notes && (
           <p className="muted notes">
             <strong>Notes:</strong> {ride.notes}
@@ -141,68 +156,66 @@ export default function RideCard({
         )}
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div className="ride-actions">
-        {isOwner ? (
-          <>
+      {/* ACTION BUTTONS (only for non-booked views) */}
+      {!depositStatus && (
+        <div className="ride-actions">
+          {isOwner ? (
             <button
               className="manage-ride-btn"
               onClick={() => navigate(`/host/ride/${ride.id}`)}
             >
               Manage Ride
             </button>
-          </>
-        ) : (
-          <>
-            {/* Send Message */}
-            {onStartChat && (
-              <button
-                className="send-message-btn"
-                onClick={
-                  user
-                    ? () => onStartChat(ride.profiles?.id, ride.id)
-                    : requireAuth(() => {})
-                }
-              >
-                Send Message
-              </button>
-            )}
+          ) : (
+            <>
+              {onStartChat && (
+                <button
+                  className="send-message-btn"
+                  onClick={
+                    user
+                      ? () => onStartChat(hostProfile?.id, ride.id)
+                      : requireAuth(() => {})
+                  }
+                >
+                  Send Message
+                </button>
+              )}
 
-            {/* Request to Join */}
-            {onRequestJoin && (
-              <button
-                className="request-join-btn"
-                onClick={
-                  user ? () => onRequestJoin(ride.id) : requireAuth(() => {})
-                }
-              >
-                Request to Join
-              </button>
-            )}
+              {onRequestJoin && (
+                <button
+                  className="request-join-btn"
+                  onClick={
+                    user ? () => onRequestJoin(ride.id) : requireAuth(() => {})
+                  }
+                >
+                  Request to Join
+                </button>
+              )}
 
-            {/* Save */}
-            {canSave && (
-              <button
-                className="save-ride-btn"
-                onClick={
-                  user ? () => onSaveToggle(ride.id) : requireAuth(() => {})
-                }
-              >
-                {isSaved ? (
-                  <FaHeart className="heart saved" />
-                ) : (
-                  <FaRegHeart className="heart" />
-                )}
-              </button>
-            )}
-          </>
-        )}
-      </div>
+              {canSave && (
+                <button
+                  className="save-ride-btn"
+                  onClick={
+                    user ? () => onSaveToggle(ride.id) : requireAuth(() => {})
+                  }
+                >
+                  {isSaved ? (
+                    <FaHeart className="heart saved" />
+                  ) : (
+                    <FaRegHeart className="heart" />
+                  )}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Extra content (Host Manage Ride inserts content) */}
+      {/* EXTRA CONTENT (Manage Ride) */}
       {children && <div className="ride-card-extra">{children}</div>}
 
-      {isOwner && (
+      {/* HOST CHECK-IN PANEL (ONLY for host) */}
+      {isOwner && !depositStatus && (
         <div className="host-section">
           <h4>Group Status</h4>
           <CheckInPanel rideId={ride.id} user={user} />
