@@ -50,7 +50,6 @@ async function autoCloseIfTooLate(ride) {
 ============================================================ */
 async function computeRemainingCapacity(rideId) {
   // Load ride with CORRECT fields based on your DB schema
-
   const { data: ride, error: rideErr } = await supabase
     .from("rides")
     .select("seats, max_small_suitcases, max_large_suitcases")
@@ -59,12 +58,12 @@ async function computeRemainingCapacity(rideId) {
 
   if (rideErr || !ride) throw new Error("Ride not found");
 
-  // Host luggage + seat usage
+  // Host usage
   const hostSeats = ride.seats ?? 1;
   const hostS = ride.max_small_suitcases ?? 0;
   const hostL = ride.max_large_suitcases ?? 0;
 
-  // Load all passenger requests
+  // Load all accepted passenger requests
   const { data: requests, error: reqErr } = await supabase
     .from("ride_requests")
     .select("seats, luggage_small, luggage_large")
@@ -405,16 +404,19 @@ router.post("/:rideId/requests/:requestId/accept", async (req, res) => {
     if (request.status !== "pending")
       return res.status(400).json({ error: "Request already processed" });
 
-    // Capacity check
+    // Compute current remaining capacity
+    const cap = await computeRemainingCapacity(rideId);
+
+    // Validate capacity
     if (request.seats > cap.remainingSeats) {
       return res.status(400).json({ error: "Not enough seats" });
     }
 
-    if (request.luggage_small > cap.remainingSmall) {
+    if ((request.luggage_small || 0) > cap.remainingSmall) {
       return res.status(400).json({ error: "Not enough small suitcase space" });
     }
 
-    if (request.luggage_large > cap.remainingLarge) {
+    if ((request.luggage_large || 0) > cap.remainingLarge) {
       return res.status(400).json({ error: "Not enough large suitcase space" });
     }
 
@@ -559,7 +561,6 @@ router.post("/:rideId/finalise", async (req, res) => {
 /* ============================================================
    8. Passenger GET deposits (UPDATED FOR CHECK-IN CODES)
 ============================================================ */
-
 router.get("/my/deposits", async (req, res) => {
   try {
     const user = await getUserFromToken(req.headers.authorization);
